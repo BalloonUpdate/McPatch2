@@ -1,0 +1,22 @@
+[package]
+name = "mcpatch2-dll"
+version = "0.0.1"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = {version = "0.4.31", features = ["clock"]}
+clap = { version = "4.4.18", features = ["derive", "env"] }
+sha1 = "0.10.6"
+serde = {version = "1.0.196", features = ["serde_derive"] }
+toml = "0.7.3"
+crc = "3.0.1"
+regex = "1.10.3"
+tar = "0.4.40"
+json = "0.12.4"
+
+[profile.release]
+strip = "none"
+debug = "full"
+overflow-checks = true
