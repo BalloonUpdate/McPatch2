@@ -69,7 +69,7 @@
 3. offset代表元数据文件的偏移值
 4. hash代表整个tar包的校验，防止用户手欠，乱改更新包里面的文件
 
-合并包的文件名固定叫combine.tar，且永远在最前面
+合并包的文件名固定叫combine.tar，所有label按时间排序
 
 ```
 [
@@ -101,47 +101,46 @@
 - 普通包中会存放多个文件二进制数据，末尾的元数据文件只存放单个版本的元数据
 - 合并包中会同时存放多个版本的二进制数据，同时元数据文件也会包含多个版本的元数据
 
-元数据是一个json文件，包含这个更新包的所有信息，下面是普通包中元数据
-
-```json
-{
-    "logs": "这是这个版本的更新记录文字示例", // 这个版本的更新日志
-    "changes": [ // 记录所有文件修改操作
-    	{
-            "operation": "create-directory", // 创建一个目录
-            "path": ".minecraft/mods"        // 要创建目录的路径
-        }, {
-            "operation": "update-file",      // 新增或者更新现有文件
-            "path": "游玩指南.txt",           // 要写入的文件路径
-            "hash": "82e09fc553b335ab_1306", // 文件校验值
-            "length": 13761,                 // 文件长度
-            "modified": 1705651134,          // 文件的修改时间
-            "offset": 98724                  // 二进制数据在更新包中的偏移值
-        }, {
-            "operation": "delete-directory", // 删除一个目录
-            "path": ".minecraft/logs"        // 要删除的目录的路径
-        }, {
-            "operation": "delete-file",      // 删除一个文件
-            "path": ".minecraft/logs/1.log"  // 要删除的文件的路径
-        }, {
-            "operation": "move-file",        // 移动一个文件
-            "from": ".minecraft/mods/a.jar", // 从哪里来
-            "to": ".minecraft/mods/b.txt"    // 到哪里去
-        }
-    ]
-}
-```
-
-如果是合并包中的元数据文件，则是一个json列表，包含多个版本的元数据
+元数据是一个json文件，可以存储多个更新包的信息，合并包中通常存储多个版本，普通包中虽然可以存储多个版本，但是一般只存一个
 
 ```json
 [
-    {
+    "1.0": {
+        "logs": "这是这个版本的更新记录文字示例", // 这个版本的更新日志
+        "changes": [ // 记录所有文件修改操作
+            {
+                "operation": "create-directory", // 创建一个目录
+                "path": ".minecraft/mods"        // 要创建目录的路径
+            }, 
+            {
+                "operation": "update-file",      // 新增或者更新现有文件
+                "path": "游玩指南.txt",           // 要写入的文件路径
+                "hash": "82e09fc553b335ab_1306", // 文件校验值
+                "length": 13761,                 // 文件长度
+                "modified": 1705651134,          // 文件的修改时间
+                "offset": 98724                  // 二进制数据在更新包中的偏移值
+            }, 
+            {
+                "operation": "delete-directory", // 删除一个目录
+                "path": ".minecraft/logs"        // 要删除的目录的路径
+            }, 
+            {
+                "operation": "delete-file",      // 删除一个文件
+                "path": ".minecraft/logs/1.log"  // 要删除的文件的路径
+            }, 
+            {
+                "operation": "move-file",        // 移动一个文件
+                "from": ".minecraft/mods/a.jar", // 从哪里来
+                "to": ".minecraft/mods/b.txt"    // 到哪里去
+            }
+        ]
+    },
+    "1.2": {
         "logs": "这是1.0版本的更新记录文字示例", // 这个版本的更新日志
         "changes": [ // 记录所有文件修改操作
             // 此处省略
         ]
-    }, {
+    "1.3": {
         "logs": "这是1.1版本的更新记录文字示例", // 这个版本的更新日志
         "changes": [ // 记录所有文件修改操作
             // 此处省略
