@@ -6,6 +6,7 @@ use std::time::UNIX_EPOCH;
 
 use json::JsonValue;
 
+/// 代表单个文件操作
 pub enum FileChange {
     CreateFolder { path: String },
     UpdateFile { path: String, hash: String, len: u64, modified: SystemTime, offset: u64 },
@@ -14,38 +15,48 @@ pub enum FileChange {
     MoveFile { from: String, to: String },
 }
 
+/// 代表一个版本的元数据
 pub struct VersionMeta {
+    /// 版本号或者标签
+    pub label: String,
+
+    /// 版本的更新日志
     pub logs: String,
+
+    /// 文件变动情况
     pub changes: LinkedList<FileChange>,
 }
 
 impl VersionMeta {
-    pub fn new(logs: String, changes: LinkedList<FileChange>) -> Self {
-        Self { logs, changes }
+    /// 创建一个新的版本元数据
+    pub fn new(label: String, logs: String, changes: LinkedList<FileChange>) -> Self {
+        Self { label, logs, changes }
     }
 
-    pub fn load(str: &str) -> Self {
-        let root = json::parse(str).unwrap();
-
+    /// 加载一个现有的版本元数据
+    pub fn load(obj: &JsonValue) -> Self {
         Self {
-            logs: root["logs"].as_str().unwrap().to_owned(), 
-            changes: root["changes"].members()
+            label: obj["label"].as_str().unwrap().to_owned(),
+            logs: obj["logs"].as_str().unwrap().to_owned(), 
+            changes: obj["changes"].members()
                 .map(|e| Self::parse_change(e))
                 .collect::<LinkedList<_>>()
         }
     }
 
-    pub fn save(&self) -> String {
-        let mut root = JsonValue::new_object();
+    /// 将版本元数据保存成JsonObject格式
+    pub fn serialize(&self) -> JsonValue {
+        let mut obj = JsonValue::new_object();
         let mut changes = JsonValue::new_array();
         
         for change in &self.changes {
             changes.push(Self::serialize_change(change)).unwrap();
         }
         
-        root.insert("logs", self.logs.to_owned()).unwrap();
-        root.insert("changes", changes).unwrap();
-        root.pretty(4)
+        obj.insert("label", self.label.clone()).unwrap();
+        obj.insert("logs", self.logs.clone()).unwrap();
+        obj.insert("changes", changes).unwrap();
+        obj
     }
 
     fn parse_change(v: &JsonValue) -> FileChange {

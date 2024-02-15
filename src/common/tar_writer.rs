@@ -1,23 +1,29 @@
 use std::collections::HashMap;
 use std::collections::LinkedList;
-use std::io::Seek;
-use std::io::Write;
 use std::ops::Deref;
 use std::path::Path;
 
 use crate::data::version_meta::FileChange;
 use crate::data::version_meta::VersionMeta;
+use crate::data::version_meta_group::VersionMetaGroup;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
 use crate::utility::counted_write::CountedWrite;
 
-pub struct VersionWriter {
+pub struct MetadataOffset {
+    pub offset: u64,
+    pub length: u32,
+}
+
+/// 代表一个tar包写入器，用于生成tar格式的更新包
+pub struct TarWriter {
     write: CountedWrite<std::fs::File>
 }
 
-impl VersionWriter {
+impl TarWriter {
+    /// 创建一个tar包写入器，并写入到`version`文件中
     pub fn new(version: impl AsRef<Path>) -> Self {
         let open = std::fs::File::options().create(true).truncate(true).write(true).open(version).unwrap();
         let counter = CountedWrite::new(open);
@@ -25,15 +31,11 @@ impl VersionWriter {
         Self { write: counter }
     }
 
-    pub fn write_diff(&mut self, diff: &Diff<'_, DiskFile, HistoryFile>, workspace: &Path) {
+    /// 往一个tar包里填充数据
+    pub fn write_diff(&mut self, label: String, logs: String, diff: &Diff<'_, DiskFile, HistoryFile>, workspace: &Path) -> MetadataOffset {
         let mut tar = tar::Builder::new(&mut self.write);
         let mut header = tar::Header::new_gnu();
         
-        // 写入地址文件
-        let placeholder = [b' '; 512];
-        header.set_size(placeholder.len() as u64);
-        tar.append_data(&mut header, "addr.txt", std::io::Cursor::new(&placeholder)).unwrap();
-
         // 写入每个更新的文件数据
         let mut addresses = HashMap::new();
         for f in &diff.updated_files {
@@ -50,8 +52,9 @@ impl VersionWriter {
         
         // 写入元数据
         let metadata_offset = tar.get_ref().count();
-        let metadata = VersionMeta::new("no logs".to_owned(), diff_to_changes(diff, &addresses));
-        let file_content = metadata.save();
+        let mut group = VersionMetaGroup::new();
+        group.add(VersionMeta::new(label, logs, diff_to_changes(diff, &addresses)));
+        let file_content = group.serialize();
         let file_content = file_content.as_bytes();
         header.set_size(file_content.len() as u64);
         tar.append_data(&mut header, "metadata.txt", std::io::Cursor::new(&file_content)).unwrap();
@@ -59,9 +62,10 @@ impl VersionWriter {
         // 写入完毕
         tar.into_inner().unwrap();
     
-        // 直接更新地址文件的内容
-        self.write.seek(std::io::SeekFrom::Start(512)).unwrap();
-        self.write.write_all(format!("{:}", metadata_offset).as_bytes()).unwrap();
+        MetadataOffset {
+            offset: metadata_offset + 512,
+            length: file_content.len() as u32,
+        }
     }
 }
 

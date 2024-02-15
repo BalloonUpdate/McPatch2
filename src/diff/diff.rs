@@ -19,6 +19,7 @@ const OP_SHORT_DELETE_FOLDER: &str = OP_FULL_DELETE_FOLDER;
 const OP_SHORT_DELETE_FILE: &str   = OP_FULL_DELETE_FILE;
 const OP_SHORT_MOVE_FILE: &str     = OP_FULL_MOVE_FILE;
 
+/// 代表一组文件差异
 pub struct Diff<'a, N: AbstractFile, O: AbstractFile> {
     pub created_folders: Vec<N>,
     pub updated_files: Vec<N>,

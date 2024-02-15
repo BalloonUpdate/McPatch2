@@ -1,31 +1,78 @@
 use std::path::Path;
 
-use crate::utility::join_string;
+use json::JsonValue;
+
+pub struct VersionIndex {
+    pub label: String,
+    pub filename: String,
+    pub offset: u64,
+    pub len: u32,
+    pub hash: String,
+}
 
 pub struct IndexFile {
-    pub versions: Vec<String>
+    versions: Vec<VersionIndex>
+}
+
+impl<'a> IntoIterator for &'a IndexFile {
+    type Item = &'a VersionIndex;
+
+    type IntoIter = std::slice::Iter<'a, VersionIndex>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.versions).into_iter()
+    }
 }
 
 impl IndexFile {
     pub fn load(index_file: &Path) -> Self {
         let content = match std::fs::read_to_string(index_file) {
             Ok(content) => content,
-            Err(_) => "".to_owned(),
+            Err(_) => "[]".to_owned(),
         };
-        let versions = content.split("\n")
-            .map(|e| e.trim())
-            .filter(|e| !e.is_empty())
-            .map(|e| e.to_owned())
-            .collect();
+
+        let mut versions = Vec::<VersionIndex>::new();
+
+        let root = json::parse(&content).unwrap();
+
+        for v in root.members() {
+            let label = v["label"].as_str().unwrap().to_owned();
+            let filename = v["filename"].as_str().unwrap().to_owned();
+            let offset = v["offset"].as_u64().unwrap();
+            let len = v["length"].as_u32().unwrap();
+            let hash = v["hash"].as_str().unwrap().to_owned();
+
+            versions.push(VersionIndex { label, filename, len, offset, hash })
+        }
 
         Self { versions }
     }
 
     pub fn save(&self, index_file: &Path) {
-        std::fs::write(index_file, join_string(self.versions.iter(), "\n")).unwrap()
+        let mut root = JsonValue::new_array();
+
+        // let dddd = &self.versions.into_iter();
+
+        for v in &self.versions {
+            let mut obj = JsonValue::new_object();
+
+            obj.insert("label", v.label.to_owned()).unwrap();
+            obj.insert("filename", v.filename.to_owned()).unwrap();
+            obj.insert("offset", v.offset).unwrap();
+            obj.insert("length", v.len).unwrap();
+            obj.insert("hash", v.hash.to_owned()).unwrap();
+            
+            root.push(obj).unwrap();
+        }
+
+        std::fs::write(index_file, root.pretty(4)).unwrap()
+    }
+
+    pub fn append_version(&mut self, version: VersionIndex) {
+        self.versions.push(version);
     }
 
     pub fn contains_label(&self, label: &str) -> bool {
-        self.versions.iter().any(|e| e == label)
+        self.versions.iter().any(|e| e.label == label)
     }
 }

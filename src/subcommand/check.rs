@@ -1,6 +1,6 @@
 use std::rc::Weak;
 
-use crate::common::version_reader::VersionReader;
+use crate::common::tar_reader::TarReader;
 use crate::data::index_file::IndexFile;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
@@ -14,17 +14,17 @@ pub fn do_check(ctx: AppContext) -> i32 {
     let mut history_file = HistoryFile::new_dir("workspace_root", Weak::new());
 
     // 读取现有更新包，并复现在history_file上
-    for filename in &index_file.versions {
-        let mut reader = VersionReader::new(ctx.public_dir.join(filename));
-        let meta = reader.read_metadata();
-        history_file.replay_operations(&meta);
+    for v in &index_file {
+        let mut reader = TarReader::new(ctx.public_dir.join(&v.filename));
+        for meta in &reader.read_metadata_group(v.offset, v.len) {
+            history_file.replay_operations(&meta);
+        }
     }
 
     // 对比文件
     let disk_file = DiskFile::new(ctx.workspace_dir.clone(), None);
     let rule_filter = RuleFilter::new([""; 0].iter());
     let diff = Diff::diff(&disk_file, &history_file, &rule_filter);
-
 
     println!("{:#?}", diff);
     println!("{}", diff);

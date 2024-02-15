@@ -1,7 +1,8 @@
 use std::rc::Weak;
 
-use crate::common::version_reader::VersionReader;
-use crate::common::version_writer::VersionWriter;
+use crate::common::tar_reader::TarReader;
+use crate::common::tar_writer::TarWriter;
+use crate::data::index_file::VersionIndex;
 use crate::AppContext;
 use crate::data::index_file::IndexFile;
 use crate::diff::diff::Diff;
@@ -19,10 +20,11 @@ pub fn do_pack(version_label: String, ctx: AppContext) -> i32 {
     let mut history_file = HistoryFile::new_dir("workspace_root", Weak::new());
 
     // 读取现有更新包，并复现在history_file上
-    for filename in &index_file.versions {
-        let mut reader = VersionReader::new(ctx.public_dir.join(filename));
-        let meta = reader.read_metadata();
-        history_file.replay_operations(&meta);
+    for v in &index_file {
+        let mut reader = TarReader::new(ctx.public_dir.join(&v.filename));
+        for meta in &reader.read_metadata_group(v.offset, v.len) {
+            history_file.replay_operations(&meta);
+        }
     }
 
     // 对比文件
@@ -39,12 +41,19 @@ pub fn do_pack(version_label: String, ctx: AppContext) -> i32 {
 
     // 创建新的更新包，将所有文件修改写进去
     std::fs::create_dir_all(&ctx.public_dir).unwrap();
-    let version_file = ctx.public_dir.join(&format!("{}.tar", version_label));
-    let mut writer = VersionWriter::new(&version_file);
-    writer.write_diff(&diff, &ctx.working_dir);
+    let version_filename = format!("{}.tar", version_label);
+    let version_file = ctx.public_dir.join(&version_filename);
+    let mut writer = TarWriter::new(&version_file);
+    let meta_info = writer.write_diff(version_label.clone(), "no logs".to_owned(), &diff, &ctx.workspace_dir);
 
     // 更新索引文件
-    index_file.versions.push(version_label.to_owned());
+    index_file.append_version(VersionIndex {
+        label: version_label.to_owned(),
+        filename: version_filename,
+        offset: meta_info.offset,
+        len: meta_info.length,
+        hash: "no hash".to_owned(),
+    });
     index_file.save(&ctx.index_file_internal);
 
     0
