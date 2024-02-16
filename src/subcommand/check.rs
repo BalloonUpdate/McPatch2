@@ -5,7 +5,6 @@ use crate::data::index_file::IndexFile;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
-use crate::diff::rule_filter::RuleFilter;
 use crate::AppContext;
 
 pub fn do_check(ctx: AppContext) -> i32 {
@@ -23,8 +22,7 @@ pub fn do_check(ctx: AppContext) -> i32 {
 
     // 对比文件
     let disk_file = DiskFile::new(ctx.workspace_dir.clone(), None);
-    let rule_filter = RuleFilter::new([""; 0].iter());
-    let diff = Diff::diff(&disk_file, &history_file, &rule_filter);
+    let diff = Diff::diff(&disk_file, &history_file, Some(&ctx.config.filter_rules));
 
     println!("{:#?}", diff);
     println!("{}", diff);

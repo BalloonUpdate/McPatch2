@@ -69,8 +69,8 @@ impl HistoryFile {
         }))
     }
 
-    pub fn replay_operations(&mut self, version: &VersionMeta) {
-        for change in &version.changes {
+    pub fn replay_operations(&mut self, meta: &VersionMeta) {
+        for change in &meta.changes {
             match change {
                 FileChange::CreateFolder { path } =>  self.create_directory(&path),
                 FileChange::UpdateFile { path, hash, len, modified, .. } => self.update_file(&path, hash, len, modified),

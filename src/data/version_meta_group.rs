@@ -11,6 +11,11 @@ impl VersionMetaGroup {
         Self(Vec::new())
     }
 
+    /// 从一个版本元数据创建一个元数据组
+    pub fn with_one(meta: VersionMeta) -> Self {
+        Self([meta].into())
+    }
+
     /// 从json字符串进行解析
     pub fn parse(meta: &str) -> Self {
         let root = json::parse(meta).unwrap();
@@ -42,5 +47,15 @@ impl<'a> IntoIterator for &'a VersionMetaGroup {
 
     fn into_iter(self) -> Self::IntoIter {
         (&self.0).into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a mut VersionMetaGroup {
+    type Item = &'a mut VersionMeta;
+
+    type IntoIter = std::slice::IterMut<'a, VersionMeta>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&mut self.0).into_iter()
     }
 }

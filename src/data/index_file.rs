@@ -75,4 +75,8 @@ impl IndexFile {
     pub fn contains_label(&self, label: &str) -> bool {
         self.versions.iter().any(|e| e.label == label)
     }
+
+    pub fn get_version_mut(&mut self, label: &str) -> Option<&mut VersionIndex> {
+        self.versions.iter_mut().find(|e| e.label == label)
+    }
 }

@@ -15,7 +15,7 @@ pub fn do_test(ctx: AppContext) -> i32 {
         for meta in &reader.read_metadata_group(v.offset, v.len) {
             for change in &meta.changes {
                 if let FileChange::UpdateFile { path, hash, offset, len, .. } = change {
-                    println!("正在测试: {} 的 {}", v.filename, path);
+                    println!("正在测试: {}({}) 的 {}", meta.label, v.filename, path);
     
                     let mut open = reader.open_file(*offset, *len);
                     let actual = calculate_hash(&mut open);

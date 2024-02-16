@@ -11,7 +11,11 @@ pub struct RuleFilter {
 }
 
 impl RuleFilter {
-    pub fn new<'a>(rules: impl Iterator<Item = impl AsRef<str>>) -> RuleFilter {
+    pub fn new() -> Self {
+        Self::from_rules([""; 0].iter())
+    }
+
+    pub fn from_rules<'a>(rules: impl Iterator<Item = impl AsRef<str>>) -> RuleFilter {
         let mut regexes_compiled = Vec::<Rule>::new();
 
         for pattern in rules {

@@ -20,25 +20,28 @@ const OP_SHORT_DELETE_FILE: &str   = OP_FULL_DELETE_FILE;
 const OP_SHORT_MOVE_FILE: &str     = OP_FULL_MOVE_FILE;
 
 /// 代表一组文件差异
-pub struct Diff<'a, N: AbstractFile, O: AbstractFile> {
+pub struct Diff<N: AbstractFile, O: AbstractFile> {
     pub created_folders: Vec<N>,
     pub updated_files: Vec<N>,
     pub deleted_folders: Vec<O>,
     pub deleted_files: Vec<O>,
     pub renamed_files: Vec<(O, N)>,
-    filter: &'a RuleFilter,
+    filter: RuleFilter,
 }
 
-impl<'a, N: AbstractFile, O: AbstractFile> Diff<'a, N, O> {
+impl<N: AbstractFile, O: AbstractFile> Diff<N, O> {
     /// 执行目录比较
-    pub fn diff(newer: &N, older: &O, filter: &'a RuleFilter) -> Self {
+    pub fn diff(newer: &N, older: &O, filter_rules: Option<&Vec<String>>) -> Self {
         let mut result = Diff {
             created_folders: Vec::new(),
             updated_files: Vec::new(),
             deleted_folders: Vec::new(),
             deleted_files: Vec::new(),
             renamed_files: Vec::new(),
-            filter,
+            filter: match filter_rules {
+                Some(filter_rules) => RuleFilter::from_rules(filter_rules.iter()),
+                None => RuleFilter::new(),
+            },
         };
 
         result.find_deleteds(newer, older);
@@ -200,7 +203,7 @@ impl<'a, N: AbstractFile, O: AbstractFile> Diff<'a, N, O> {
     }
 }
 
-impl<N: AbstractFile, O: AbstractFile> Display for Diff<'_, N, O> {
+impl<N: AbstractFile, O: AbstractFile> Display for Diff<N, O> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&format!("Diff ({}{}, {}{}, {}{}, {}{}, {}{})",
             OP_SHORT_CREATE_FOLDER,
@@ -227,7 +230,7 @@ macro_rules! printn {
     };
 }
 
-impl<N: AbstractFile, O: AbstractFile> Debug for Diff<'_, N, O> {
+impl<N: AbstractFile, O: AbstractFile> Debug for Diff<N, O> {
     fn fmt(&self, fmt: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut need_newline = false;
 

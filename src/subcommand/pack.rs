@@ -3,12 +3,14 @@ use std::rc::Weak;
 use crate::common::tar_reader::TarReader;
 use crate::common::tar_writer::TarWriter;
 use crate::data::index_file::VersionIndex;
+use crate::data::version_meta::VersionMeta;
+use crate::data::version_meta_group::VersionMetaGroup;
+use crate::diff::abstract_file::AbstractFile;
 use crate::AppContext;
 use crate::data::index_file::IndexFile;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
-use crate::diff::rule_filter::RuleFilter;
 
 pub fn do_pack(version_label: String, ctx: AppContext) -> i32 {
     let mut index_file = IndexFile::load(&ctx.index_file_internal);
@@ -29,8 +31,7 @@ pub fn do_pack(version_label: String, ctx: AppContext) -> i32 {
 
     // 对比文件
     let disk_file = DiskFile::new(ctx.workspace_dir.clone(), None);
-    let rule_filter = RuleFilter::new([""; 0].iter());
-    let diff = Diff::diff(&disk_file, &history_file, &rule_filter);
+    let diff = Diff::diff(&disk_file, &history_file, Some(&ctx.config.filter_rules));
 
     if !diff.has_diff() {
         println!("目前工作目录还没有任何文件修改");
@@ -44,7 +45,21 @@ pub fn do_pack(version_label: String, ctx: AppContext) -> i32 {
     let version_filename = format!("{}.tar", version_label);
     let version_file = ctx.public_dir.join(&version_filename);
     let mut writer = TarWriter::new(&version_file);
-    let meta_info = writer.write_diff(version_label.clone(), "no logs".to_owned(), &diff, &ctx.workspace_dir);
+
+
+    // 写入每个更新的文件数据
+    for f in &diff.updated_files {
+        let path = f.path().to_owned();
+        let disk_file = ctx.workspace_dir.join(&path);
+        let open = std::fs::File::options().read(true).open(disk_file).unwrap();
+
+        writer.write_file_binary_data(open, f.len(), &path);
+    }
+
+    // 写入元数据
+    let meta = VersionMeta::new(version_label.clone(), "no logs".to_owned(), &diff);
+    let meta_group = VersionMetaGroup::with_one(meta);
+    let meta_info = writer.finish(meta_group);
 
     // 更新索引文件
     index_file.append_version(VersionIndex {
