@@ -19,7 +19,7 @@ pub fn do_test(ctx: AppContext) -> i32 {
     
                     let mut open = reader.open_file(*offset, *len);
                     let actual = calculate_hash(&mut open);
-                    assert!(&actual != hash, "hashes do not match, path: {} actual: {}, expected: {}", path, actual, hash);
+                    assert!(&actual == hash, "hashes do not match, path: {} actual: {}, expected: {}", path, actual, hash);
                 }
             }
         }

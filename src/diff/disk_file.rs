@@ -48,6 +48,7 @@ pub struct Inner {
     children: RefCell<Option<LinkedList<DiskFile>>>,
 }
 
+/// 代表目前磁盘上的文件状态，主要用于和历史状态对比计算文件差异
 #[derive(Clone)]
 pub struct DiskFile(Rc<Inner>);
 

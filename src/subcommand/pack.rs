@@ -46,14 +46,13 @@ pub fn do_pack(version_label: String, ctx: AppContext) -> i32 {
     let version_file = ctx.public_dir.join(&version_filename);
     let mut writer = TarWriter::new(&version_file);
 
-
     // 写入每个更新的文件数据
     for f in &diff.updated_files {
         let path = f.path().to_owned();
         let disk_file = ctx.workspace_dir.join(&path);
         let open = std::fs::File::options().read(true).open(disk_file).unwrap();
 
-        writer.write_file_binary_data(open, f.len(), &path);
+        writer.write_file(open, f.len(), &path);
     }
 
     // 写入元数据
@@ -62,7 +61,7 @@ pub fn do_pack(version_label: String, ctx: AppContext) -> i32 {
     let meta_info = writer.finish(meta_group);
 
     // 更新索引文件
-    index_file.append_version(VersionIndex {
+    index_file.add_index(VersionIndex {
         label: version_label.to_owned(),
         filename: version_filename,
         offset: meta_info.offset,

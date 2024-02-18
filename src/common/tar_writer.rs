@@ -31,11 +31,11 @@ impl TarWriter {
     }
 
     /// 往tar包里添加一个文件
-    pub fn write_file_binary_data(&mut self, data: impl Read, len: u64, path: &str) {
+    pub fn write_file(&mut self, data: impl Read, len: u64, path: &str) {
         assert!(!self.finished, "TarWriter has already closed");
 
         // 记录当前指针位置
-        self.addresses.insert(path.to_owned(), self.builder.get_ref().count());
+        self.addresses.insert(path.to_owned(), self.builder.get_ref().count() + 512);
 
         // 写入tar包中
         let mut header = tar::Header::new_gnu();
@@ -44,14 +44,22 @@ impl TarWriter {
     }
 
     /// 完成tar包的创建，并返回元数据的偏移值和长度
-    pub fn finish(&mut self, mut meta_group: VersionMetaGroup) -> MetadataOffset {
+    pub fn finish(mut self, mut meta_group: VersionMetaGroup) -> MetadataOffset {
         assert!(!self.finished, "TarWriter has already closed");
 
         // 更新meta中的数据偏移值
         for meta in &mut meta_group {
             for change in meta.changes.iter_mut() {
                 if let FileChange::UpdateFile { path, offset, .. } = change {
-                    *offset = *self.addresses.get(path).unwrap();
+                    // 合并文件时，中间版本中的文件数据为了节省空间，是不存储的，也就是不更新offset
+                    // 正常情况下客户端也不会去这个数据，如果读取了，那么不是数据受损就是客户端有问题
+                    match self.addresses.get(path) {
+                        Some(addr) => *offset = *addr,
+                        // 这里不能直接把offset设置为0，因为后续的文件移动操作会重新使offset变为有效状态
+                        // None => *offset = 0,
+                        None => (),
+                    }
+                    // *offset = *self.addresses.get(path).unwrap();
                 }
             }
         }

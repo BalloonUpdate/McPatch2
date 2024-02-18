@@ -14,16 +14,6 @@ pub struct IndexFile {
     versions: Vec<VersionIndex>
 }
 
-impl<'a> IntoIterator for &'a IndexFile {
-    type Item = &'a VersionIndex;
-
-    type IntoIter = std::slice::Iter<'a, VersionIndex>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        (&self.versions).into_iter()
-    }
-}
-
 impl IndexFile {
     pub fn load(index_file: &Path) -> Self {
         let content = match std::fs::read_to_string(index_file) {
@@ -68,7 +58,7 @@ impl IndexFile {
         std::fs::write(index_file, root.pretty(4)).unwrap()
     }
 
-    pub fn append_version(&mut self, version: VersionIndex) {
+    pub fn add_index(&mut self, version: VersionIndex) {
         self.versions.push(version);
     }
 
@@ -76,7 +66,31 @@ impl IndexFile {
         self.versions.iter().any(|e| e.label == label)
     }
 
-    pub fn get_version_mut(&mut self, label: &str) -> Option<&mut VersionIndex> {
+    pub fn get_index(&self, label: &str) -> Option<&VersionIndex> {
+        self.versions.iter().find(|e| e.label == label)
+    }
+
+    pub fn get_index_mut(&mut self, label: &str) -> Option<&mut VersionIndex> {
         self.versions.iter_mut().find(|e| e.label == label)
+    }
+}
+
+impl<'a> IntoIterator for &'a IndexFile {
+    type Item = &'a VersionIndex;
+
+    type IntoIter = std::slice::Iter<'a, VersionIndex>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (&self.versions).into_iter()
+    }
+}
+
+impl IntoIterator for IndexFile {
+    type Item = VersionIndex;
+
+    type IntoIter = std::vec::IntoIter<VersionIndex>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.versions.into_iter()
     }
 }

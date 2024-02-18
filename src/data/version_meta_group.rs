@@ -34,9 +34,21 @@ impl VersionMetaGroup {
         obj.pretty(4)
     }
 
+    /// 添加一个元数据组
+    pub fn add_group(&mut self, group: VersionMetaGroup) {
+        for meta in group.0 {
+            self.add_meta(meta);
+        }
+    }
+
     /// 往元数据组中添加一个新的版本元数据
-    pub fn add(&mut self, meta: VersionMeta) {
+    pub fn add_meta(&mut self, meta: VersionMeta) {
         self.0.push(meta);
+    }
+
+    /// 查找一个版本的元数据
+    pub fn find_meta(&self, label: &str) -> Option<&VersionMeta> {
+        self.0.iter().find(|e| e.label == label)
     }
 }
 

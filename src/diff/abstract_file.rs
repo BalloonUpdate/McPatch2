@@ -8,6 +8,7 @@ pub trait BorrowIntoIterator {
     fn iter(&self) -> impl Iterator<Item = Self::Item>;
 }
 
+/// 代表一个抽象的文件trait，提供一些文件的基本接口
 pub trait AbstractFile : Clone {
     fn parent(&self) -> Option<Self>;
 

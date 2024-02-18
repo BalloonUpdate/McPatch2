@@ -54,7 +54,6 @@ pub struct AppContext {
     pub working_dir: PathBuf,
     pub workspace_dir: PathBuf,
     pub public_dir: PathBuf,
-    pub combine_dir: PathBuf,
     pub index_file_official: PathBuf,
     pub index_file_internal: PathBuf,
     pub config: AppConfig
@@ -70,7 +69,6 @@ impl AppContext {
 
         let workspace_dir = working_dir.join("workspace");
         let public_dir = working_dir.join("public");
-        let combine_dir = working_dir.join("combine");
         let version_file_official = working_dir.join("public/index.json");
         let version_file_internal = working_dir.join("public/index.internal.json");
         let config_file = working_dir.join("config.toml");
@@ -85,7 +83,6 @@ impl AppContext {
             working_dir, 
             workspace_dir, 
             public_dir, 
-            combine_dir, 
             index_file_official: version_file_official, 
             index_file_internal: version_file_internal, 
             config,

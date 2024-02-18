@@ -35,6 +35,7 @@ pub struct Inner {
     children: RefCell<HashMap<String, HistoryFile>>,
 }
 
+/// 代表一个历史的文件状态，主要用于和目前磁盘上的文件状态对比计算文件差异
 #[derive(Clone)]
 pub struct HistoryFile(Rc<Inner>);
 
