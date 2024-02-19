@@ -2,33 +2,44 @@ use std::collections::LinkedList;
 use std::ops::Deref;
 use std::time::SystemTime;
 
+/// 从借用返回迭代器
 pub trait BorrowIntoIterator {
     type Item;
 
     fn iter(&self) -> impl Iterator<Item = Self::Item>;
 }
 
-/// 代表一个抽象的文件trait，提供一些文件的基本接口
+/// 代表一个抽象的文件，提供一些文件的基本接口
 pub trait AbstractFile : Clone {
+    /// 获取父文件
     fn parent(&self) -> Option<Self>;
 
+    /// 获取文件名
     fn name(&self) -> impl Deref<Target = String>;
     
+    /// 获取哈希值
     fn hash(&self) -> impl Deref<Target = String>;
     
+    /// 获取文件长度
     fn len(&self) -> u64;
 
+    /// 获取文件修改时间
     fn modified(&self) -> SystemTime;
     
+    /// 是不是一个目录
     fn is_dir(&self) -> bool;
     
+    /// 获取文件的相对路径
     fn path(&self) -> impl Deref<Target = String>;
     
+    /// 获取子文件列表
     fn files(&self) -> impl BorrowIntoIterator<Item = Self>;
 
+    /// 搜索一个子文件，支持多层级搜索
     fn find(&self, path: &str) -> Option<Self>;
 }
 
+/// 查找文件的辅助函数，实现了大部分查找逻辑，可以很方便地直接使用
 pub fn find_file_helper<T: AbstractFile>(parent: &T, path: &str) -> Option<T> {
     assert!(parent.is_dir());
     assert!(!path.contains("\\"));
@@ -47,6 +58,8 @@ pub fn find_file_helper<T: AbstractFile>(parent: &T, path: &str) -> Option<T> {
     return Some(result);
 }
 
+/// 计算相对路径的辅助函数，实现了大部分计算路径的逻辑，可以很方便地直接使用。
+/// 顶层目录的文件名不会被计算到结果中
 pub fn calculate_path_helper(name: &str, parent: Option<&impl AbstractFile>) -> String {
     match parent {
         Some(parent) => {
