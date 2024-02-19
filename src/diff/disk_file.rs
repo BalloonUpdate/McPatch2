@@ -16,6 +16,7 @@ use crate::diff::abstract_file::AbstractFile;
 use crate::diff::abstract_file::BorrowIntoIterator;
 use crate::utility::ext::GetFileNamePart;
 
+/// 借用返回哈希引用
 pub struct BorrowedHash<'a>(std::cell::Ref<'a, Option<String>>);
 
 impl Deref for BorrowedHash<'_> {
@@ -26,6 +27,7 @@ impl Deref for BorrowedHash<'_> {
     }
 }
 
+/// 借用返回`T`类型列表
 pub struct IntoIter<'a, T>(std::cell::Ref<'a, Option<LinkedList<T>>>);
 
 impl BorrowIntoIterator for IntoIter<'_, DiskFile> {
@@ -36,15 +38,33 @@ impl BorrowIntoIterator for IntoIter<'_, DiskFile> {
     }
 }
 
+/// 代表一个DiskFile的实际数据部分
 pub struct Inner {
+    /// 文件在磁盘上的绝对路径
     file: PathBuf,
+
+    /// 父文件
     parent: Option<Weak<Inner>>,
+
+    /// 文件名
     name: String,
+
+    /// 文件长度
     len: u64,
+
+    /// 文件修改时间
     modified: SystemTime,
+
+    /// 是不是一个目录
     is_dir: bool,
+
+    /// 文件的相对路径
     path: RefCell<String>,
+
+    /// 文件的哈希值
     hash: RefCell<Option<String>>,
+
+    /// 子文件列表
     children: RefCell<Option<LinkedList<DiskFile>>>,
 }
 

@@ -65,8 +65,6 @@ impl<N: AbstractFile, O: AbstractFile> Diff<N, O> {
         assert!(newer.is_dir());
         assert!(older.is_dir());
 
-        // let filter = |f: Option<N>| f.and_then(|f| if self.filter(f.path().deref()) { Some(f) } else { None });
-        
         for o in older.files().iter() {
             let found = match newer.find(&o.name()) {
                 Some(o) => if self.filter(o.path().deref()) { Some(o) } else { None },

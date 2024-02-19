@@ -24,6 +24,7 @@ impl BorrowIntoIterator for IntoIter<'_> {
     }
 }
 
+/// 代表一个HistoryFile的实际数据部分
 pub struct Inner {
     parent: RefCell<Weak<Inner>>,
     name: RefCell<String>,

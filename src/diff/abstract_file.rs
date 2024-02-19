@@ -59,7 +59,8 @@ pub fn find_file_helper<T: AbstractFile>(parent: &T, path: &str) -> Option<T> {
 }
 
 /// 计算相对路径的辅助函数，实现了大部分计算路径的逻辑，可以很方便地直接使用。
-/// 顶层目录的文件名不会被计算到结果中
+/// 
+/// 但顶层目录的文件名不会被计算到结果中
 pub fn calculate_path_helper(name: &str, parent: Option<&impl AbstractFile>) -> String {
     match parent {
         Some(parent) => {
@@ -76,6 +77,7 @@ pub fn calculate_path_helper(name: &str, parent: Option<&impl AbstractFile>) -> 
     }
 }
 
+/// 将抽象文件转换为调试字符串的辅助函数，可以输出很多有用的调试信息
 pub fn abstract_file_to_string(f: &impl AbstractFile) -> String {
     if f.is_dir() {
         format!("{} (directory: {}) {}", &f.name().deref(), f.files().iter().count(), f.path().deref())
@@ -86,6 +88,7 @@ pub fn abstract_file_to_string(f: &impl AbstractFile) -> String {
     }
 }
 
+/// 遍历并输出所有层级下所有文件和目录的实用函数，主要用作调试用途
 pub fn walk_abstract_file(file: &impl AbstractFile, indent: usize) -> String {
     let mut buf = String::with_capacity(1024);
     let mut stack = LinkedList::new();
