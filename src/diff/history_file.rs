@@ -70,6 +70,10 @@ impl HistoryFile {
         }))
     }
 
+    pub fn new_empty() -> Self {
+        HistoryFile::new_dir("empty_root", Weak::new())
+    }
+
     pub fn replay_operations(&mut self, meta: &VersionMeta) {
         for change in &meta.changes {
             match change {

@@ -6,7 +6,7 @@ use crate::data::version_meta::FileChange;
 use crate::data::version_meta_group::VersionMetaGroup;
 use crate::utility::counted_write::CountedWrite;
 
-pub struct MetadataOffset {
+pub struct MetadataLocation {
     pub offset: u64,
     pub length: u32,
 }
@@ -31,11 +31,12 @@ impl TarWriter {
     }
 
     /// 往tar包里添加一个文件
-    pub fn write_file(&mut self, data: impl Read, len: u64, path: &str) {
+    pub fn write_file(&mut self, data: impl Read, len: u64, path: &str, version: &str) {
         assert!(!self.finished, "TarWriter has already closed");
 
         // 记录当前指针位置
-        self.addresses.insert(path.to_owned(), self.builder.get_ref().count() + 512);
+        let key = format!("{}_{}", path, version);
+        self.addresses.insert(key, self.builder.get_ref().count() + 512);
 
         // 写入tar包中
         let mut header = tar::Header::new_gnu();
@@ -44,7 +45,7 @@ impl TarWriter {
     }
 
     /// 完成tar包的创建，并返回元数据的偏移值和长度
-    pub fn finish(mut self, mut meta_group: VersionMetaGroup) -> MetadataOffset {
+    pub fn finish(mut self, mut meta_group: VersionMetaGroup) -> MetadataLocation {
         assert!(!self.finished, "TarWriter has already closed");
 
         // 更新meta中的数据偏移值
@@ -53,13 +54,11 @@ impl TarWriter {
                 if let FileChange::UpdateFile { path, offset, .. } = change {
                     // 合并文件时，中间版本中的文件数据为了节省空间，是不存储的，也就是不更新offset
                     // 正常情况下客户端也不会去这个数据，如果读取了，那么不是数据受损就是客户端有问题
-                    match self.addresses.get(path) {
+                    let key = format!("{}_{}", path, &meta.label);
+                    match self.addresses.get(&key) {
                         Some(addr) => *offset = *addr,
-                        // 这里不能直接把offset设置为0，因为后续的文件移动操作会重新使offset变为有效状态
-                        // None => *offset = 0,
                         None => (),
                     }
-                    // *offset = *self.addresses.get(path).unwrap();
                 }
             }
         }
@@ -77,7 +76,7 @@ impl TarWriter {
 
         self.finished = true;
 
-        MetadataOffset {
+        MetadataLocation {
             offset: metadata_offset + 512,
             length: file_content.len() as u32,
         }

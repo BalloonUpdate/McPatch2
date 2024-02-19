@@ -1,6 +1,7 @@
 pub mod ext;
 pub mod tc;
 pub mod counted_write;
+pub mod limited_read;
 
 use std::io::Read;
 

@@ -7,7 +7,7 @@ use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
 use crate::AppContext;
 
-pub fn do_check(ctx: AppContext) -> i32 {
+pub fn do_check(ctx: &AppContext) -> i32 {
     let index_file = IndexFile::load(&ctx.index_file_internal);
     
     let mut history_file = HistoryFile::new_dir("workspace_root", Weak::new());

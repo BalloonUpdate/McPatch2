@@ -2,6 +2,8 @@ use std::path::Path;
 
 use json::JsonValue;
 
+/// 代表一个版本的索引信息
+#[derive(Clone)]
 pub struct VersionIndex {
     pub label: String,
     pub filename: String,

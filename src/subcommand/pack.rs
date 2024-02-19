@@ -12,7 +12,7 @@ use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
 
-pub fn do_pack(version_label: String, ctx: AppContext) -> i32 {
+pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     let mut index_file = IndexFile::load(&ctx.index_file_internal);
     if index_file.contains_label(&version_label) {
         println!("版本号已经存在: {}", version_label);
@@ -52,7 +52,7 @@ pub fn do_pack(version_label: String, ctx: AppContext) -> i32 {
         let disk_file = ctx.workspace_dir.join(&path);
         let open = std::fs::File::options().read(true).open(disk_file).unwrap();
 
-        writer.write_file(open, f.len(), &path);
+        writer.write_file(open, f.len(), &path, &version_label);
     }
 
     // 写入元数据
