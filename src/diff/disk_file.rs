@@ -44,7 +44,7 @@ pub struct Inner {
     file: PathBuf,
 
     /// 父文件
-    parent: Option<Weak<Inner>>,
+    parent: Weak<Inner>,
 
     /// 文件名
     name: String,
@@ -81,10 +81,10 @@ impl Deref for DiskFile {
 }
 
 impl DiskFile {
-    pub fn new(path: PathBuf, parent: Option<Weak<Inner>>) -> Self {
+    pub fn new(path: PathBuf, parent: Weak<Inner>) -> Self {
         let filename = path.filename().to_owned();
         let metadata = std::fs::metadata(&path).unwrap();
-        let strong_parent = parent.clone().and_then(|p| p.upgrade()).map(|p| DiskFile(p));
+        let strong_parent = parent.clone().upgrade().map(|p| DiskFile(p));
 
         let inner = Inner {
             file: path, 
@@ -108,7 +108,7 @@ impl DiskFile {
 
 impl AbstractFile for DiskFile {
     fn parent(&self) -> Option<DiskFile> {
-        self.parent.as_ref().and_then(|f| f.upgrade()).map(|f| DiskFile(f))
+        self.parent.upgrade().map(|f| DiskFile(f))
     }
 
     fn name(&self) -> impl Deref<Target = String> {
@@ -157,7 +157,7 @@ impl AbstractFile for DiskFile {
             for file in std::fs::read_dir(&self.file).unwrap() {
                 let file = file.unwrap();
                 
-                let child = DiskFile::new(file.path(), Some(Rc::downgrade(&self.0)));
+                let child = DiskFile::new(file.path(), Rc::downgrade(&self.0));
                 
                 result.push_back(child);
             }

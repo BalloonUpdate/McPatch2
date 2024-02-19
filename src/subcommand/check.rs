@@ -21,7 +21,7 @@ pub fn do_check(ctx: &AppContext) -> i32 {
     }
 
     // 对比文件
-    let disk_file = DiskFile::new(ctx.workspace_dir.clone(), None);
+    let disk_file = DiskFile::new(ctx.workspace_dir.clone(), Weak::new());
     let diff = Diff::diff(&disk_file, &history_file, Some(&ctx.config.filter_rules));
 
     println!("{:#?}", diff);
