@@ -4,6 +4,7 @@ use crc::Crc;
 use crc::CRC_16_IBM_SDLC;
 use crc::CRC_64_XZ;
 
+/// 计算文件hash
 pub fn calculate_hash(read: &mut impl Read) -> String {
     let crc64 = Crc::<u64>::new(&CRC_64_XZ);
     let mut crc64 = crc64.digest();

@@ -6,34 +6,29 @@ use std::path::Path;
 use crate::data::version_meta_group::VersionMetaGroup;
 use crate::utility::limited_read::LimitedRead;
 
-/// 代表一个tar包读取器，用于读取tar格式的更新包里面的数据
+/// 代表一个更新包读取器，用于读取tar格式的更新包里面的数据
 pub struct TarReader {
     open: std::fs::File
 }
 
 impl TarReader {
-    pub fn new(path: impl AsRef<Path>) -> Self {
-        let open = std::fs::File::open(path).unwrap();
-    
-        Self { open }
+    /// 创建一个TarReader，从`file`读取数据
+    pub fn new(file: impl AsRef<Path>) -> Self {
+        Self { open: std::fs::File::open(file).unwrap() }
     }
 
-    pub fn read_metadata_group(&mut self, meta_offset: u64, meta_len: u32) -> VersionMetaGroup {
-        let mut open = &self.open;
-        
-        // 读取元数据
+    /// 读取更新包中的元数据，需要提供元数据的`offset`和`len`以便定位
+    pub fn read_metadata_group(&mut self, offset: u64, len: u32) -> VersionMetaGroup {
         let mut buf = Vec::<u8>::new();
-        buf.resize(meta_len as usize, 0);
+        buf.resize(len as usize, 0);
 
-        open.seek(SeekFrom::Start(meta_offset)).unwrap();
-        open.read_exact(&mut buf).unwrap();
-        let meta_content = std::str::from_utf8(&buf).unwrap();
+        self.open.seek(SeekFrom::Start(offset)).unwrap();
+        self.open.read_exact(&mut buf).unwrap();
 
-        // 解析元数据
-        VersionMetaGroup::parse(meta_content)
+        VersionMetaGroup::parse(std::str::from_utf8(&buf).unwrap())
     }
 
-    /// 打开一个tar包中文件的Read对象
+    /// 读取更新包中的一个文件数据，需要提供文件的`offset`和`len`以便定位
     pub fn open_file(&mut self, offset: u64, len: u64) -> LimitedRead<std::fs::File> {
         self.open.seek(SeekFrom::Start(offset)).unwrap();
 

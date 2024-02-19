@@ -20,13 +20,13 @@ pub enum FileChange {
 
 /// 代表一个版本的元数据
 pub struct VersionMeta {
-    /// 版本号或者标签
+    /// 版本号（也叫标签）
     pub label: String,
 
-    /// 版本的更新日志
+    /// 更新日志
     pub logs: String,
 
-    /// 文件变动情况
+    /// 文件变动列表
     pub changes: LinkedList<FileChange>,
 }
 
@@ -47,7 +47,7 @@ impl VersionMeta {
         }
     }
 
-    /// 将版本元数据保存成JsonObject格式
+    /// 将版本元数据序列化成JsonObject
     pub fn serialize(&self) -> JsonValue {
         let mut obj = JsonValue::new_object();
         let mut changes = JsonValue::new_array();
@@ -62,6 +62,7 @@ impl VersionMeta {
         obj
     }
 
+    /// 解析单个文件变动操作
     fn parse_change(v: &JsonValue) -> FileChange {
         match v["operation"].as_str().unwrap() {
             "create-directory" => {
@@ -98,6 +99,7 @@ impl VersionMeta {
         }
     }
 
+    /// 序列化一个文件变动操作
     fn serialize_change(change: &FileChange) -> JsonValue {
         let mut obj = JsonValue::new_object();
 
@@ -132,6 +134,7 @@ impl VersionMeta {
         obj
     }
 
+    /// 将一个`diff`对象转换成文件变动列表
     fn diff_to_changes(diff: &Diff<impl AbstractFile, impl AbstractFile>) -> LinkedList<FileChange> {
         let mut changes = LinkedList::new();
     

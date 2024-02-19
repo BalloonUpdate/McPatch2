@@ -52,7 +52,7 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
         let disk_file = ctx.workspace_dir.join(&path);
         let open = std::fs::File::options().read(true).open(disk_file).unwrap();
 
-        writer.write_file(open, f.len(), &path, &version_label);
+        writer.add_file(open, f.len(), &path, &version_label);
     }
 
     // 写入元数据

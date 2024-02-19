@@ -2,7 +2,7 @@ use json::JsonValue;
 
 use crate::data::version_meta::VersionMeta;
 
-/// 代表单个tar文件中的所有版本的元数据，每个tar文件都能容纳多个版本的数据
+/// 代表一组版本元数据，每个更新包tar文件都能容纳多个版本的元数据，也叫一组
 pub struct VersionMetaGroup(Vec<VersionMeta>);
 
 impl VersionMetaGroup {
@@ -11,7 +11,7 @@ impl VersionMetaGroup {
         Self(Vec::new())
     }
 
-    /// 从一个版本元数据创建一个元数据组
+    /// 创建单个元数据组
     pub fn with_one(meta: VersionMeta) -> Self {
         Self([meta].into())
     }
@@ -23,7 +23,7 @@ impl VersionMetaGroup {
         VersionMetaGroup(root.members().map(|e| VersionMeta::load(e)).collect())
     }
 
-    /// 将所有版本元数据序列化成json字符串
+    /// 将元数据组序列化成json字符串
     pub fn serialize(&self) -> String {
         let mut obj = JsonValue::new_array();
 
@@ -41,12 +41,12 @@ impl VersionMetaGroup {
         }
     }
 
-    /// 往元数据组中添加一个新的版本元数据
+    /// 添加单个元数据
     pub fn add_meta(&mut self, meta: VersionMeta) {
         self.0.push(meta);
     }
 
-    /// 查找一个版本的元数据
+    /// 查找一个元数据
     pub fn find_meta(&self, label: &str) -> Option<&VersionMeta> {
         self.0.iter().find(|e| e.label == label)
     }

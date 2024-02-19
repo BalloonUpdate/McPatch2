@@ -25,7 +25,7 @@ struct Location {
     /// 所在的tar包的文件名
     pub filename: String,
 
-    /// 在最久的版本中的路径
+    /// 最原始的文件路径（不受后续移动操作的影响）
     pub path: String,
 
     /// tar包中的文件偏移
@@ -91,7 +91,7 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
         // 读取原tar包中的文件，然后复制到合并包中
         let mut reader = TarReader::new(ctx.public_dir.join(&loc.filename));
         let read = reader.open_file(loc.offset, loc.len);
-        writer.write_file(read, loc.len, &loc.path, &loc.label);
+        writer.add_file(read, loc.len, &loc.path, &loc.label);
     }
 
     // 写入元数据
