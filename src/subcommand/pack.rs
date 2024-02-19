@@ -12,26 +12,30 @@ use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
 
+/// 执行新版本打包
 pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     let mut index_file = IndexFile::load(&ctx.index_file_internal);
+
     if index_file.contains_label(&version_label) {
         println!("版本号已经存在: {}", version_label);
         return 2;
     }
 
-    let mut history_file = HistoryFile::new_dir("workspace_root", Weak::new());
+    let mut history = HistoryFile::new_dir("workspace_root", Weak::new());
 
-    // 读取现有更新包，并复现在history_file上
+    // 读取现有更新包，并复现在history上
     for v in &index_file {
         let mut reader = TarReader::new(ctx.public_dir.join(&v.filename));
-        for meta in &reader.read_metadata_group(v.offset, v.len) {
-            history_file.replay_operations(&meta);
+        let meta_group = reader.read_metadata_group(v.offset, v.len);
+
+        for meta in &meta_group {
+            history.replay_operations(&meta);
         }
     }
 
     // 对比文件
     let disk_file = DiskFile::new(ctx.workspace_dir.clone(), Weak::new());
-    let diff = Diff::diff(&disk_file, &history_file, Some(&ctx.config.filter_rules));
+    let diff = Diff::diff(&disk_file, &history, Some(&ctx.config.filter_rules));
 
     if !diff.has_diff() {
         println!("目前工作目录还没有任何文件修改");
@@ -56,7 +60,7 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     }
 
     // 写入元数据
-    let meta = VersionMeta::new(version_label.clone(), "no logs".to_owned(), &diff);
+    let meta = VersionMeta::new(version_label.clone(), "没有写更新记录".to_owned(), &diff);
     let meta_group = VersionMetaGroup::with_one(meta);
     let meta_info = writer.finish(meta_group);
 

@@ -2,6 +2,7 @@ use std::io::Write;
 use std::ops::Deref;
 use std::ops::DerefMut;
 
+/// 代表一个计数的Write对象
 pub struct CountedWrite<W: Write>(pub W, u64);
 
 impl<W: Write> CountedWrite<W> {

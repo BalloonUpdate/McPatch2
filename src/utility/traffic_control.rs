@@ -2,13 +2,22 @@ use std::io::Read;
 use std::time::Duration;
 use std::time::SystemTime;
 
+/// 基于令牌桶（Token Bucket）的简单流量控制（Token Bucket Filter）
 pub struct TrafficControl<'a, R: Read> {
+    /// 源数据
     read: &'a mut R,
+
+    /// 桶中令牌的数量
     bucket: u64,
+
+    /// 桶的容量
     capacity: u64,
+
+    /// 每毫秒往桶中增加多少令牌
     rate_per_ms: u64,
+
+    /// 上传调用的时间
     last_time: SystemTime,
-    // d: u64,
 }
 
 impl<'a, R: Read> TrafficControl<'a, R> {
@@ -19,7 +28,6 @@ impl<'a, R: Read> TrafficControl<'a, R> {
             capacity, 
             rate_per_ms: rate_per_second / 1000, 
             last_time: SystemTime::now(),
-            // d: 0,
         }
     }
 }
@@ -38,16 +46,11 @@ impl<'a, R: Read> Read for TrafficControl<'a, R> {
             let new_tokens = dt.as_millis() as u64 * self.rate_per_ms;
 
             self.bucket += new_tokens;
-            // self.d += new_tokens;
             self.bucket = self.bucket.min(self.capacity);
 
             let consumption = self.bucket.min(buf.len() as u64);
 
-            println!("bb: {}", self.bucket);
-
             if consumption > 0 {
-                // println!("consumption: {}", consumption);
-
                 break consumption;
             }
 

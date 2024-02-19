@@ -4,6 +4,7 @@ use crate::data::index_file::IndexFile;
 use crate::data::version_meta::FileChange;
 use crate::AppContext;
 
+/// 执行更新包解压测试
 pub fn do_test(ctx: &AppContext) -> i32 {
     println!("正在执行更新包的解压测试");
 

@@ -14,9 +14,9 @@ use crate::diff::abstract_file::find_file_helper;
 use crate::diff::abstract_file::walk_abstract_file;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::abstract_file::BorrowIntoIterator;
-use crate::utility::ext::GetFileNamePart;
+use crate::utility::extension::filename::GetFileNamePart;
 
-/// 借用返回哈希引用
+/// 借用哈希
 pub struct BorrowedHash<'a>(std::cell::Ref<'a, Option<String>>);
 
 impl Deref for BorrowedHash<'_> {
@@ -27,10 +27,10 @@ impl Deref for BorrowedHash<'_> {
     }
 }
 
-/// 借用返回`T`类型列表
-pub struct IntoIter<'a, T>(std::cell::Ref<'a, Option<LinkedList<T>>>);
+/// 借用子文件列表
+pub struct IntoIter<'a>(std::cell::Ref<'a, Option<LinkedList<DiskFile>>>);
 
-impl BorrowIntoIterator for IntoIter<'_, DiskFile> {
+impl BorrowIntoIterator for IntoIter<'_> {
     type Item = DiskFile;
 
     fn iter(&self) -> impl Iterator<Item = Self::Item> {
@@ -61,10 +61,10 @@ pub struct Inner {
     /// 文件的相对路径
     path: RefCell<String>,
 
-    /// 文件的哈希值
+    /// 文件的哈希值缓存
     hash: RefCell<Option<String>>,
 
-    /// 子文件列表
+    /// 子文件列表缓存
     children: RefCell<Option<LinkedList<DiskFile>>>,
 }
 
@@ -81,6 +81,7 @@ impl Deref for DiskFile {
 }
 
 impl DiskFile {
+    /// 从磁盘路径创建
     pub fn new(path: PathBuf, parent: Weak<Inner>) -> Self {
         let filename = path.filename().to_owned();
         let metadata = std::fs::metadata(&path).unwrap();
@@ -101,6 +102,7 @@ impl DiskFile {
         Self(Rc::new(inner))
     }
 
+    /// 返回磁盘路径的引用
     pub fn disk_file(&self) -> &Path {
         &self.file
     }

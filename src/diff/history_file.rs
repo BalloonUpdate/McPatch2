@@ -14,6 +14,7 @@ use crate::diff::abstract_file::walk_abstract_file;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::abstract_file::BorrowIntoIterator;
 
+/// 借用子文件列表
 pub struct IntoIter<'a>(std::cell::Ref<'a, HashMap<String, HistoryFile>>);
 
 impl BorrowIntoIterator for IntoIter<'_> {
@@ -26,13 +27,28 @@ impl BorrowIntoIterator for IntoIter<'_> {
 
 /// 代表一个HistoryFile的实际数据部分
 pub struct Inner {
+    /// 父文件
     parent: RefCell<Weak<Inner>>,
+
+    /// 文件名
     name: RefCell<String>,
+
+    /// 文件长度
     len: u64,
+
+    /// 文件修改时间
     modified: SystemTime,
+
+    /// 是不是一个目录
     is_dir: bool,
+
+    /// 文件的相对路径
     path: RefCell<String>,
+
+    /// 文件的哈希值
     hash: String,
+    
+    /// 子文件列表
     children: RefCell<HashMap<String, HistoryFile>>,
 }
 
@@ -41,6 +57,7 @@ pub struct Inner {
 pub struct HistoryFile(Rc<Inner>);
 
 impl HistoryFile {
+    /// 创建一个文件对象
     pub fn new_file(name: &str, modified: SystemTime, len: u64, hash: String, parent: Weak<Inner>) -> Self {
         let strong_parent = parent.clone().upgrade().map(|p| HistoryFile(p));
         
@@ -56,6 +73,7 @@ impl HistoryFile {
         }))
     }
 
+    /// 创建一个目录对象
     pub fn new_dir(name: &str, parent: Weak<Inner>) -> Self {
         let strong_parent = parent.clone().upgrade().map(|p| HistoryFile(p));
         
@@ -71,10 +89,12 @@ impl HistoryFile {
         }))
     }
 
+    /// 创建一个空目录
     pub fn new_empty() -> Self {
         HistoryFile::new_dir("empty_root", Weak::new())
     }
 
+    /// 复现`meta`上的所有文件操作
     pub fn replay_operations(&mut self, meta: &VersionMeta) {
         for change in &meta.changes {
             match change {
@@ -87,6 +107,7 @@ impl HistoryFile {
         }
     }
 
+    /// 复现一个“更新文件”的操作
     pub fn update_file(&self, path: &str, hash: &String, len: &u64, modified: &SystemTime) {
         let (parent, end) = self.lookup_parent_and_end(path);
 
@@ -95,6 +116,7 @@ impl HistoryFile {
         parent.children.borrow_mut().insert(end.to_owned(), file);
     }
 
+    /// 复现一个“创建目录”的操
     pub fn create_directory(&self, path: &str) {
         let (parent, end) = self.lookup_parent_and_end(path);
         
@@ -103,10 +125,11 @@ impl HistoryFile {
         parent.children.borrow_mut().insert(end.to_owned(), dir);
     }
 
+    /// 复现一个“移动文件”的操作
     pub fn move_file(&self, from: &str, to: &str) {
         let (parent, end) = self.lookup_parent_and_end(from);
 
-        // 从旧目录总拿起
+        // 从旧目录中拿起
         let holding = parent.children.borrow_mut().remove(end).unwrap();
 
         let (parent, end) = self.lookup_parent_and_end(to);
@@ -120,6 +143,7 @@ impl HistoryFile {
         parent.children.borrow_mut().insert(end.to_owned(), holding);
     }
 
+    /// 复现一个“删除文件”或者“删除目录”的操作
     pub fn delete_file_or_directory(&self, path: &str) {
         let (parent, end) = self.lookup_parent_and_end(path);
         
@@ -128,6 +152,7 @@ impl HistoryFile {
         assert!(holding.children.borrow().is_empty());
     }
 
+    /// 查找一个文件
     fn lookup_parent_and_end<'a, 'b>(&'a self, path: &'b str) -> (HistoryFile, &'b str) {
         let (parent, end) = if path.contains("/") { 
             let (p, e) = path.rsplit_once("/").unwrap();
@@ -143,6 +168,7 @@ impl HistoryFile {
         }
     }
 
+    /// 重新计算相对路径，一般文件被移动后要重新计算相对路径
     fn recalculate_path(&self) {
         let name = self.name.borrow();
         let mut path = self.path.borrow_mut();

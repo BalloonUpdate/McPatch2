@@ -12,7 +12,7 @@ use crate::data::version_meta_group::VersionMetaGroup;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
 use crate::diff::history_file::HistoryFile;
-use crate::utility::ext::GetFileNamePart;
+use crate::utility::extension::filename::GetFileNamePart;
 use crate::AppContext;
 
 pub const COMBINED_FILENAME: &str = "_combined.tar";
@@ -35,26 +35,28 @@ struct Location {
     pub len: u64,
 }
 
+// 执行更新包合并操作
 pub fn do_combine(ctx: &AppContext) -> i32 {
     let index_file = IndexFile::load(&ctx.index_file_internal);
 
     if (&index_file).into_iter().all(|e| e.filename == COMBINED_FILENAME) {
-        println!("no data can be combined");
+        println!("没有更新包可以合并");
         return 0;
     }
 
-    let mut history_file = HistoryFile::new_dir("workspace_root", Weak::new());
+    let mut history = HistoryFile::new_dir("workspace_root", Weak::new());
     let mut data_locations = HashMap::<String, Location>::new();
 
     // 保留所有元数据，最后会合并写入tar包里
     let mut meta_group = VersionMetaGroup::new();
 
-    // 读取现有更新包，并复现在history_file上
+    // 读取现有更新包，并复现在history上
     for v in &index_file {
         let mut reader = TarReader::new(ctx.public_dir.join(&v.filename));
         let group = reader.read_metadata_group(v.offset, v.len);
+
         for meta in &group {
-            history_file.replay_operations(&meta);
+            history.replay_operations(&meta);
 
             // 记录所有文件的数据和来源
             for change in &meta.changes {
@@ -79,6 +81,7 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
                 }
             }
         }
+
         meta_group.add_group(group);
     }
 
@@ -121,6 +124,7 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
     0
 }
 
+// 对合并后的更新包执行解压测试
 fn test_combined_package(mut reader: TarReader, meta_group: VersionMetaGroup) {
     let mut data_locations = HashMap::<String, (u64, u64)>::new();
     let mut history = HistoryFile::new_dir("history_for_test", Weak::new());
@@ -146,7 +150,7 @@ fn test_combined_package(mut reader: TarReader, meta_group: VersionMetaGroup) {
         }
     }
     
-    let empty = HistoryFile::new_dir("empty_root", Weak::new());
+    let empty = HistoryFile::new_empty();
     let diff = Diff::diff(&history, &empty, None);
 
     for up in diff.updated_files {

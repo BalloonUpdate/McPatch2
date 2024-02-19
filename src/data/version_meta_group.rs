@@ -52,6 +52,16 @@ impl VersionMetaGroup {
     }
 }
 
+impl IntoIterator for VersionMetaGroup {
+    type Item = VersionMeta;
+
+    type IntoIter = std::vec::IntoIter<VersionMeta>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
 impl<'a> IntoIterator for &'a VersionMetaGroup {
     type Item = &'a VersionMeta;
 

@@ -97,15 +97,16 @@ fn main() {
 
     std::fs::create_dir_all(&context.workspace_dir).unwrap();
 
-    let eixtcode = match CommandLineInterface::parse().command {
+    let eixt_code = match CommandLineInterface::parse().command {
         Commands::Pack { version_label } => do_pack(version_label, &context),
         Commands::Check => do_check(&context),
         Commands::Combine => {
+            // 执行合并前最好先测试一遍
             do_test(&context);
             do_combine(&context)
         },
         Commands::Test => do_test(&context),
     };
 
-    std::process::exit(eixtcode)
+    std::process::exit(eixt_code)
 }
