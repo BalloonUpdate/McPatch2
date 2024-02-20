@@ -41,6 +41,11 @@ pub struct IndexFile {
 }
 
 impl IndexFile {
+    /// 创建一个IndexFile
+    pub fn new() -> Self {
+        Self { versions: Vec::new() }
+    }
+
     /// 从`index_file`加载索引文件
     pub fn load(index_file: &Path) -> Self {
         let content = std::fs::read_to_string(index_file)

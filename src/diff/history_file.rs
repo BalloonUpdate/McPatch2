@@ -165,7 +165,8 @@ impl HistoryFile {
         };
 
         match parent {
-            Some(parent) => (self.find(parent).expect(&format!("found {} in {}", path, self.path().deref())), end),
+            Some(parent) => (self.find(parent)
+                .expect(&format!("can not found {} in {}", path, self.path().deref())), end),
             None => (self.clone(), end),
         }
     }

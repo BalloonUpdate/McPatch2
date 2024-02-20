@@ -1,23 +1,20 @@
 //! 合并更新包
 
 use std::collections::HashMap;
-use std::ops::Deref;
+use std::collections::LinkedList;
 use std::rc::Weak;
 
-use crate::common::file_hash::calculate_hash;
+use crate::common::archive_tester::ArchiveTester;
 use crate::common::tar_reader::TarReader;
 use crate::common::tar_writer::TarWriter;
 use crate::data::index_file::IndexFile;
 use crate::data::index_file::VersionIndex;
 use crate::data::version_meta::FileChange;
 use crate::data::version_meta_group::VersionMetaGroup;
-use crate::diff::abstract_file::AbstractFile;
-use crate::diff::diff::Diff;
 use crate::diff::history_file::HistoryFile;
-use crate::utility::extension::filename::GetFileNamePart;
 use crate::AppContext;
 
-pub const COMBINED_FILENAME: &str = "_combined.tar";
+pub const COMBINED_FILENAME: &str = "combined.tar";
 
 /// 代表新的合并包中的某个文件数据要从哪个旧包中复制过来
 struct Location {
@@ -41,7 +38,21 @@ struct Location {
 pub fn do_combine(ctx: &AppContext) -> i32 {
     let index_file = IndexFile::load(&ctx.index_file_internal);
 
-    if (&index_file).into_iter().all(|e| e.filename == COMBINED_FILENAME) {
+    // 执行合并前需要先测试一遍
+    println!("正在执行合并前的解压测试");
+    let mut tester = ArchiveTester::new();
+    for v in &index_file {
+        tester.feed(ctx.public_dir.join(&v.filename), v.offset, v.len);
+    }
+    tester.finish();
+    println!("测试通过，开始更新包合并流程");
+
+    // 开始合并流程
+    let non_combined_versions = (&index_file).into_iter()
+        .filter(|e| e.filename != COMBINED_FILENAME)
+        .collect::<LinkedList<_>>();
+
+    if non_combined_versions.is_empty() {
         println!("没有更新包可以合并");
         return 0;
     }
@@ -104,11 +115,11 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
 
     // 更新索引文件
     let new_index_filepath = ctx.public_dir.join("_index.temp.json");
-    let mut new_index_file = IndexFile::load(&new_index_filepath);
+    let mut new_index_file = IndexFile::new();
     for index in &index_file {
         new_index_file.add(VersionIndex {
             label: index.label.to_owned(),
-            filename: new_tar_file.filename().to_owned(),
+            filename: COMBINED_FILENAME.to_owned(),
             offset: meta_loc.offset,
             len: meta_loc.length,
             hash: "no hash".to_owned(),
@@ -117,55 +128,22 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
     new_index_file.save(&new_index_filepath);
 
     // 测试合并包
-    let mut reader = TarReader::new(&new_tar_file);
-    let meta_group = reader.read_metadata_group(meta_loc.offset, meta_loc.length);
-    test_combined_package(reader, meta_group);
+    let mut tester = ArchiveTester::new();
+    tester.feed(&new_tar_file, meta_loc.offset, meta_loc.length);
+    tester.finish();
     
-    // std::fs::copy(&ctx.index_file_official, &ctx.index_file_internal).unwrap();
+    // 合并回原包
+    std::fs::copy(&new_index_filepath, &ctx.index_file_internal).unwrap();
+    std::fs::copy(&new_index_filepath, &ctx.index_file_official).unwrap();
+
+    let combine_file = ctx.public_dir.join(COMBINED_FILENAME);
+    let _ = std::fs::remove_file(&combine_file);
+    std::fs::rename(&new_tar_file, &combine_file).unwrap();
+    std::fs::remove_file(&new_index_filepath).unwrap();
     
+    for v in &non_combined_versions {
+        std::fs::remove_file(ctx.public_dir.join(&v.filename)).unwrap();
+    }
+
     0
-}
-
-// 对合并后的更新包执行解压测试
-fn test_combined_package(mut reader: TarReader, meta_group: VersionMetaGroup) {
-    let mut data_locations = HashMap::<String, (u64, u64)>::new();
-    let mut history = HistoryFile::new_dir("history_for_test", Weak::new());
-
-    for meta in &meta_group {
-        history.replay_operations(&meta);
-
-        // 记录所有文件的数据和来源
-        for change in &meta.changes {
-            match change {
-                FileChange::UpdateFile { path, offset, len, .. } => {
-                    data_locations.insert(path.to_owned(), (*offset, *len));
-                },
-                FileChange::DeleteFile { path } => {
-                    data_locations.remove(path);
-                },
-                FileChange::MoveFile { from, to } => {
-                    let hold = data_locations.remove(from).unwrap();
-                    data_locations.insert(to.to_owned(), hold);
-                }
-                _ => (),
-            }
-        }
-    }
-    
-    let empty = HistoryFile::new_empty();
-    let diff = Diff::diff(&history, &empty, None);
-
-    for up in diff.updated_files {
-        let path = up.path();
-        let path = path.deref();
-        let (offset, len) = data_locations.get(path).unwrap();
-
-        println!("正在测试: {} at {}+{}", path, offset, len);
-
-        let mut open = reader.open_file(*offset, *len);
-        let actual = calculate_hash(&mut open);
-        let expected = up.hash();
-        let expected = expected.deref();
-        assert!(&actual == expected, "hashes do not match, path: {} actual: {}, expected: {}", path, actual, expected);
-    }
 }
