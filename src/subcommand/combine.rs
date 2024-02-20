@@ -1,3 +1,5 @@
+//! 合并更新包
+
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::rc::Weak;
@@ -104,7 +106,7 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
     let new_index_filepath = ctx.public_dir.join("_index.temp.json");
     let mut new_index_file = IndexFile::load(&new_index_filepath);
     for index in &index_file {
-        new_index_file.add_index(VersionIndex {
+        new_index_file.add(VersionIndex {
             label: index.label.to_owned(),
             filename: new_tar_file.filename().to_owned(),
             offset: meta_loc.offset,

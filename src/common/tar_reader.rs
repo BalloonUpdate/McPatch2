@@ -1,3 +1,5 @@
+//! 读取更新包
+
 use std::io::Read;
 use std::io::Seek;
 use std::io::SeekFrom;

@@ -1,3 +1,5 @@
+//! mcpatch2管理端第二版
+
 use std::path::PathBuf;
 
 use clap::Parser;

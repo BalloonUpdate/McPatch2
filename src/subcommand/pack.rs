@@ -1,3 +1,11 @@
+//! 打包新版本
+//! 
+//! 打包过程：
+//! 
+//! 1. 读取所有历史版本，并推演出上个版本的文件状态，用于和工作空间目录对比生成文件差异
+//! 2. 将所有“覆盖的文件”的数据和元数据写入到更新包中，同时更新元数据中每个文件的偏移值
+//! 3. 更新索引文件
+
 use std::rc::Weak;
 
 use crate::common::tar_reader::TarReader;
@@ -16,7 +24,7 @@ use crate::diff::history_file::HistoryFile;
 pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     let mut index_file = IndexFile::load(&ctx.index_file_internal);
 
-    if index_file.contains_label(&version_label) {
+    if index_file.contains(&version_label) {
         println!("版本号已经存在: {}", version_label);
         return 2;
     }
@@ -65,7 +73,7 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     let meta_info = writer.finish(meta_group);
 
     // 更新索引文件
-    index_file.add_index(VersionIndex {
+    index_file.add(VersionIndex {
         label: version_label.to_owned(),
         filename: version_filename,
         offset: meta_info.offset,

@@ -1,3 +1,5 @@
+//! 写入更新包
+
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;

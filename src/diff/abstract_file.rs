@@ -1,3 +1,18 @@
+//! 抽象文件
+//! 
+//! [`AbstractFile`]是对[`HistoryFile`]和[`DiskFile`]的公共抽象。
+//! 可以让[`Diff`]类在不知道具体类型的情况下，对比文件差异。
+//! 同时提供了一些辅助函数来帮助实现[`AbstractFile`]
+//! 
+//! [`AbstractFile`]继承自[`Clone`]，所以建议具体实现类型使用[`Rc`]或者[`Arc`]
+//! 将实际数据包装一下，以支持低成本clone操作
+//! 
+//! [`HistoryFile`]: super::history_file::HistoryFile
+//! [`DiskFile`]: super::disk_file::DiskFile
+//! [`Diff`]: super::diff::Diff
+//! [`Rc`]: std::rc::Rc
+//! [`Arc`]: std::sync::Arc
+
 use std::collections::LinkedList;
 use std::ops::Deref;
 use std::time::SystemTime;

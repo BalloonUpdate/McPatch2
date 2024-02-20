@@ -1,3 +1,5 @@
+//! 磁盘文件对象
+
 use std::cell::RefCell;
 use std::collections::LinkedList;
 use std::fmt::Debug;

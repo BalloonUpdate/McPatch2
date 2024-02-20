@@ -1,3 +1,5 @@
+//! 历史文件对象（文件状态快照）
+
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;

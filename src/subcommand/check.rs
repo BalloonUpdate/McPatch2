@@ -1,3 +1,5 @@
+//! 检查工作空间目录的文件修改情况
+
 use std::rc::Weak;
 
 use crate::common::tar_reader::TarReader;

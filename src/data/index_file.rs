@@ -1,8 +1,22 @@
+//! 版本索引
+
 use std::path::Path;
 
 use json::JsonValue;
 
 /// 代表一个版本的索引信息
+/// 
+/// 保存时会被序列化成一个Json对象
+/// 
+/// ```
+/// {
+///     "label": "1.2",
+///     "file": "1.2.tar",
+///     "offset": 7A9C,
+///     "length": 1000,
+///     "hash": "23B87EA52C893"
+/// }
+/// ```
 #[derive(Clone)]
 pub struct VersionIndex {
     /// 版本号
@@ -17,7 +31,7 @@ pub struct VersionIndex {
     /// 元数据组的长度
     pub len: u32,
 
-    /// 元数据组整个字符串的哈希值
+    /// 整个tar包文件的校验
     pub hash: String,
 }
 
@@ -68,22 +82,22 @@ impl IndexFile {
     }
 
     /// 添加一个新版本
-    pub fn add_index(&mut self, version: VersionIndex) {
+    pub fn add(&mut self, version: VersionIndex) {
         self.versions.push(version);
     }
 
     /// 检查是否包含指定的版本号
-    pub fn contains_label(&self, label: &str) -> bool {
+    pub fn contains(&self, label: &str) -> bool {
         self.versions.iter().any(|e| e.label == label)
     }
 
     /// 查找一个版本的索引数据
-    pub fn find_version_index(&self, label: &str) -> Option<&VersionIndex> {
+    pub fn find(&self, label: &str) -> Option<&VersionIndex> {
         self.versions.iter().find(|e| e.label == label)
     }
 
     /// 查找一个版本的可变索引数据
-    pub fn find_version_index_mut(&mut self, label: &str) -> Option<&mut VersionIndex> {
+    pub fn find_mut(&mut self, label: &str) -> Option<&mut VersionIndex> {
         self.versions.iter_mut().find(|e| e.label == label)
     }
 }

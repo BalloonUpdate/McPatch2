@@ -1,11 +1,15 @@
+//! 计算文件哈希相关操作
+
 use std::io::Read;
 
 use crc::Crc;
 use crc::CRC_16_IBM_SDLC;
 use crc::CRC_64_XZ;
 
-/// 计算文件hash
+/// 计算文件哈希值
 pub fn calculate_hash(read: &mut impl Read) -> String {
+    // 所有计算文件哈希值时都会调用此函数，可以在此函数中替换任意哈希算法
+    
     let crc64 = Crc::<u64>::new(&CRC_64_XZ);
     let mut crc64 = crc64.digest();
     

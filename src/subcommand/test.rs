@@ -1,3 +1,5 @@
+//! 测试所有更新包
+
 use crate::common::file_hash::calculate_hash;
 use crate::common::tar_reader::TarReader;
 use crate::data::index_file::IndexFile;
