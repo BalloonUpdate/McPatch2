@@ -56,8 +56,7 @@ pub struct AppContext {
     pub working_dir: PathBuf,
     pub workspace_dir: PathBuf,
     pub public_dir: PathBuf,
-    pub index_file_official: PathBuf,
-    pub index_file_internal: PathBuf,
+    pub index_file: PathBuf,
     pub config: AppConfig
 }
 
@@ -71,8 +70,7 @@ impl AppContext {
 
         let workspace_dir = working_dir.join("workspace");
         let public_dir = working_dir.join("public");
-        let version_file_official = working_dir.join("public/index.json");
-        let version_file_internal = working_dir.join("public/index.internal.json");
+        let version_file = working_dir.join("public/index.json");
         let config_file = working_dir.join("config.toml");
 
         if !config_file.exists() {
@@ -85,8 +83,7 @@ impl AppContext {
             working_dir, 
             workspace_dir, 
             public_dir, 
-            index_file_official: version_file_official, 
-            index_file_internal: version_file_internal, 
+            index_file: version_file, 
             config,
         }
     }

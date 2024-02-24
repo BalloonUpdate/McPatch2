@@ -22,7 +22,7 @@ use crate::diff::history_file::HistoryFile;
 
 /// 执行新版本打包
 pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
-    let mut index_file = IndexFile::load(&ctx.index_file_internal);
+    let mut index_file = IndexFile::load(&ctx.index_file);
 
     if index_file.contains(&version_label) {
         println!("版本号已经存在: {}", version_label);
@@ -80,7 +80,7 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
         len: meta_info.length,
         hash: "no hash".to_owned(),
     });
-    index_file.save(&ctx.index_file_internal);
+    index_file.save(&ctx.index_file);
 
     0
 }

@@ -36,7 +36,7 @@ struct Location {
 
 // 执行更新包合并操作
 pub fn do_combine(ctx: &AppContext) -> i32 {
-    let index_file = IndexFile::load(&ctx.index_file_internal);
+    let index_file = IndexFile::load(&ctx.index_file);
 
     // 执行合并前需要先测试一遍
     println!("正在执行合并前的解压测试");
@@ -133,8 +133,7 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
     tester.finish();
     
     // 合并回原包
-    std::fs::copy(&new_index_filepath, &ctx.index_file_internal).unwrap();
-    std::fs::copy(&new_index_filepath, &ctx.index_file_official).unwrap();
+    std::fs::copy(&new_index_filepath, &ctx.index_file).unwrap();
 
     let combine_file = ctx.public_dir.join(COMBINED_FILENAME);
     let _ = std::fs::remove_file(&combine_file);

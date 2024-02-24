@@ -11,7 +11,7 @@ use crate::AppContext;
 
 /// 检查工作空间目录的文件修改情况，类似于git status命令
 pub fn do_check(ctx: &AppContext) -> i32 {
-    let index_file = IndexFile::load(&ctx.index_file_internal);
+    let index_file = IndexFile::load(&ctx.index_file);
     
     let mut history = HistoryFile::new_empty();
 

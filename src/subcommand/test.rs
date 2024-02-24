@@ -8,7 +8,7 @@ use crate::AppContext;
 pub fn do_test(ctx: &AppContext) -> i32 {
     println!("正在执行更新包的解压测试");
 
-    let index_file = IndexFile::load(&ctx.index_file_internal);
+    let index_file = IndexFile::load(&ctx.index_file);
 
     let mut tester = ArchiveTester::new();
 
