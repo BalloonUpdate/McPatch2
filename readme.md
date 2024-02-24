@@ -1,4 +1,4 @@
-### McPatchManager2
+### McPatch2_Manager
 
 McPatch管理端第二版（目前还在早期开发阶段）
 
