@@ -1,14 +1,15 @@
 //! 测试所有更新包
 
+use mcpatch_shared::data::index_file::IndexFile;
+
 use crate::common::archive_tester::ArchiveTester;
-use crate::data::index_file::IndexFile;
 use crate::AppContext;
 
 /// 执行更新包解压测试
 pub fn do_test(ctx: &AppContext) -> i32 {
     println!("正在执行更新包的解压测试");
 
-    let index_file = IndexFile::load(&ctx.index_file);
+    let index_file = IndexFile::load_from_file(&ctx.index_file);
 
     let mut tester = ArchiveTester::new();
 

@@ -8,21 +8,22 @@
 
 use std::rc::Weak;
 
+use mcpatch_shared::data::index_file::IndexFile;
+use mcpatch_shared::data::index_file::VersionIndex;
+use mcpatch_shared::data::version_meta::VersionMeta;
+use mcpatch_shared::data::version_meta_group::VersionMetaGroup;
+use mcpatch_shared::diff::abstract_file::AbstractFile;
+use mcpatch_shared::diff::diff::Diff;
+use mcpatch_shared::diff::disk_file::DiskFile;
+use mcpatch_shared::diff::history_file::HistoryFile;
+
 use crate::common::tar_reader::TarReader;
 use crate::common::tar_writer::TarWriter;
-use crate::data::index_file::VersionIndex;
-use crate::data::version_meta::VersionMeta;
-use crate::data::version_meta_group::VersionMetaGroup;
-use crate::diff::abstract_file::AbstractFile;
 use crate::AppContext;
-use crate::data::index_file::IndexFile;
-use crate::diff::diff::Diff;
-use crate::diff::disk_file::DiskFile;
-use crate::diff::history_file::HistoryFile;
 
 /// 执行新版本打包
 pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
-    let mut index_file = IndexFile::load(&ctx.index_file);
+    let mut index_file = IndexFile::load_from_file(&ctx.index_file);
 
     if index_file.contains(&version_label) {
         println!("版本号已经存在: {}", version_label);

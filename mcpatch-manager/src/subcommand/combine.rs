@@ -4,14 +4,15 @@ use std::collections::HashMap;
 use std::collections::LinkedList;
 use std::rc::Weak;
 
+use mcpatch_shared::data::index_file::IndexFile;
+use mcpatch_shared::data::index_file::VersionIndex;
+use mcpatch_shared::data::version_meta::FileChange;
+use mcpatch_shared::data::version_meta_group::VersionMetaGroup;
+use mcpatch_shared::diff::history_file::HistoryFile;
+
 use crate::common::archive_tester::ArchiveTester;
 use crate::common::tar_reader::TarReader;
 use crate::common::tar_writer::TarWriter;
-use crate::data::index_file::IndexFile;
-use crate::data::index_file::VersionIndex;
-use crate::data::version_meta::FileChange;
-use crate::data::version_meta_group::VersionMetaGroup;
-use crate::diff::history_file::HistoryFile;
 use crate::AppContext;
 
 pub const COMBINED_FILENAME: &str = "combined.tar";
@@ -36,7 +37,7 @@ struct Location {
 
 // 执行更新包合并操作
 pub fn do_combine(ctx: &AppContext) -> i32 {
-    let index_file = IndexFile::load(&ctx.index_file);
+    let index_file = IndexFile::load_from_file(&ctx.index_file);
 
     // 执行合并前需要先测试一遍
     println!("正在执行合并前的解压测试");

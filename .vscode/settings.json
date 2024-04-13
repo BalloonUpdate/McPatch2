@@ -1,0 +1,5 @@
+{
+    "rust-analyzer.linkedProjects": [
+        ".\\mcpatch-manager\\Cargo.toml"
+    ]
+}

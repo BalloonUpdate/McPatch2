@@ -5,13 +5,14 @@ use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 
-use crate::common::file_hash::calculate_hash;
+use mcpatch_shared::common::file_hash::calculate_hash;
+use mcpatch_shared::data::version_meta::FileChange;
+use mcpatch_shared::diff::abstract_file::AbstractFile;
+use mcpatch_shared::diff::diff::Diff;
+use mcpatch_shared::diff::history_file::HistoryFile;
+use mcpatch_shared::utility::filename_ext::GetFileNamePart;
+
 use crate::common::tar_reader::TarReader;
-use crate::data::version_meta::FileChange;
-use crate::diff::abstract_file::AbstractFile;
-use crate::diff::diff::Diff;
-use crate::diff::history_file::HistoryFile;
-use crate::utility::extension::filename::GetFileNamePart;
 
 pub struct ArchiveTester {
     /// key: 文件路径，value: (更新包路径, 偏移值, 长度, 版本号)

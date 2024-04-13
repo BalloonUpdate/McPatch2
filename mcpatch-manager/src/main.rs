@@ -12,9 +12,7 @@ use crate::subcommand::pack::do_pack;
 use crate::subcommand::test::do_test;
 use crate::utility::is_running_under_cargo;
 
-pub mod diff;
 pub mod utility;
-pub mod data;
 pub mod subcommand;
 pub mod common;
 

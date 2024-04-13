@@ -4,8 +4,9 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
 
-use crate::data::version_meta::FileChange;
-use crate::data::version_meta_group::VersionMetaGroup;
+use mcpatch_shared::data::version_meta::FileChange;
+use mcpatch_shared::data::version_meta_group::VersionMetaGroup;
+
 use crate::utility::counted_write::CountedWrite;
 
 pub struct MetadataLocation {

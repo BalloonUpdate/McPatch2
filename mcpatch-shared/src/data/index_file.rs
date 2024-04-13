@@ -1,5 +1,6 @@
 //! 版本索引
 
+use std::ops::Index;
 use std::path::Path;
 
 use json::JsonValue;
@@ -8,7 +9,7 @@ use json::JsonValue;
 /// 
 /// 保存时会被序列化成一个Json对象
 /// 
-/// ```
+/// ```json
 /// {
 ///     "label": "1.2",
 ///     "file": "1.2.tar",
@@ -46,12 +47,17 @@ impl IndexFile {
         Self { versions: Vec::new() }
     }
 
-    /// 从`index_file`加载索引文件
-    pub fn load(index_file: &Path) -> Self {
+    /// 从文件加载索引文件
+    pub fn load_from_file(index_file: &Path) -> Self {
         let content = std::fs::read_to_string(index_file)
             .unwrap_or_else(|_| "[]".to_owned());
         
-        let root = json::parse(&content).unwrap();
+        Self::load_from_json(&content)
+    }
+
+    /// 从Json字符串加载
+    pub fn load_from_json(json: &str) -> Self {
+        let root = json::parse(json).unwrap();
         let mut versions = Vec::<VersionIndex>::new();
 
         for v in root.members() {
@@ -104,6 +110,19 @@ impl IndexFile {
     /// 查找一个版本的可变索引数据
     pub fn find_mut(&mut self, label: &str) -> Option<&mut VersionIndex> {
         self.versions.iter_mut().find(|e| e.label == label)
+    }
+
+    /// 版本的数量
+    pub fn len(&self) -> usize {
+        self.versions.len()
+    }
+}
+
+impl Index<usize> for IndexFile {
+    type Output = VersionIndex;
+
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.versions[index]
     }
 }
 

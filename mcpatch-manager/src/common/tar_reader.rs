@@ -5,7 +5,8 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::path::Path;
 
-use crate::data::version_meta_group::VersionMetaGroup;
+use mcpatch_shared::data::version_meta_group::VersionMetaGroup;
+
 use crate::utility::limited_read::LimitedRead;
 
 /// 代表一个更新包读取器，用于读取tar格式的更新包里面的数据

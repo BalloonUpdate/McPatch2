@@ -2,16 +2,17 @@
 
 use std::rc::Weak;
 
+use mcpatch_shared::data::index_file::IndexFile;
+use mcpatch_shared::diff::diff::Diff;
+use mcpatch_shared::diff::disk_file::DiskFile;
+use mcpatch_shared::diff::history_file::HistoryFile;
+
 use crate::common::tar_reader::TarReader;
-use crate::data::index_file::IndexFile;
-use crate::diff::diff::Diff;
-use crate::diff::disk_file::DiskFile;
-use crate::diff::history_file::HistoryFile;
 use crate::AppContext;
 
 /// 检查工作空间目录的文件修改情况，类似于git status命令
 pub fn do_check(ctx: &AppContext) -> i32 {
-    let index_file = IndexFile::load(&ctx.index_file);
+    let index_file = IndexFile::load_from_file(&ctx.index_file);
     
     let mut history = HistoryFile::new_empty();
 

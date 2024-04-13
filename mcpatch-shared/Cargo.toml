@@ -1,0 +1,12 @@
+[package]
+name = "mcpatch-shared"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono = {version = "0.4.31", features = ["clock"]}
+crc = "3.0.1"
+json = "0.12.4"
+regex = "1.10.3"
