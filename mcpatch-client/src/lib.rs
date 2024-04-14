@@ -39,12 +39,13 @@ pub async fn run(params: StartupParameter) {
     let global_config = GlobalConfig::load(&executable_dir.join("mcpatch.yml"));
     let base_dir = get_base_dir(&global_config).await.unwrap();
 
+    let log_file_path = match params.graphic_mode {
+        true => executable_dir.join("mcpatch.log"),
+        false => executable_dir.join("mcpatch.log.txt"),
+    };
+
     // 初始化文件日志记录器
     if !params.disable_log_file {
-        let log_file_path = match params.graphic_mode {
-            true => executable_dir.join("mcpatch.log"),
-            false => executable_dir.join("mcpatch.log.txt"),
-        };
         add_log_handler(Box::new(FileHandler::new(&log_file_path)));
     }
 
@@ -75,7 +76,7 @@ pub async fn run(params: StartupParameter) {
 
     // apply theme
 
-    work(&working_dir, &executable_dir, &base_dir, &global_config).await;
+    work(&working_dir, &executable_dir, &base_dir, &global_config, &log_file_path).await;
 }
 
 /// 获取更新起始目录

@@ -1,11 +1,17 @@
 [workspace]
+resolver = "2"
 members = [
     "config_template_derive",
     "mcpatch-shared",
     "mcpatch-manager", 
     "mcpatch-client"
 ]
-resolver = "2"
+
+[workspace.dependencies]
+crc = "3.0.1"
+json = "0.12.4"
+tokio = { version = "1.36.0", features = ["full"] }
+sha1 = "0.10.6"
 
 [profile.release]
 strip = "none"

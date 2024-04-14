@@ -7,8 +7,6 @@ edition = "2021"
 [dependencies]
 mcpatch-shared = { path = "../mcpatch-shared" }
 clap = { version = "4.4.18", features = ["derive", "env"] }
-sha1 = "0.10.6"
 serde = {version = "1.0.196", features = ["serde_derive"] }
 toml = "0.7.3"
 tar = "0.4.40"
-json = "0.12.4"

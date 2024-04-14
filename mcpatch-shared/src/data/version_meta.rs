@@ -55,6 +55,7 @@ use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
 
 /// 代表单个文件操作
+#[derive(Clone)]
 pub enum FileChange {
     /// 创建一个目录
     CreateFolder {

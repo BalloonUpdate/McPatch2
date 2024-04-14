@@ -8,6 +8,7 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
+use crate::global_config::GlobalConfig;
 use crate::utility::limited_read_async::LimitedReadAsync;
 
 pub struct Network {
@@ -15,8 +16,14 @@ pub struct Network {
 }
 
 impl Network {
-    pub fn new() -> Self {
-        todo!()
+    pub fn new(config: &GlobalConfig) -> Self {
+        let sources = Vec::<Box<dyn UpdatingSource + Sync>>::new();
+
+        for url in &config.urls {
+            
+        }
+
+        Network { sources }
     }
 
     pub async fn request_text(&self, path: &str, range: Range<u64>) -> std::io::Result<String> {

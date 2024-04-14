@@ -1,15 +1,26 @@
+use std::collections::HashMap;
+use std::collections::LinkedList;
 use std::path::Path;
+use std::time::SystemTime;
 
+use mcpatch_shared::common::file_hash::calculate_hash;
+use mcpatch_shared::common::file_hash::calculate_hash_async;
 use mcpatch_shared::data::index_file::IndexFile;
+use mcpatch_shared::data::version_meta::FileChange;
 use mcpatch_shared::data::version_meta::VersionMeta;
+use mcpatch_shared::diff::diff::Diff;
+use mcpatch_shared::diff::history_file::HistoryFile;
+use mcpatch_shared::utility::vec_ext::VecRemoveIf;
+use tokio::io::AsyncReadExt;
+use tokio::io::AsyncWriteExt;
 
 use crate::error::BusinessError;
 use crate::global_config::GlobalConfig;
 use crate::log::log_debug;
 use crate::net::Network;
 
-pub async fn work(work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &GlobalConfig) -> Result<(), BusinessError> {
-    let network = Network::new();
+pub async fn work(work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &GlobalConfig, log_file_path: &Path) -> Result<(), BusinessError> {
+    let network = Network::new(config);
 
     let version_file = exe_dir.join(&config.version_file_path);
     let current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or("".to_owned());
@@ -46,11 +57,10 @@ pub async fn work(work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Glo
         for i in 0..missing_versions.len() {
             log_debug(format!("  {}. {}", i, missing_versions[i].label));
         }
-
-        // 开始更新过程
+        
+        // 下载所有更新包元数据
         let mut version_metas = Vec::<VersionMeta>::new();
 
-        // 下载所有更新包元数据
         for ver in missing_versions {
             let range = ver.offset..(ver.offset + ver.len as u64);
             let meta_text = network.request_text(&ver.filename, range).await.unwrap();
@@ -60,14 +70,155 @@ pub async fn work(work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Glo
                 version_metas.push(meta);
             }
         }
-        
-        // todo: 按需下载
-        
 
+        // 将多个文件变动列表合并成一个，并且尽可能剔除掉刚下载又马上要被删的文件，提高更新效率
+        struct UpdateFile {
+            /// 要更新的文件路径
+            path: String, 
+    
+            /// 文件校验值
+            hash: String, 
+            
+            /// 文件长度
+            len: u64, 
+            
+            /// 文件的修改时间
+            modified: SystemTime, 
+
+            /// 文件二进制数据在更新包中的偏移值
+            offset: u64
+        }
+
+        struct MoveFile {
+            /// 文件从哪里来
+            from: String, 
+            
+            /// 文件到哪里去
+            to: String
+        }
+
+        let mut create_folders = Vec::<String>::new();
+        let mut update_files = Vec::<UpdateFile>::new();
+        let mut delete_folders = Vec::<String>::new();
+        let mut delete_files = Vec::<String>::new();
+        let mut move_files = Vec::<MoveFile>::new();
+
+        for meta in &version_metas {
+            for change in &meta.changes {
+                match change.clone() {
+                    FileChange::CreateFolder { path } => 
+                        create_folders.push(path),
+                    FileChange::UpdateFile { path, hash, len, modified, offset } => 
+                        update_files.push(UpdateFile { path, hash, len, modified, offset }),
+                    FileChange::DeleteFolder { path } => 
+                        delete_folders.push(path),
+                    FileChange::DeleteFile { path } => {
+                        // 处理哪些刚下载又马上要被删的文件
+                        match update_files.iter().position(|e| e.path == path) {
+                            Some(index) => { update_files.remove(index); },
+                            None => delete_files.push(path),
+                        }
+                    },
+                    FileChange::MoveFile { from, to } => 
+                        move_files.push(MoveFile { from, to }),
+                }
+            }
+        }
+
+        // 过滤一些不安全行为
+        // 1.不能更新自己
+        let current_exe = std::env::current_exe().unwrap();
+        create_folders.remove_if(|e| base_dir.join(&e) == current_exe);
+        update_files.remove_if(|e| base_dir.join(&e.path) == current_exe);
+        delete_files.remove_if(|e| base_dir.join(&e) == current_exe);
+        move_files.remove_if(|e| base_dir.join(&e.from) == current_exe || base_dir.join(&e.to) == current_exe);
+
+        // 2.不能更新日志文件
+        create_folders.remove_if(|e| base_dir.join(&e) == log_file_path);
+        update_files.remove_if(|e| base_dir.join(&e.path) == log_file_path);
+        delete_files.remove_if(|e| base_dir.join(&e) == log_file_path);
+        move_files.remove_if(|e| base_dir.join(&e.from) == log_file_path || base_dir.join(&e.to) == log_file_path);
+        
+        // 执行更新流程
+        // 1.处理要移动的文件
+        for MoveFile { from, to } in move_files {
+            let from = base_dir.join(&from);
+            let to = base_dir.join(&to);
+
+            if from.exists() {
+                tokio::fs::rename(from, to).await.unwrap();
+            }
+        }
+
+        // 2.处理要删除的文件
+        for path in delete_files {
+            let path = base_dir.join(&path);
+
+            tokio::fs::remove_file(path).await.unwrap();
+        }
+
+        // 3.处理要删除的目录
+        for path in delete_folders {
+            let path = base_dir.join(&path);
+
+            // 删除失败了不用管
+            match tokio::fs::remove_dir(path).await {
+                Ok(_) => {},
+                Err(_) => {},
+            }
+        }
+
+        // 4.处理要创建的空目录
+        for path in create_folders {
+            let path = base_dir.join(&path);
+
+            tokio::fs::create_dir_all(path).await.unwrap();
+        }
+
+        // 5.处理要下载的文件
+        for UpdateFile { path: raw_path, hash, len, modified, offset } in update_files {
+            let path = base_dir.join(&raw_path);
+            let temp_path = base_dir.join(&format!("{}.temp", &raw_path));
+            
+            if path.exists() {
+                let meta = tokio::fs::metadata(&path).await.unwrap();
+
+                // 目标文件已经是目录了，就不要删除了，直接跳过，避免丢失玩家的数据
+                if meta.is_dir() {
+                    continue;
+                }
+
+                // 可以跳过更新
+                if meta.modified().unwrap() == modified && meta.len() == len {
+                    continue;
+                }
+
+                // 对比hash，如果相同也可以跳过更新
+                let mut f = tokio::fs::File::open(&path).await.unwrap();
+
+                if calculate_hash_async(&mut f).await == hash {
+                    continue;
+                }
+            }
+            
+            // 发起请求
+            let mut temp_file = tokio::fs::File::open(&temp_path).await.unwrap();
+            let mut stream = network.request_file(&raw_path, offset..(offset + len)).await.unwrap();
+            let mut buf = [0u8; 16 * 1024];
+
+            loop {
+                let read = stream.1.read(&mut buf).await.unwrap();
+
+                if read == 0 {
+                    break;
+                }
+
+                temp_file.write_all(&buf[0..read]).await.unwrap();
+            }
+        }
 
     }
 
 
     Ok(())
 }
-

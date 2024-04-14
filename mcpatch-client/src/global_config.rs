@@ -12,6 +12,7 @@ pub struct GlobalConfig {
     ///   2. https://127.0.0.1:6600/subfolder/index.json （走https协议）
     ///
     /// webdav协议：（webdav代表走http协议，webdavs代表走https协议，这样写是为了和http源做区分）
+    /// ```
     ///   1. webdav://user:pass:127.0.0.1:80 （默认形式，webdav使用http协议）
     ///   2. webdavs://user:pass:127.0.0.1:443/subfolder （子目录形式，webdav使用https协议，注意https默认端口为443，而非80）
     ///      -------   ---- ---- --------- --- ---------
@@ -22,6 +23,7 @@ pub struct GlobalConfig {
     ///         |       |    +---------------------------- webdav 密码
     ///         |       +--------------------------------- webdav 用户名
     ///         +----------------------------------------- webdav 协议，只能是webdav或者webdavs
+    /// ```
     #[default_value("\n  - http://127.0.0.1 # 若在公网部署记得换成自己的公网ip或者域名")]
     pub urls: Vec<String>,
 

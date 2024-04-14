@@ -1,5 +1,8 @@
 {
     "rust-analyzer.linkedProjects": [
-        ".\\mcpatch-manager\\Cargo.toml"
+        ".\\mcpatch-manager\\Cargo.toml",
+        ".\\mcpatch-client\\Cargo.toml",
+        ".\\mcpatch-shared\\Cargo.toml",
+        ".\\config_template_derive\\Cargo.toml"
     ]
 }
