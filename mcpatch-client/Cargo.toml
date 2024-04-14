@@ -8,8 +8,11 @@ edition = "2021"
 [dependencies]
 mcpatch-shared = { path = "../mcpatch-shared" }
 config_template_derive = { path = "../config_template_derive" }
+
 json = { workspace = true }
-yaml-rust = "0.4.5"
-once_cell = "1.19.0"
-async-trait = "0.1.79"
 tokio = { workspace = true }
+
+async-trait = "0.1.79"
+once_cell = "1.19.0"
+reqwest = { version = "0.11", features = ["gzip", "json", "deflate", "brotli"] }
+yaml-rust = "0.4.5"

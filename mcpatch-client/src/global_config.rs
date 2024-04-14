@@ -4,7 +4,7 @@ use config_template_derive::ConfigTemplate;
 
 #[derive(ConfigTemplate)]
 pub struct GlobalConfig {
-    /// 更新服务器上的索引文件的链接，可以填写多个备用链接以缓解网络不稳定
+    /// 更新服务器地址，可以填写多个备用地址，当一个不可用时会切换到备用地址上
     /// 目前支持的协议：http(s)、webdav(s)、私有协议
     ///
     /// http协议例子：

@@ -3,7 +3,7 @@ pub mod utility;
 pub mod error;
 pub mod log;
 pub mod work;
-pub mod net;
+pub mod network;
 
 use std::path::Path;
 use std::path::PathBuf;
@@ -76,7 +76,7 @@ pub async fn run(params: StartupParameter) {
 
     // apply theme
 
-    work(&working_dir, &executable_dir, &base_dir, &global_config, &log_file_path).await;
+    work(&working_dir, &executable_dir, &base_dir, &global_config, &log_file_path).await.unwrap();
 }
 
 /// 获取更新起始目录

@@ -17,7 +17,7 @@ use tokio::io::AsyncWriteExt;
 use crate::error::BusinessError;
 use crate::global_config::GlobalConfig;
 use crate::log::log_debug;
-use crate::net::Network;
+use crate::network::Network;
 
 pub async fn work(work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &GlobalConfig, log_file_path: &Path) -> Result<(), BusinessError> {
     let network = Network::new(config);
