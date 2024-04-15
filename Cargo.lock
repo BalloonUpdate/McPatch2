@@ -690,6 +690,7 @@ dependencies = [
  "mcpatch-shared",
  "serde",
  "tar",
+ "tokio",
  "toml",
 ]
 

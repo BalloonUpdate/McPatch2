@@ -9,6 +9,7 @@ use serde::Deserialize;
 use crate::subcommand::check::do_check;
 use crate::subcommand::combine::do_combine;
 use crate::subcommand::pack::do_pack;
+use crate::subcommand::serve::do_serve;
 use crate::subcommand::test::do_test;
 use crate::utility::is_running_under_cargo;
 
@@ -43,13 +44,17 @@ enum Commands {
     
     /// 测试所有更新包是否能正常读取
     Test,
+
+    /// 运行内置服务端
+    Serve,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone)]
 pub struct AppConfig {
    filter_rules: Vec<String>,
 }
 
+#[derive(Clone)]
 pub struct AppContext {
     pub working_dir: PathBuf,
     pub workspace_dir: PathBuf,
@@ -99,6 +104,7 @@ fn main() {
         Commands::Check => do_check(&context),
         Commands::Combine => do_combine(&context),
         Commands::Test => do_test(&context),
+        Commands::Serve => do_serve(&context),
     };
 
     std::process::exit(eixt_code)

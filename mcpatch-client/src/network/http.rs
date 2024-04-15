@@ -11,7 +11,6 @@ use reqwest::Response;
 use tokio::io::AsyncRead;
 use tokio::pin;
 
-use crate::error::BusinessError;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
 

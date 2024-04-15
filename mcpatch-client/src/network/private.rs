@@ -1,13 +1,13 @@
 use std::ops::Range;
 
 use async_trait::async_trait;
+use mcpatch_shared::utility::limited_read_async::LimitedReadAsync;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
-use crate::utility::limited_read_async::LimitedReadAsync;
 
 pub struct PrivateProtocol {
     pub addr: String,
@@ -43,9 +43,8 @@ impl PrivateProtocol {
         let stream = self.get_tcp_stream().await?;
 
         let len = stream.read_u64_le().await?;
-        let re = LimitedReadAsync::new(stream, len);
 
-        Ok(re)
+        Ok(LimitedReadAsync::new(stream, len))
     }
 }
 
@@ -54,7 +53,7 @@ impl UpdatingSource for PrivateProtocol {
     async fn download<'a>(&'a mut self, path: &str, range: Range<u64>) -> DownloadResult<'a> {
         // 首先发送文件路径
         self.send_data(path.as_bytes()).await.unwrap();
-
+        
         // 然后发送下载范围
         self.send_data(&range.start.to_le_bytes()).await.unwrap();
         self.send_data(&range.end.to_le_bytes()).await.unwrap();
@@ -62,9 +61,8 @@ impl UpdatingSource for PrivateProtocol {
         // 接收状态码
         let code = self.receive_data().await.unwrap().read_u8().await.unwrap();
 
-        if code == 0 {
-            return Err(format!("file not found: {}", path).into());
-            // return Err(std::io::Error::new(ErrorKind::NotFound, "not found"));
+        if code != 0 {
+            return Err(format!("error {} on receiving {}", code, path).into());
         }
 
         // 状态码没问题就正常接收文件数据

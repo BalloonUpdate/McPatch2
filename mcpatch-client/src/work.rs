@@ -1,25 +1,22 @@
-use std::collections::HashMap;
-use std::collections::LinkedList;
 use std::path::Path;
 use std::time::SystemTime;
 
-use mcpatch_shared::common::file_hash::calculate_hash;
 use mcpatch_shared::common::file_hash::calculate_hash_async;
 use mcpatch_shared::data::index_file::IndexFile;
 use mcpatch_shared::data::version_meta::FileChange;
 use mcpatch_shared::data::version_meta::VersionMeta;
-use mcpatch_shared::diff::diff::Diff;
-use mcpatch_shared::diff::history_file::HistoryFile;
 use mcpatch_shared::utility::vec_ext::VecRemoveIf;
 use tokio::io::AsyncReadExt;
+use tokio::io::AsyncSeekExt;
 use tokio::io::AsyncWriteExt;
 
 use crate::error::BusinessError;
 use crate::global_config::GlobalConfig;
 use crate::log::log_debug;
 use crate::network::Network;
+use crate::utility::join_string;
 
-pub async fn work(work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &GlobalConfig, log_file_path: &Path) -> Result<(), BusinessError> {
+pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &GlobalConfig, log_file_path: &Path) -> Result<(), BusinessError> {
     let network = Network::new(config);
 
     let version_file = exe_dir.join(&config.version_file_path);
@@ -61,7 +58,7 @@ pub async fn work(work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Glo
         // 下载所有更新包元数据
         let mut version_metas = Vec::<VersionMeta>::new();
 
-        for ver in missing_versions {
+        for ver in &missing_versions {
             let range = ver.offset..(ver.offset + ver.len as u64);
             let meta_text = network.request_text(&ver.filename, range).await.unwrap();
             let meta = json::parse(&meta_text).unwrap();
@@ -140,43 +137,8 @@ pub async fn work(work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Glo
         move_files.remove_if(|e| base_dir.join(&e.from) == log_file_path || base_dir.join(&e.to) == log_file_path);
         
         // 执行更新流程
-        // 1.处理要移动的文件
-        for MoveFile { from, to } in move_files {
-            let from = base_dir.join(&from);
-            let to = base_dir.join(&to);
-
-            if from.exists() {
-                tokio::fs::rename(from, to).await.unwrap();
-            }
-        }
-
-        // 2.处理要删除的文件
-        for path in delete_files {
-            let path = base_dir.join(&path);
-
-            tokio::fs::remove_file(path).await.unwrap();
-        }
-
-        // 3.处理要删除的目录
-        for path in delete_folders {
-            let path = base_dir.join(&path);
-
-            // 删除失败了不用管
-            match tokio::fs::remove_dir(path).await {
-                Ok(_) => {},
-                Err(_) => {},
-            }
-        }
-
-        // 4.处理要创建的空目录
-        for path in create_folders {
-            let path = base_dir.join(&path);
-
-            tokio::fs::create_dir_all(path).await.unwrap();
-        }
-
-        // 5.处理要下载的文件
-        for UpdateFile { path: raw_path, hash, len, modified, offset } in update_files {
+        // 1.处理要下载的文件，下载到临时文件
+        for UpdateFile { path: raw_path, hash, len, modified, offset } in &update_files {
             let path = base_dir.join(&raw_path);
             let temp_path = base_dir.join(&format!("{}.temp", &raw_path));
             
@@ -188,22 +150,22 @@ pub async fn work(work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Glo
                     continue;
                 }
 
-                // 可以跳过更新
-                if meta.modified().unwrap() == modified && meta.len() == len {
+                // 可以跳过更新，todo: 这里判断会有精度问题
+                if meta.modified().unwrap() == *modified && meta.len() == *len {
                     continue;
                 }
 
                 // 对比hash，如果相同也可以跳过更新
                 let mut f = tokio::fs::File::open(&path).await.unwrap();
 
-                if calculate_hash_async(&mut f).await == hash {
+                if calculate_hash_async(&mut f).await == *hash {
                     continue;
                 }
             }
             
             // 发起请求
-            let mut temp_file = tokio::fs::File::open(&temp_path).await.unwrap();
-            let mut stream = network.request_file(&raw_path, offset..(offset + len)).await.unwrap();
+            let mut temp_file = tokio::fs::File::options().create(true).truncate(true).write(true).open(&temp_path).await.unwrap();
+            let mut stream = network.request_file(&raw_path, *offset..(offset + len)).await.unwrap();
             let mut buf = [0u8; 16 * 1024];
 
             loop {
@@ -215,8 +177,68 @@ pub async fn work(work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Glo
 
                 temp_file.write_all(&buf[0..read]).await.unwrap();
             }
+
+            // 检查下载的文件的hash对不对
+            temp_file.flush().await.unwrap();
+            temp_file.seek(std::io::SeekFrom::Start(0)).await.unwrap();
+
+            let temp_hash = calculate_hash_async(&mut temp_file).await;
+
+            if &temp_hash != hash {
+                return Err(format!("the temp file hash {} does not match {}", &temp_hash, hash).into());
+            }
         }
 
+        // 2.处理要移动的文件
+        for MoveFile { from, to } in move_files {
+            let from = base_dir.join(&from);
+            let to = base_dir.join(&to);
+
+            if from.exists() {
+                tokio::fs::rename(from, to).await.unwrap();
+            }
+        }
+
+        // 3.处理要删除的文件
+        for path in delete_files {
+            let path = base_dir.join(&path);
+
+            tokio::fs::remove_file(path).await.unwrap();
+        }
+
+        // 4.处理要删除的目录
+        for path in delete_folders {
+            let path = base_dir.join(&path);
+
+            // 删除失败了不用管
+            match tokio::fs::remove_dir(path).await {
+                Ok(_) => {},
+                Err(_) => {},
+            }
+        }
+
+        // 5.处理要创建的空目录
+        for path in create_folders {
+            let path = base_dir.join(&path);
+
+            tokio::fs::create_dir_all(path).await.unwrap();
+        }
+
+        // 6.合并临时文件
+        // todo: 这里要给用户加提示，不能关程序
+        for u in update_files {
+            let path = base_dir.join(&u.path);
+            let temp_path = base_dir.join(&format!("{}.temp", &u.path));
+
+            tokio::fs::rename(temp_path, path).await.unwrap();
+        }
+
+        // 文件基本上更新完了，到这里就要进行收尾工作了
+        // 1.更新客户端版本号
+        tokio::fs::write(&version_file, latest_version.as_bytes()).await.unwrap();
+
+        // 2.弹出更新记录
+        println!("更新成功: {}", join_string(missing_versions.iter().map(|e| &e.label), ", "));
     }
 
 
