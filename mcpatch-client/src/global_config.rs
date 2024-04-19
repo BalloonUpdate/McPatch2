@@ -97,7 +97,29 @@ pub struct GlobalConfig {
 }
 
 impl GlobalConfig {
-    pub fn load(file: &Path) -> Self {
-        todo!()
+    pub async fn load(_file: &Path) -> Self {
+        // let content = match file.exists() {
+        //     true => tokio::fs::read_to_string(file).await.unwrap(),
+        //     false => GlobalConfigTemplate,
+        // };
+
+        // let parsed = yaml_rust::YamlLoader::load_from_str(&content).unwrap();
+
+        // let urls = parsed.get("urls").;
+
+        GlobalConfig {
+            urls: vec!["priavte://127.0.0.1:6700".to_owned()],
+            version_file_path: "mcpatch-version.txt".to_owned(),
+            base_path: "".to_owned(),
+            allow_error: false,
+            silent_mode: false,
+            http_headers: vec![],
+            http_connection_timeout: 10000,
+            http_reading_timeout: 10000,
+            http_retrying_times: 3,
+            http_concurrent_threads: 4,
+            http_concurrent_chunk_size: 4194304,
+            http_ignore_certificate: false,
+        }
     }
 }

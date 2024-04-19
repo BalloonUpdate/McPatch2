@@ -9,9 +9,12 @@ use tokio::io::AsyncRead;
 use tokio::io::AsyncReadExt;
 
 use crate::error::BusinessError;
+use crate::error::BusinessResult;
 use crate::global_config::GlobalConfig;
 use crate::network::http::HttpProtocol;
 use crate::network::private::PrivateProtocol;
+
+pub type DownloadResult<'a> = BusinessResult<(u64, Pin<Box<dyn AsyncRead + 'a>>)>;
 
 pub struct Network {
     sources: Vec<Box<dyn UpdatingSource + Sync>>
@@ -29,28 +32,34 @@ impl Network {
             }
         }
 
+        sources.push(Box::new(PrivateProtocol::new("127.0.0.1:6700")));
+
         Network { sources }
     }
 
-    pub async fn request_text(&self, path: &str, range: Range<u64>) -> std::io::Result<String> {
+    pub async fn request_text(&mut self, path: &str, range: Range<u64>) -> BusinessResult<String> {
         let (len, mut data) = self.request_file(path, range).await?;
         let mut text = String::with_capacity(len as usize);
-        data.read_to_string(&mut text).await?;
+        data.read_to_string(&mut text).await.unwrap();
         Ok(text)
     }
 
-    pub async fn request_file<'a>(&'a self, path: &str, range: Range<u64>) -> std::io::Result<(u64, Pin<Box<dyn AsyncRead + 'a>>)> {
-        for source in &self.sources {
-            
-        }
+    pub async fn request_file<'a>(&'a mut self, path: &str, range: Range<u64>) -> DownloadResult<'a> {
+        let mut error = Option::<BusinessError>::None;
 
-        todo!()
+        for source in &mut self.sources {
+            match source.download(path, &range).await {
+                Ok(result) => return Ok(result),
+                Err(err) => error = Some(err),
+            }
+        }
+        
+        return Err(error.unwrap());
     }
 }
 
-pub type DownloadResult<'a> = Result<(u64, Pin<Box<dyn AsyncRead + 'a>>), BusinessError>;
 
 #[async_trait]
 pub trait UpdatingSource {
-    async fn download<'a>(&'a mut self, path: &str, range: Range<u64>) -> DownloadResult<'a>;
+    async fn download<'a>(&'a mut self, path: &str, range: &Range<u64>) -> DownloadResult<'a>;
 }

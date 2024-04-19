@@ -17,7 +17,7 @@ use crate::network::Network;
 use crate::utility::join_string;
 
 pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &GlobalConfig, log_file_path: &Path) -> Result<(), BusinessError> {
-    let network = Network::new(config);
+    let mut network = Network::new(config);
 
     let version_file = exe_dir.join(&config.version_file_path);
     let current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or("".to_owned());

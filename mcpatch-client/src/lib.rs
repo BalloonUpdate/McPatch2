@@ -36,7 +36,7 @@ pub struct StartupParameter {
 pub async fn run(params: StartupParameter) {
     let working_dir = get_working_dir().await;
     let executable_dir = get_executable_dir().await;
-    let global_config = GlobalConfig::load(&executable_dir.join("mcpatch.yml"));
+    let global_config = GlobalConfig::load(&executable_dir.join("mcpatch.yml")).await;
     let base_dir = get_base_dir(&global_config).await.unwrap();
 
     let log_file_path = match params.graphic_mode {

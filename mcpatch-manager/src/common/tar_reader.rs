@@ -6,8 +6,7 @@ use std::io::SeekFrom;
 use std::path::Path;
 
 use mcpatch_shared::data::version_meta_group::VersionMetaGroup;
-
-use crate::utility::limited_read::LimitedRead;
+use mcpatch_shared::utility::partial_read::PartialRead;
 
 /// 代表一个更新包读取器，用于读取tar格式的更新包里面的数据
 pub struct TarReader {
@@ -32,9 +31,9 @@ impl TarReader {
     }
 
     /// 读取更新包中的一个文件数据，需要提供文件的`offset`和`len`以便定位
-    pub fn open_file(&mut self, offset: u64, len: u64) -> LimitedRead<std::fs::File> {
+    pub fn open_file(&mut self, offset: u64, len: u64) -> PartialRead<std::fs::File> {
         self.open.seek(SeekFrom::Start(offset)).unwrap();
 
-        LimitedRead::new(&mut self.open, len)
+        PartialRead::new(&mut self.open, len)
     }
 }

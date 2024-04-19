@@ -2,7 +2,6 @@
 
 pub mod traffic_control;
 pub mod counted_write;
-pub mod limited_read;
 
 use std::io::Read;
 

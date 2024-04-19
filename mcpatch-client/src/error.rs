@@ -1,5 +1,7 @@
 use std::fmt::Debug;
 
+pub type BusinessResult<T> = Result<T, BusinessError>;
+
 /// 代表一个业务错误
 pub struct BusinessError {
     pub reason: String,

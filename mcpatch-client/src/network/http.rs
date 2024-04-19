@@ -38,7 +38,7 @@ impl HttpProtocol {
 
 #[async_trait]
 impl UpdatingSource for HttpProtocol {
-    async fn download<'a>(&'a mut self, path: &str, range: Range<u64>) -> DownloadResult<'a> {
+    async fn download<'a>(&'a mut self, path: &str, range: &Range<u64>) -> DownloadResult<'a> {
         assert!(range.end - range.start > 0);
 
         let full_url = format!("{}{}", self.url, path);

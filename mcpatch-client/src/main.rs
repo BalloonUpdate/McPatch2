@@ -2,6 +2,8 @@ use mcpatch_client::run;
 use mcpatch_client::StartupParameter;
 
 fn main() {
+    std::env::set_var("RUST_BACKTRACE", "1");
+    
     let params = StartupParameter {
         graphic_mode: true,
         standalone_progress: true,
