@@ -46,13 +46,17 @@ impl<R: AsyncRead + Unpin> AsyncRead for PartialAsyncRead<'_, R> {
             return std::task::Poll::Ready(Ok(()));
         }
 
-        let adv = buf.remaining().min(self.1 as usize);
+        let limit = buf.remaining().min(self.1 as usize);
+        let partial = &mut buf.take(limit);
 
         let read = &mut self.0;
         pin!(read);
 
-        match read.poll_read(cx, &mut buf.take(adv)) {
+
+        match read.poll_read(cx, partial) {
             std::task::Poll::Ready(ready) => {
+                let adv = partial.filled().len();
+
                 unsafe { buf.assume_init(adv); }
                 buf.advance(adv);
 
