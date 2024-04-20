@@ -1,3 +1,4 @@
+use std::io::ErrorKind;
 use std::path::Path;
 use std::time::SystemTime;
 
@@ -20,9 +21,9 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
     let mut network = Network::new(config);
 
     let version_file = exe_dir.join(&config.version_file_path);
-    let current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or("".to_owned());
+    let current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or(":empty:".to_owned());
 
-    let server_versions = network.request_text("index.json", 0..0).await.unwrap();
+    let server_versions = network.request_text("index.json", 0..0, "index file").await.unwrap();
     let server_versions = IndexFile::load_from_json(&server_versions);
 
     // 检查服务端版本数量
@@ -37,8 +38,8 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
     }
 
     // 检查版本是否有效
-    if !server_versions.contains(&current_version) {
-        return Err(BusinessError::new("目前无法更新，因为客户端版本号不在服务端版本号列表里，无法确定版本新旧关系"));
+    if !server_versions.contains(&current_version) && current_version != ":empty:" {
+        return Err(format!("目前无法更新，因为客户端版本号 {} 不在服务端版本号列表里，无法确定版本新旧关系", current_version).into());
     }
 
     // 不是最新版才更新
@@ -56,20 +57,37 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         }
         
         // 下载所有更新包元数据
-        let mut version_metas = Vec::<VersionMeta>::new();
+        let mut version_metas = Vec::<FullVersionMeta>::new();
 
         for ver in &missing_versions {
             let range = ver.offset..(ver.offset + ver.len as u64);
-            let meta_text = network.request_text(&ver.filename, range).await.unwrap();
+            let meta_text = network.request_text(&ver.filename, range, format!("metadata of {}", ver.label)).await.unwrap();
+
+            // println!("meta: <{}> {}", meta_text, meta_text.len());
+
             let meta = json::parse(&meta_text).unwrap();
 
             for meta in meta.members().map(|e| VersionMeta::load(e)) {
-                version_metas.push(meta);
+                version_metas.push(FullVersionMeta { filename: ver.filename.to_owned(), metadata: meta });
             }
+        }
+
+        struct FullVersionMeta {
+            /// 更新包文件名
+            filename: String,
+
+            /// 版本元数据
+            metadata: VersionMeta
         }
 
         // 将多个文件变动列表合并成一个，并且尽可能剔除掉刚下载又马上要被删的文件，提高更新效率
         struct UpdateFile {
+            /// 所属更新包文件名
+            package: String,
+
+            /// 所属版本号
+            label: String,
+
             /// 要更新的文件路径
             path: String, 
     
@@ -101,12 +119,16 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         let mut move_files = Vec::<MoveFile>::new();
 
         for meta in &version_metas {
-            for change in &meta.changes {
+            for change in &meta.metadata.changes {
                 match change.clone() {
                     FileChange::CreateFolder { path } => 
                         create_folders.push(path),
                     FileChange::UpdateFile { path, hash, len, modified, offset } => 
-                        update_files.push(UpdateFile { path, hash, len, modified, offset }),
+                        update_files.push(UpdateFile { 
+                            package: meta.filename.to_owned(), 
+                            label: meta.metadata.label.to_owned(), 
+                            path, hash, len, modified, offset 
+                        }),
                     FileChange::DeleteFolder { path } => 
                         delete_folders.push(path),
                     FileChange::DeleteFile { path } => {
@@ -138,34 +160,64 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         
         // 执行更新流程
         // 1.处理要下载的文件，下载到临时文件
-        for UpdateFile { path: raw_path, hash, len, modified, offset } in &update_files {
-            let path = base_dir.join(&raw_path);
-            let temp_path = base_dir.join(&format!("{}.temp", &raw_path));
-            
-            if path.exists() {
-                let meta = tokio::fs::metadata(&path).await.unwrap();
+        let temp_dir = base_dir.join(".mcpatch-temp");
 
-                // 目标文件已经是目录了，就不要删除了，直接跳过，避免丢失玩家的数据
-                if meta.is_dir() {
-                    continue;
-                }
+        // 创建临时文件夹
+        if !update_files.is_empty() {
+            tokio::fs::create_dir_all(&temp_dir).await.unwrap();
+        }
 
-                // 可以跳过更新，todo: 这里判断会有精度问题
-                if meta.modified().unwrap() == *modified && meta.len() == *len {
-                    continue;
-                }
+        // 尽可能跳过要下载的文件
+        for i in (0..update_files.len()).rev() {
+            let f = &update_files[i];
+            let target_path = base_dir.join(&f.path);
 
-                // 对比hash，如果相同也可以跳过更新
-                let mut f = tokio::fs::File::open(&path).await.unwrap();
-
-                if calculate_hash_async(&mut f).await == *hash {
-                    continue;
-                }
+            // 检查一下看能不能跳过下载
+            if !target_path.exists() {
+                continue;
             }
+
+            match tokio::fs::metadata(&target_path).await {
+                Ok(meta) => {
+                    // 目标文件已经是目录了，就不要删除了，直接跳过，避免丢失玩家的数据
+                    if meta.is_dir() {
+                        update_files.remove(i);
+                        continue;
+                    }
+
+                    // 可以跳过更新，todo: 这里判断会有精度问题
+                    if meta.modified().unwrap() == f.modified && meta.len() == f.len {
+                        update_files.remove(i);
+                        continue;
+                    }
+
+                    // 对比hash，如果相同也可以跳过更新
+                    let mut open = tokio::fs::File::open(&target_path).await.unwrap();
+
+                    if calculate_hash_async(&mut open).await == f.hash {
+                        update_files.remove(i);
+                        continue;
+                    }
+                },
+                Err(e) => {
+                    if e.kind() != ErrorKind::NotFound {
+                        Result::<std::fs::Metadata, std::io::Error>::Err(e).unwrap();
+                    }
+                },
+            }
+        }
+
+        // 下载到临时文件
+        for UpdateFile { package, label, path, hash, len, modified: _, offset } in &update_files {
+            let temp_path = temp_dir.join(&format!("{}.temp", &path));
             
+            // println!("download to {:?}", temp_path);
+
+            tokio::fs::create_dir_all(temp_path.parent().unwrap()).await.unwrap();
+
             // 发起请求
-            let mut temp_file = tokio::fs::File::options().create(true).truncate(true).write(true).open(&temp_path).await.unwrap();
-            let mut stream = network.request_file(&raw_path, *offset..(offset + len)).await.unwrap();
+            let mut temp_file = tokio::fs::File::options().create(true).truncate(true).read(true).write(true).open(&temp_path).await.unwrap();
+            let mut stream = network.request_file(package, *offset..(offset + len), format!("{} in {}", path, label)).await.unwrap();
             let mut buf = [0u8; 16 * 1024];
 
             loop {
@@ -226,11 +278,17 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
 
         // 6.合并临时文件
         // todo: 这里要给用户加提示，不能关程序
-        for u in update_files {
-            let path = base_dir.join(&u.path);
-            let temp_path = base_dir.join(&format!("{}.temp", &u.path));
+        for u in &update_files {
+            let target_path = base_dir.join(&u.path);
+            let temp_path = temp_dir.join(&format!("{}.temp", &u.path));
 
-            tokio::fs::rename(temp_path, path).await.unwrap();
+            tokio::fs::rename(temp_path, target_path).await.unwrap();
+        }
+
+        // 清理临时文件夹
+        if temp_dir.exists() {
+            // println!("removing: {:?}", &temp_dir);
+            tokio::fs::remove_dir_all(&temp_dir).await.unwrap();
         }
 
         // 文件基本上更新完了，到这里就要进行收尾工作了

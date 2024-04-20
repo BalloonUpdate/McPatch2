@@ -132,7 +132,7 @@ async fn get_working_dir() -> PathBuf {
     let mut working_dir = std::env::current_dir().unwrap();
         
     if is_running_under_cargo() {
-        working_dir = working_dir.join("test");
+        working_dir = working_dir.join("test").join("client");
     }
 
     tokio::fs::create_dir_all(&working_dir).await.unwrap();

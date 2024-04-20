@@ -4,6 +4,8 @@ use std::sync::Mutex;
 use std::sync::RwLock;
 use std::time::SystemTime;
 
+use chrono::Local;
+
 static LOG_HANDLERS: RwLock<Vec<Box<dyn MessageHandler + Send>>> = RwLock::new(Vec::new());
 
 static LOG_PREFIX: RwLock<String> = RwLock::new(String::new());
@@ -133,6 +135,11 @@ impl FileHandler {
 impl MessageHandler for FileHandler {
     fn record(&self, message: &Message) {
         let mut buf = String::with_capacity(message.content.len() + 128);
+
+        buf.push('[');
+        buf.push_str(&Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
+        buf.push(']');
+        buf.push(' ');
 
         fn push_prefix(buf: &mut String, tag: &str) {
             if !tag.is_empty() {

@@ -11,6 +11,7 @@ use tokio::io::AsyncReadExt;
 use crate::error::BusinessError;
 use crate::error::BusinessResult;
 use crate::global_config::GlobalConfig;
+use crate::log::log_debug;
 use crate::network::http::HttpProtocol;
 use crate::network::private::PrivateProtocol;
 
@@ -38,14 +39,14 @@ impl Network {
         Network { sources, using_source: 0 }
     }
 
-    pub async fn request_text(&mut self, path: &str, range: Range<u64>) -> BusinessResult<String> {
-        let (len, mut data) = self.request_file(path, range).await?;
+    pub async fn request_text(&mut self, path: &str, range: Range<u64>, desc: impl AsRef<str>) -> BusinessResult<String> {
+        let (len, mut data) = self.request_file(path, range, desc).await?;
         let mut text = String::with_capacity(len as usize);
         data.read_to_string(&mut text).await.unwrap();
         Ok(text)
     }
 
-    pub async fn request_file<'a>(&'a mut self, path: &str, range: Range<u64>) -> DownloadResult<'a> {
+    pub async fn request_file<'a>(&'a mut self, path: &str, range: Range<u64>, desc: impl AsRef<str>) -> DownloadResult<'a> {
         let mut error = Option::<BusinessError>::None;
         let mut index = 0;
         
@@ -55,7 +56,9 @@ impl Network {
                 continue;
             }
 
-            match source.download(path, &range).await {
+            log_debug(format!("+ request {} {}+{} ({})", path, range.start, range.end - range.start, desc.as_ref()));
+
+            match source.request(path, &range).await {
                 Ok(result) => return Ok(result),
                 Err(err) => error = Some(err),
             }
@@ -70,5 +73,5 @@ impl Network {
 
 #[async_trait]
 pub trait UpdatingSource {
-    async fn download<'a>(&'a mut self, path: &str, range: &Range<u64>) -> DownloadResult<'a>;
+    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>) -> DownloadResult<'a>;
 }

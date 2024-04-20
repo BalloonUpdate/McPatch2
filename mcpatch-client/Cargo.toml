@@ -9,6 +9,7 @@ edition = "2021"
 mcpatch-shared = { path = "../mcpatch-shared" }
 config_template_derive = { path = "../config_template_derive" }
 
+chrono = { workspace = true }
 json = { workspace = true }
 tokio = { workspace = true }
 

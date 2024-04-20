@@ -56,9 +56,7 @@ impl PrivateProtocol {
 
 #[async_trait]
 impl UpdatingSource for PrivateProtocol {
-    async fn download<'a>(&'a mut self, path: &str, range: &Range<u64>) -> DownloadResult<'a> {
-        println!("request {} {:?}", path, range);
-
+    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>) -> DownloadResult<'a> {
         // 首先发送文件路径
         self.send_data(path.as_bytes()).await.unwrap();
         
@@ -68,8 +66,6 @@ impl UpdatingSource for PrivateProtocol {
 
         // 接收状态码或者文件大小
         let len = self.stream().await.unwrap().read_i64_le().await.unwrap();
-
-        println!("code: {}", len);
 
         if len < 0 {
             return Err(format!("error code {} on receiving {}", len, path).into());

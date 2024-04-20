@@ -4,6 +4,7 @@ pub trait VecRemoveIf<T> {
 }
 
 impl<T> VecRemoveIf<T> for Vec<T> {
+    /// 按条件删除元素，如果要删除某个元素请返回true，反之返回false
     fn remove_if(&mut self, f: impl Fn(&T) -> bool) {
         for i in (0..self.len()).rev() {
             if f(&self[i]) {

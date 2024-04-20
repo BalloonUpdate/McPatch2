@@ -25,7 +25,6 @@ pub fn do_serve(_ctx: &AppContext) -> i32 {
     let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
 
     for stream in listener.incoming() {
-        println!("aaaaaaa");
         let stream = stream.unwrap();
         let ctx = _ctx.clone();
         runtime.spawn(async move { serve_loop(stream, ctx).await });
@@ -83,13 +82,17 @@ async fn serve_loop(stream: std::net::TcpStream, ctx: AppContext) {
         file.seek(std::io::SeekFrom::Start(start)).await?;
 
         while remains > 0 {
-            let mut buf = [0u8; 16 * 1024];
+            let mut buf = [0u8; 32];
             let limit = buf.len().min(remains as usize);
-            let read = file.read(&mut buf[0..limit]).await?;
+            let buf = &mut buf[0..limit];
+            
+            let read = file.read(buf).await?;
             
             stream.write_all(&buf[0..read]).await?;
 
             remains -= read as u64;
+
+            // tokio::time::sleep(std::time::Duration::from_millis(100)).await;
         }
 
         Ok(())
@@ -103,14 +106,17 @@ async fn serve_loop(stream: std::net::TcpStream, ctx: AppContext) {
         let time = SystemTime::now().duration_since(start).unwrap();
 
         if let Some(info) = info {
-            println!("{} -- {} {}-{} ({}ms)", stream.peer_addr().unwrap(), info.0, info.1.start, info.1.end, time.as_micros());
+            println!("{} - {} {}+{} ({}ms)", stream.peer_addr().unwrap(), info.0, info.1.start, info.1.end - info.1.start, time.as_millis());
         }
         
         match result {
             Ok(_) => {},
             Err(e) => {
-                if e.kind() != ErrorKind::UnexpectedEof {
-                    Result::<(), _>::Err(e).unwrap();
+                match e.kind() {
+                    ErrorKind::UnexpectedEof => {},
+                    ErrorKind::ConnectionAborted => {},
+                    ErrorKind::ConnectionReset => {},
+                    _ => Result::<(), _>::Err(e.kind()).unwrap(),
                 }
 
                 break;

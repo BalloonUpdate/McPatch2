@@ -673,6 +673,7 @@ name = "mcpatch-client"
 version = "0.0.1"
 dependencies = [
  "async-trait",
+ "chrono",
  "config_template_derive",
  "json",
  "mcpatch-shared",

@@ -52,7 +52,6 @@ impl<R: AsyncRead + Unpin> AsyncRead for PartialAsyncRead<'_, R> {
         let read = &mut self.0;
         pin!(read);
 
-
         match read.poll_read(cx, partial) {
             std::task::Poll::Ready(ready) => {
                 let adv = partial.filled().len();
