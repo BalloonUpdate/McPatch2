@@ -17,7 +17,8 @@ use crate::network::private::PrivateProtocol;
 pub type DownloadResult<'a> = BusinessResult<(u64, Pin<Box<dyn AsyncRead + 'a>>)>;
 
 pub struct Network {
-    sources: Vec<Box<dyn UpdatingSource + Sync>>
+    sources: Vec<Box<dyn UpdatingSource + Sync>>,
+    using_source: usize,
 }
 
 impl Network {
@@ -34,7 +35,7 @@ impl Network {
 
         sources.push(Box::new(PrivateProtocol::new("127.0.0.1:6700")));
 
-        Network { sources }
+        Network { sources, using_source: 0 }
     }
 
     pub async fn request_text(&mut self, path: &str, range: Range<u64>) -> BusinessResult<String> {
@@ -46,12 +47,20 @@ impl Network {
 
     pub async fn request_file<'a>(&'a mut self, path: &str, range: Range<u64>) -> DownloadResult<'a> {
         let mut error = Option::<BusinessError>::None;
-
+        let mut index = 0;
+        
         for source in &mut self.sources {
+            if index < self.using_source {
+                index += 1;
+                continue;
+            }
+
             match source.download(path, &range).await {
                 Ok(result) => return Ok(result),
                 Err(err) => error = Some(err),
             }
+
+            self.using_source += 1;
         }
         
         return Err(error.unwrap());
