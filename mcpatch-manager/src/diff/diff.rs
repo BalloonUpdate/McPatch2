@@ -1,10 +1,13 @@
 //! 目录差异对比
 
+use std::collections::LinkedList;
 use std::fmt::Debug;
 use std::fmt::Write;
 use std::ops::Deref;
 use std::fmt::Display;
 use std::time::UNIX_EPOCH;
+
+use mcpatch_shared::data::version_meta::FileChange;
 
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::abstract_file::BorrowIntoIterator;
@@ -200,6 +203,48 @@ impl<N: AbstractFile, O: AbstractFile> Diff<N, O> {
                 }
             }
         }
+    }
+
+    /// 将一个`diff`对象转换成文件变动列表
+    pub fn to_file_changes(&self) -> LinkedList<FileChange> {
+        let mut changes = LinkedList::new();
+    
+        for f in &self.deleted_files {
+            changes.push_back(FileChange::DeleteFile { 
+                path: f.path().to_owned() 
+            })
+        }
+    
+        for f in &self.created_folders {
+            changes.push_back(FileChange::CreateFolder { 
+                path: f.path().to_owned() 
+            })
+        }
+    
+        for f in &self.renamed_files {
+            changes.push_back(FileChange::MoveFile {
+                from: f.0.path().to_owned(), 
+                to: f.1.path().to_owned()
+            })
+        }
+    
+        for f in &self.updated_files {
+            changes.push_back(FileChange::UpdateFile { 
+                path: f.path().to_owned(), 
+                hash: f.hash().to_owned(), 
+                len: f.len(), 
+                modified: f.modified(), 
+                offset: 0, // 此时offset是空的，需要由TarWriter去填充
+            })
+        }
+    
+        for f in &self.deleted_folders {
+            changes.push_back(FileChange::DeleteFolder { 
+                path: f.path().to_owned() 
+            })
+        }
+    
+        changes
     }
 }
 

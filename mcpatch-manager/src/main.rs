@@ -4,6 +4,7 @@ use std::path::PathBuf;
 
 use clap::Parser;
 use clap::Subcommand;
+use mcpatch_shared::utility::is_running_under_cargo;
 use serde::Deserialize;
 
 use crate::subcommand::check::do_check;
@@ -11,10 +12,10 @@ use crate::subcommand::combine::do_combine;
 use crate::subcommand::pack::do_pack;
 use crate::subcommand::serve::do_serve;
 use crate::subcommand::test::do_test;
-use crate::utility::is_running_under_cargo;
 
 pub mod utility;
 pub mod subcommand;
+pub mod diff;
 pub mod common;
 
 const CONFIG_TEMPLATE_STRING: &str = include_str!("../config.template.toml");

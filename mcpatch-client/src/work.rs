@@ -6,6 +6,7 @@ use mcpatch_shared::common::file_hash::calculate_hash_async;
 use mcpatch_shared::data::index_file::IndexFile;
 use mcpatch_shared::data::version_meta::FileChange;
 use mcpatch_shared::data::version_meta::VersionMeta;
+use mcpatch_shared::utility::join_string;
 use mcpatch_shared::utility::vec_ext::VecRemoveIf;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncSeekExt;
@@ -15,7 +16,6 @@ use crate::error::BusinessError;
 use crate::global_config::GlobalConfig;
 use crate::log::log_debug;
 use crate::network::Network;
-use crate::utility::join_string;
 
 pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &GlobalConfig, log_file_path: &Path) -> Result<(), BusinessError> {
     let mut network = Network::new(config);

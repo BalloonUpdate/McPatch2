@@ -12,13 +12,13 @@ use mcpatch_shared::data::index_file::IndexFile;
 use mcpatch_shared::data::index_file::VersionIndex;
 use mcpatch_shared::data::version_meta::VersionMeta;
 use mcpatch_shared::data::version_meta_group::VersionMetaGroup;
-use mcpatch_shared::diff::abstract_file::AbstractFile;
-use mcpatch_shared::diff::diff::Diff;
-use mcpatch_shared::diff::disk_file::DiskFile;
-use mcpatch_shared::diff::history_file::HistoryFile;
 
 use crate::common::tar_reader::TarReader;
 use crate::common::tar_writer::TarWriter;
+use crate::diff::abstract_file::AbstractFile;
+use crate::diff::diff::Diff;
+use crate::diff::disk_file::DiskFile;
+use crate::diff::history_file::HistoryFile;
 use crate::AppContext;
 
 /// 执行新版本打包
@@ -69,7 +69,7 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     }
 
     // 写入元数据
-    let meta = VersionMeta::new(version_label.clone(), "没有写更新记录".to_owned(), &diff);
+    let meta = VersionMeta::new(version_label.clone(), "没有写更新记录".to_owned(), diff.to_file_changes());
     let meta_group = VersionMetaGroup::with_one(meta);
     let meta_info = writer.finish(meta_group);
 

@@ -8,11 +8,11 @@ use mcpatch_shared::data::index_file::IndexFile;
 use mcpatch_shared::data::index_file::VersionIndex;
 use mcpatch_shared::data::version_meta::FileChange;
 use mcpatch_shared::data::version_meta_group::VersionMetaGroup;
-use mcpatch_shared::diff::history_file::HistoryFile;
 
 use crate::common::archive_tester::ArchiveTester;
 use crate::common::tar_reader::TarReader;
 use crate::common::tar_writer::TarWriter;
+use crate::diff::history_file::HistoryFile;
 use crate::AppContext;
 
 pub const COMBINED_FILENAME: &str = "combined.tar";

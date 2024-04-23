@@ -51,9 +51,6 @@ use std::time::UNIX_EPOCH;
 
 use json::JsonValue;
 
-use crate::diff::abstract_file::AbstractFile;
-use crate::diff::diff::Diff;
-
 /// 代表单个文件操作
 #[derive(Clone)]
 pub enum FileChange {
@@ -117,8 +114,8 @@ pub struct VersionMeta {
 
 impl VersionMeta {
     /// 创建一个新的版本元数据
-    pub fn new(label: String, logs: String, diff: &Diff<impl AbstractFile, impl AbstractFile>) -> Self {
-        Self { label, logs, changes: Self::diff_to_changes(diff) }
+    pub fn new(label: String, logs: String, changes: LinkedList<FileChange>) -> Self {
+        Self { label, logs, changes }
     }
 
     /// 加载一个现有的版本元数据
@@ -217,47 +214,5 @@ impl VersionMeta {
         }
 
         obj
-    }
-
-    /// 将一个`diff`对象转换成文件变动列表
-    fn diff_to_changes(diff: &Diff<impl AbstractFile, impl AbstractFile>) -> LinkedList<FileChange> {
-        let mut changes = LinkedList::new();
-    
-        for f in &diff.deleted_files {
-            changes.push_back(FileChange::DeleteFile { 
-                path: f.path().to_owned() 
-            })
-        }
-    
-        for f in &diff.created_folders {
-            changes.push_back(FileChange::CreateFolder { 
-                path: f.path().to_owned() 
-            })
-        }
-    
-        for f in &diff.renamed_files {
-            changes.push_back(FileChange::MoveFile {
-                from: f.0.path().to_owned(), 
-                to: f.1.path().to_owned()
-            })
-        }
-    
-        for f in &diff.updated_files {
-            changes.push_back(FileChange::UpdateFile { 
-                path: f.path().to_owned(), 
-                hash: f.hash().to_owned(), 
-                len: f.len(), 
-                modified: f.modified(), 
-                offset: 0, // 此时offset是空的，需要由TarWriter去填充
-            })
-        }
-    
-        for f in &diff.deleted_folders {
-            changes.push_back(FileChange::DeleteFolder { 
-                path: f.path().to_owned() 
-            })
-        }
-    
-        changes
     }
 }

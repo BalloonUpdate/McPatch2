@@ -687,8 +687,10 @@ dependencies = [
 name = "mcpatch-manager"
 version = "0.0.1"
 dependencies = [
+ "chrono",
  "clap",
  "mcpatch-shared",
+ "regex",
  "serde",
  "tar",
  "tokio",
@@ -699,10 +701,8 @@ dependencies = [
 name = "mcpatch-shared"
 version = "0.1.0"
 dependencies = [
- "chrono",
  "crc",
  "json",
- "regex",
  "tokio",
 ]
 

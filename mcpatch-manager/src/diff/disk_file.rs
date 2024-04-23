@@ -10,13 +10,14 @@ use std::rc::Rc;
 use std::rc::Weak;
 use std::time::SystemTime;
 
-use crate::common::file_hash::calculate_hash;
+use mcpatch_shared::common::file_hash::calculate_hash;
+use mcpatch_shared::utility::filename_ext::GetFileNamePart;
+
 use crate::diff::abstract_file::calculate_path_helper;
 use crate::diff::abstract_file::find_file_helper;
 use crate::diff::abstract_file::walk_abstract_file;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::abstract_file::BorrowIntoIterator;
-use crate::utility::filename_ext::GetFileNamePart;
 
 /// 借用哈希
 pub struct BorrowedHash<'a>(std::cell::Ref<'a, Option<String>>);

@@ -1,5 +1,4 @@
 pub mod global_config;
-pub mod utility;
 pub mod error;
 pub mod log;
 pub mod work;
@@ -8,6 +7,8 @@ pub mod network;
 use std::path::Path;
 use std::path::PathBuf;
 
+use mcpatch_shared::utility::is_running_under_cargo;
+
 use crate::global_config::GlobalConfig;
 use crate::log::add_log_handler;
 use crate::log::log_info;
@@ -15,7 +16,6 @@ use crate::log::set_log_prefix;
 use crate::log::ConsoleHandler;
 use crate::log::FileHandler;
 use crate::log::MessageLevel;
-use crate::utility::is_running_under_cargo;
 use crate::work::work;
 
 pub struct AppContext {
