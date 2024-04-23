@@ -8,8 +8,8 @@ pub struct GlobalConfig {
     /// 目前支持的协议：http(s)、webdav(s)、私有协议
     ///
     /// http协议例子：
-    ///   1. http://127.0.0.1:6600/index.json （走http协议）
-    ///   2. https://127.0.0.1:6600/subfolder/index.json （走https协议）
+    ///   1. http://127.0.0.1:6700/index.json （走http协议）
+    ///   2. https://127.0.0.1:6700/subfolder/index.json （走https协议）
     ///
     /// webdav协议：（webdav代表走http协议，webdavs代表走https协议，这样写是为了和http源做区分）
     /// ```
@@ -97,29 +97,47 @@ pub struct GlobalConfig {
 }
 
 impl GlobalConfig {
-    pub async fn load(_file: &Path) -> Self {
-        // let content = match file.exists() {
-        //     true => tokio::fs::read_to_string(file).await.unwrap(),
-        //     false => GlobalConfigTemplate,
-        // };
+    pub async fn load(file: &Path) -> Self {
+        let mut config = yaml_rust::yaml::Hash::new();
 
-        // let parsed = yaml_rust::YamlLoader::load_from_str(&content).unwrap();
+        // 读取配置文件
+        if file.exists() {
+            let content = tokio::fs::read_to_string(file).await.unwrap();
+            let first = yaml_rust::YamlLoader::load_from_str(&content).unwrap().remove(0);
 
-        // let urls = parsed.get("urls").;
+            for (k ,v) in first.into_hash().unwrap() {
+                config.insert(k, v);
+            }
+        }
+
+        // 补全默认配置
+        let default = yaml_rust::YamlLoader::load_from_str(GlobalConfigTemplate).unwrap().remove(0);
+        
+        for (k ,v) in default.into_hash().unwrap() {
+            if !config.contains_key(&k) {
+                config.insert(k, v);
+            }
+        }
+
+        let config = yaml_rust::Yaml::Hash(config);
 
         GlobalConfig {
-            urls: vec!["priavte://127.0.0.1:6700".to_owned()],
-            version_file_path: "mcpatch-version.txt".to_owned(),
-            base_path: "".to_owned(),
-            allow_error: false,
-            silent_mode: false,
-            http_headers: vec![],
-            http_connection_timeout: 10000,
-            http_reading_timeout: 10000,
-            http_retrying_times: 3,
-            http_concurrent_threads: 4,
-            http_concurrent_chunk_size: 4194304,
-            http_ignore_certificate: false,
+            urls: config["urls"].as_vec().unwrap().iter()
+                .map(|e| e.as_str().unwrap().to_owned())
+                .collect(),
+            version_file_path: config["version_file_path"].as_str().unwrap().to_owned(),
+            base_path: config["base_path"].as_str().unwrap().to_owned(),
+            allow_error: config["allow_error"].as_bool().unwrap().to_owned(),
+            silent_mode: config["silent_mode"].as_bool().unwrap().to_owned(),
+            http_headers: config["http_headers"].as_hash().unwrap().iter()
+                .map(|e| (e.0.as_str().unwrap().to_owned(), e.1.as_str().unwrap().to_owned()))
+                .collect(),
+            http_connection_timeout: config["http_connection_timeout"].as_i64().unwrap() as u32,
+            http_reading_timeout: config["http_reading_timeout"].as_bool().unwrap() as u32,
+            http_retrying_times: config["http_retrying_times"].as_bool().unwrap() as u8,
+            http_concurrent_threads: config["http_concurrent_threads"].as_bool().unwrap() as u8,
+            http_concurrent_chunk_size: config["http_concurrent_chunk_size"].as_bool().unwrap() as u32,
+            http_ignore_certificate: config["http_ignore_certificate"].as_bool().unwrap().to_owned(),
         }
     }
 }
