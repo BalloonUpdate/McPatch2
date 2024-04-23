@@ -100,14 +100,17 @@ impl GlobalConfig {
     pub async fn load(file: &Path) -> Self {
         let mut config = yaml_rust::yaml::Hash::new();
 
-        // 读取配置文件
-        if file.exists() {
-            let content = tokio::fs::read_to_string(file).await.unwrap();
-            let first = yaml_rust::YamlLoader::load_from_str(&content).unwrap().remove(0);
+        // 生成默认的配置文件
+        if !file.exists() {
+            tokio::fs::write(&file, GlobalConfigTemplate).await.unwrap();
+        }
 
-            for (k ,v) in first.into_hash().unwrap() {
-                config.insert(k, v);
-            }
+        // 读取配置文件
+        let content = tokio::fs::read_to_string(file).await.unwrap();
+        let first = yaml_rust::YamlLoader::load_from_str(&content).unwrap().remove(0);
+
+        for (k ,v) in first.into_hash().unwrap() {
+            config.insert(k, v);
         }
 
         // 补全默认配置
@@ -129,14 +132,17 @@ impl GlobalConfig {
             base_path: config["base_path"].as_str().unwrap().to_owned(),
             allow_error: config["allow_error"].as_bool().unwrap().to_owned(),
             silent_mode: config["silent_mode"].as_bool().unwrap().to_owned(),
-            http_headers: config["http_headers"].as_hash().unwrap().iter()
-                .map(|e| (e.0.as_str().unwrap().to_owned(), e.1.as_str().unwrap().to_owned()))
-                .collect(),
+            http_headers: match config["http_headers"].as_hash() {
+                Some(map) => map.iter()
+                    .map(|e| (e.0.as_str().unwrap().to_owned(), e.1.as_str().unwrap().to_owned()))
+                    .collect(),
+                None => Vec::new(),
+            },
             http_connection_timeout: config["http_connection_timeout"].as_i64().unwrap() as u32,
-            http_reading_timeout: config["http_reading_timeout"].as_bool().unwrap() as u32,
-            http_retrying_times: config["http_retrying_times"].as_bool().unwrap() as u8,
-            http_concurrent_threads: config["http_concurrent_threads"].as_bool().unwrap() as u8,
-            http_concurrent_chunk_size: config["http_concurrent_chunk_size"].as_bool().unwrap() as u32,
+            http_reading_timeout: config["http_reading_timeout"].as_i64().unwrap() as u32,
+            http_retrying_times: config["http_retrying_times"].as_i64().unwrap() as u8,
+            http_concurrent_threads: config["http_concurrent_threads"].as_i64().unwrap() as u8,
+            http_concurrent_chunk_size: config["http_concurrent_chunk_size"].as_i64().unwrap() as u32,
             http_ignore_certificate: config["http_ignore_certificate"].as_bool().unwrap().to_owned(),
         }
     }

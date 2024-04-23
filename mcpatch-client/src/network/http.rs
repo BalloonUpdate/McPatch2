@@ -39,9 +39,7 @@ impl HttpProtocol {
 #[async_trait]
 impl UpdatingSource for HttpProtocol {
     async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>) -> DownloadResult<'a> {
-        assert!(range.end - range.start > 0);
-
-        let full_url = format!("{}{}", self.url, path);
+        let full_url = format!("{}{}{}", self.url, if self.url.ends_with("/") { "" } else { "/" }, path);
 
         let req = self.client.get(&full_url)
             .header("Range", format!("bytes={}-{}", range.start, range.end))

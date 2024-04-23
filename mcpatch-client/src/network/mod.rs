@@ -58,6 +58,8 @@ impl Network {
 
             log_debug(format!("+ request {} {}+{} ({})", path, range.start, range.end - range.start, desc.as_ref()));
 
+            assert!(range.end >= range.start);
+
             match source.request(path, &range).await {
                 Ok(result) => return Ok(result),
                 Err(err) => error = Some(err),
