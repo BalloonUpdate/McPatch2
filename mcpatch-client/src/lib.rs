@@ -3,9 +3,12 @@ pub mod error;
 pub mod log;
 pub mod work;
 pub mod network;
+pub mod ui;
 
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::RwLock;
 
 use mcpatch_shared::utility::is_running_under_cargo;
 
@@ -16,6 +19,7 @@ use crate::log::set_log_prefix;
 use crate::log::ConsoleHandler;
 use crate::log::FileHandler;
 use crate::log::MessageLevel;
+use crate::ui::UIState;
 use crate::work::work;
 
 pub struct AppContext {
@@ -33,7 +37,7 @@ pub struct StartupParameter {
     // pub external_config_file: String,
 }
 
-pub async fn run(params: StartupParameter) {
+pub async fn run(params: StartupParameter, ui_state: Arc<RwLock<UIState>>) {
     let working_dir = get_working_dir().await;
     let executable_dir = get_executable_dir().await;
     let global_config = GlobalConfig::load(&executable_dir.join("mcpatch.yml")).await;

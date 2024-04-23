@@ -15,16 +15,16 @@ use crate::log::log_debug;
 use crate::network::http::HttpProtocol;
 use crate::network::private::PrivateProtocol;
 
-pub type DownloadResult<'a> = BusinessResult<(u64, Pin<Box<dyn AsyncRead + 'a>>)>;
+pub type DownloadResult<'a> = BusinessResult<(u64, Pin<Box<dyn AsyncRead + Send + 'a>>)>;
 
 pub struct Network {
-    sources: Vec<Box<dyn UpdatingSource + Sync>>,
+    sources: Vec<Box<dyn UpdatingSource + Sync + Send>>,
     using_source: usize,
 }
 
 impl Network {
     pub fn new(config: &GlobalConfig) -> Self {
-        let mut sources = Vec::<Box<dyn UpdatingSource + Sync>>::new();
+        let mut sources = Vec::<Box<dyn UpdatingSource + Sync + Send>>::new();
 
         for url in &config.urls {
             if url.starts_with("http") {
