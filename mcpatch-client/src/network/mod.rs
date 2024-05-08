@@ -27,10 +27,10 @@ impl Network {
         let mut sources = Vec::<Box<dyn UpdatingSource + Sync + Send>>::new();
 
         for url in &config.urls {
-            if url.starts_with("http") {
+            if url.starts_with("http://") {
                 sources.push(Box::new(HttpProtocol::new(url)))
-            } else if url.starts_with("mcpatch") {
-                sources.push(Box::new(PrivateProtocol::new(url)))
+            } else if url.starts_with("mcpatch://") {
+                sources.push(Box::new(PrivateProtocol::new(&url["mcpatch://".len()..])))
             }
         }
 

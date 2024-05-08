@@ -8,7 +8,7 @@ pub mod ui;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::Mutex;
 
 use mcpatch_shared::utility::is_running_under_cargo;
 
@@ -37,7 +37,7 @@ pub struct StartupParameter {
     // pub external_config_file: String,
 }
 
-pub async fn run(params: StartupParameter, ui_state: Arc<RwLock<UIState>>) {
+pub async fn run(params: StartupParameter, ui_state: Arc<Mutex<UIState>>) {
     let working_dir = get_working_dir().await;
     let executable_dir = get_executable_dir().await;
     let global_config = GlobalConfig::load(&executable_dir.join("mcpatch.yml")).await;
@@ -47,6 +47,9 @@ pub async fn run(params: StartupParameter, ui_state: Arc<RwLock<UIState>>) {
         true => executable_dir.join("mcpatch.log"),
         false => executable_dir.join("mcpatch.log.txt"),
     };
+
+    // 根据配置文件更新窗口标题
+    ui_state.lock().unwrap().window_title = global_config.window_title.to_owned();
 
     // 初始化文件日志记录器
     if !params.disable_log_file {
@@ -78,9 +81,13 @@ pub async fn run(params: StartupParameter, ui_state: Arc<RwLock<UIState>>) {
 
     // todo: localization
 
-    // apply theme
-
-    work(&working_dir, &executable_dir, &base_dir, &global_config, &log_file_path).await.unwrap();
+    match work(&working_dir, &executable_dir, &base_dir, &global_config, &log_file_path, &ui_state).await {
+        Ok(_) => (),
+        Err(e) => {
+            let mut ui = ui_state.lock().unwrap();
+            ui.label = e.reason.to_owned();
+        },
+    }
 }
 
 /// 获取更新起始目录

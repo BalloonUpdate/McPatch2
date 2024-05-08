@@ -24,24 +24,13 @@ pub struct GlobalConfig {
     ///         |       +--------------------------------- webdav 用户名
     ///         +----------------------------------------- webdav 协议，只能是webdav或者webdavs
     /// ```
-    #[default_value("\n  - http://127.0.0.1 # 若在公网部署记得换成自己的公网ip或者域名")]
+    #[default_value("\n  - mcpatch://127.0.0.1:6700 # 若在公网部署记得换成自己的公网ip或者域名")]
     pub urls: Vec<String>,
 
     /// 记录客户端版本号文件的路径
     /// 客户端的版本号会被存储在这个文件里，并以此为依据判断是否更新到了最新版本
     #[default_value("mcpatch-version.txt")]
     pub version_file_path: String,
-
-    /// 更新的起始目录，也就是要把文件都更新到哪个目录下
-    /// 默认情况下程序会智能搜索，并将所有文件更新到.minecraft父目录下（也是启动主程序所在目录），
-    /// 这样文件更新的位置就不会随主程序文件的工作目录变化而改变了，每次都会更新在相同目录下。
-    /// 如果你不喜欢这个智能搜索的机制，可以修改此选项来把文件更新到别的地方（十分建议保持默认不要修改）
-    /// 1. 当此选项的值是空字符串''时，会智能搜索.minecraft父目录作为更新起始目录（这也是默认值）
-    /// 2. 当此选项的值是'.'时，会把当前工作目录作为更新起始目录
-    /// 3. 当此选项的值是'..'时，会把当前工作目录的上级目录作为更新起始目录
-    /// 4. 当此选项的值是别的时，比如'ab/cd'时，会把当前工作目录下的ab目录里面的cd目录作为更新起始目录
-    #[default_value("''")]
-    pub base_path: String,
 
     /// 当程序发生错误而更新失败时，是否可以继续进入游戏
     /// 如果为true，发生错误时会忽略错误，正常启动游戏，但是可能会因为某些新模组未下载无法进服
@@ -57,6 +46,22 @@ pub struct GlobalConfig {
     /// 此选项仅当程序以图形模式启动时有效
     #[default_value("false")]
     pub silent_mode: bool,
+
+    /// 窗口标题，可以自定义更新时的窗口标题
+    /// 只有在桌面环境上时才有效，因为非桌面环境没法弹出窗口
+    #[default_value("Mcpatch")]
+    pub window_title: String,
+
+    /// 更新的起始目录，也就是要把文件都更新到哪个目录下
+    /// 默认情况下程序会智能搜索，并将所有文件更新到.minecraft父目录下（也是启动主程序所在目录），
+    /// 这样文件更新的位置就不会随主程序文件的工作目录变化而改变了，每次都会更新在相同目录下。
+    /// 如果你不喜欢这个智能搜索的机制，可以修改此选项来把文件更新到别的地方（十分建议保持默认不要修改）
+    /// 1. 当此选项的值是空字符串''时，会智能搜索.minecraft父目录作为更新起始目录（这也是默认值）
+    /// 2. 当此选项的值是'.'时，会把当前工作目录作为更新起始目录
+    /// 3. 当此选项的值是'..'时，会把当前工作目录的上级目录作为更新起始目录
+    /// 4. 当此选项的值是别的时，比如'ab/cd'时，会把当前工作目录下的ab目录里面的cd目录作为更新起始目录
+    #[default_value("''")]
+    pub base_path: String,
 
     /// 为http类协议设置headers，包括http(s)，webdav(s)
     #[default_value("\n#  User-Agent: This filled by youself # 这是一个自定义UserAgent的配置示例")]
@@ -129,9 +134,10 @@ impl GlobalConfig {
                 .map(|e| e.as_str().unwrap().to_owned())
                 .collect(),
             version_file_path: config["version_file_path"].as_str().unwrap().to_owned(),
-            base_path: config["base_path"].as_str().unwrap().to_owned(),
             allow_error: config["allow_error"].as_bool().unwrap().to_owned(),
             silent_mode: config["silent_mode"].as_bool().unwrap().to_owned(),
+            window_title: config["window_title"].as_str().unwrap().to_owned(),
+            base_path: config["base_path"].as_str().unwrap().to_owned(),
             http_headers: match config["http_headers"].as_hash() {
                 Some(map) => map.iter()
                     .map(|e| (e.0.as_str().unwrap().to_owned(), e.1.as_str().unwrap().to_owned()))

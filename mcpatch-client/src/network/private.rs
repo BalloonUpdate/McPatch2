@@ -1,3 +1,4 @@
+use std::fmt::format;
 use std::ops::Range;
 
 use async_trait::async_trait;
@@ -6,6 +7,7 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
+use crate::log::log_error;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
 
@@ -15,15 +17,17 @@ pub struct PrivateProtocol {
 }
 
 impl PrivateProtocol {
-    pub fn new(url: &str) -> Self {
+    pub fn new(addr: &str) -> Self {
         Self { 
-            addr: url.to_owned(),
+            addr: addr.to_owned(),
             tcp_stream: None,
         }
     }
 
     async fn stream(&mut self) -> std::io::Result<&mut TcpStream> {
         if self.tcp_stream.is_none() {
+            // log_error(format!("{}", self.addr));
+
             self.tcp_stream = Some(TcpStream::connect(&self.addr).await?);
         }
 
