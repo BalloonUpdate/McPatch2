@@ -3,6 +3,11 @@ use std::cell::RefCell;
 use nwd::NwgUi;
 use nwg::NativeUi;
 
+// type OneshotSender<T> = tokio::sync::oneshot::Sender<T>;
+// type OneshotReceiver<T> = tokio::sync::oneshot::Receiver<T>;
+type MpscSender<T> = tokio::sync::mpsc::Sender<T>;
+type MpscReceiver<T> = tokio::sync::mpsc::Receiver<T>;
+
 pub struct DialogContent {
     pub title: String,
     pub content: String,
@@ -15,53 +20,59 @@ enum UiCommand {
     SetTitle(String),
     SetLabel(String),
     SetProgress(u32),
-    SetProgressLabel(String),
+    SetLabelSecondary(String),
     PupopDialog(DialogContent),
 }
 
 #[derive(NwgUi)]
 pub struct AppWindow {
-    #[nwg_control(title: "Basic example", flags: "WINDOW|VISIBLE", size: (300, 135), position: (300, 300))]
-    #[nwg_events(OnWindowClose: [AppWindow::say_goodbye])]
+    #[nwg_control(title: "WindowTitle", flags: "WINDOW|VISIBLE", size: (350, 120), center: true, topmost: true)]
+    #[nwg_events(OnWindowClose: [AppWindow::try_close_window])]
     window: nwg::Window,
 
-    #[nwg_control(text: "Label", size: (280, 35), position: (10, 10))]
+    #[nwg_control(position: (35, 15), size: (280, 60), text: "Label", 
+        flags: "ELIPSIS|VISIBLE", h_align: HTextAlign::Center, 
+        // background_color: Some([255, 0, 255])
+    )]
     label: nwg::Label,
 
-    #[nwg_control(position: (10, 10), size: (100, 30))]
-    progress: nwg::ProgressBar,
+    #[nwg_control(position: (35, 45), size: (280, 24), text: "Label Secondary", 
+        flags: "ELIPSIS|VISIBLE", h_align: HTextAlign::Center, 
+        // background_color: Some([0, 255, 255])
+    )]
+    label_secondary: nwg::Label,
 
-    #[nwg_control(text: "Progress Bar", position: (10, 10), size: (100, 30))]
-    progress_label: nwg::Label,
+    #[nwg_control(position: (35, 80), size: (280, 20), range: 0..1000)]
+    progress: nwg::ProgressBar,
 
     #[nwg_control]
     #[nwg_events(OnNotice: [AppWindow::on_noticed])]
     notice: nwg::Notice,
 
-    sender: tokio::sync::mpsc::Sender<bool>,
-    receiver: RefCell<tokio::sync::mpsc::Receiver<UiCommand>>,
+    commands: RefCell<MpscReceiver<UiCommand>>,
+    dialog_result: MpscSender<bool>,
 }
 
 impl AppWindow {
     pub fn new() -> (AppWindowCommander, app_window_ui::AppWindowUi) {
-        let (sender1, receiver1) = tokio::sync::mpsc::channel(1000);
-        let (sender2, receiver2) = tokio::sync::mpsc::channel(1000);
-
-        let w = AppWindow {
+        let (dialog_result, receiver) = tokio::sync::mpsc::channel(1000);
+        let (sender, commands) = tokio::sync::mpsc::channel(1000);
+        
+        let data = AppWindow {
             window: Default::default(),
             label: Default::default(),
+            label_secondary: Default::default(),
             progress: Default::default(),
-            progress_label: Default::default(),
             notice: Default::default(),
-            sender: sender1,
-            receiver: RefCell::new(receiver2),
+            commands: RefCell::new(commands),
+            dialog_result,
         };
 
-        let win = AppWindow::build_ui(w).unwrap();
+        let win = AppWindow::build_ui(data).unwrap();
 
         let commander = AppWindowCommander { 
-            sender: sender2, 
-            receiver: receiver1, 
+            sender, 
+            receiver, 
             notice_sender: win.notice.sender(),
         };
 
@@ -69,14 +80,21 @@ impl AppWindow {
     }
 
     fn on_noticed(&self) {
-        let mut receiver = self.receiver.borrow_mut();
+        // println!("enter {:?}", std::thread::current().id());
 
-        while !receiver.is_empty() {
-            let cmd = receiver.blocking_recv().unwrap();
+        let poll_command = || -> Option<UiCommand> {
+            let mut receiver = self.commands.borrow_mut();
 
+            match receiver.is_empty() {
+                true => None,
+                false => Some(receiver.blocking_recv().unwrap()),
+            }
+        };
+        
+        while let Some(cmd) = poll_command() {
             match cmd {
                 UiCommand::Exit => {
-                    nwg::stop_thread_dispatch();
+                    self.window.close();
                 },
                 UiCommand::SetTitle(title) => {
                     self.window.set_text(&title);
@@ -85,10 +103,10 @@ impl AppWindow {
                     self.label.set_text(&label);
                 },
                 UiCommand::SetProgress(progress) => {
-                    self.progress.set_step(progress);
+                    self.progress.set_pos(progress);
                 },
-                UiCommand::SetProgressLabel(plabel) => {
-                    self.progress_label.set_text(&plabel);
+                UiCommand::SetLabelSecondary(label) => {
+                    self.label_secondary.set_text(&label);
                 },
                 UiCommand::PupopDialog(dialog) => {
                     let prams = nwg::MessageParams {
@@ -98,28 +116,23 @@ impl AppWindow {
                         icons: nwg::MessageIcons::Info,
                     };
                 
-                    let _choice = nwg::message(&prams);
+                    let choice = nwg::modal_message(&self.window, &prams);
 
-                    // match choice {
-                    //     nwg::MessageChoice::Abort => todo!(),
-                    //     nwg::MessageChoice::Cancel => todo!(),
-                    //     nwg::MessageChoice::Continue => todo!(),
-                    //     nwg::MessageChoice::Ignore => todo!(),
-                    //     nwg::MessageChoice::No => todo!(),
-                    //     nwg::MessageChoice::Ok => todo!(),
-                    //     nwg::MessageChoice::Retry => todo!(),
-                    //     nwg::MessageChoice::TryAgain => todo!(),
-                    //     nwg::MessageChoice::Yes => todo!(),
-                    // }
+                    let result = match choice {
+                        nwg::MessageChoice::No => false,
+                        nwg::MessageChoice::Yes => true,
+                        _ => false,
+                    };
 
-                    self.sender.blocking_send(true).unwrap();
+                    self.dialog_result.blocking_send(result).unwrap();
                 },
             }
         }
+
+        // println!("exit {:?}", std::thread::current().id());
     }
     
-    fn say_goodbye(&self) {
-        // nwg::modal_info_message(&self.window, "Goodbye", &format!("Goodbye {}", self.name_edit.text()));
+    fn try_close_window(&self) {
         nwg::stop_thread_dispatch();
     }
 }
@@ -141,8 +154,8 @@ impl AppWindowCommander {
         self.notice_sender.notice();
     }
 
-    pub async fn set_label(&self, label: String) {
-        self.sender.send(UiCommand::SetLabel(label)).await.unwrap();
+    pub async fn set_label(&self, text: String) {
+        self.sender.send(UiCommand::SetLabel(text)).await.unwrap();
         self.notice_sender.notice();
     }
 
@@ -151,8 +164,8 @@ impl AppWindowCommander {
         self.notice_sender.notice();
     }
 
-    pub async fn set_progress_label(&self, plabel: String) {
-        self.sender.send(UiCommand::SetProgressLabel(plabel)).await.unwrap();
+    pub async fn set_label_secondary(&self, text: String) {
+        self.sender.send(UiCommand::SetLabelSecondary(text)).await.unwrap();
         self.notice_sender.notice();
     }
 

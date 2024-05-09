@@ -14,22 +14,33 @@ fn main() {
     nwg::init().expect("Failed to init Native Windows GUI");
     nwg::Font::set_global_family("Segoe UI").expect("Failed to set default font");
 
-    let (ui_cmd, _do_not_touch_this_variable) = AppWindow::new();
+    let window_close_signal = tokio::sync::oneshot::channel::<()>();
 
-    runtime.spawn(async move {
+    let (mut ui_cmd, _do_not_touch_this_variable) = AppWindow::new();
+
+    let work = runtime.spawn(async move {
         let _params = StartupParameter {
             graphic_mode: true,
             standalone_progress: true,
             disable_log_file: false,
         };
 
-        let _handle = tokio::spawn(run(_params, ui_cmd)).await;
-
-        // 关闭UI
-        // let mut state = state1.write().unwrap();
-        // state.exit_flag = true;
+        tokio::select! {
+            _ = window_close_signal.1 => {
+                println!("interupted!")
+            },
+            _ = run(_params, &mut ui_cmd) => {
+                // 补发一下
+                ui_cmd.exit().await;
+            }
+        }
     });
    
     nwg::dispatch_thread_events();
+
+    // 失败说明工作线程已经结束运行了
+    let _ = window_close_signal.0.send(());
+
+    runtime.block_on(work).unwrap();
 }
 

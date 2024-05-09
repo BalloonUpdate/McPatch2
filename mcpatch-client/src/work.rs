@@ -17,6 +17,7 @@ use crate::global_config::GlobalConfig;
 use crate::log::log_debug;
 use crate::network::Network;
 use crate::ui::AppWindowCommander;
+use crate::ui::DialogContent;
 
 pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &GlobalConfig, log_file_path: &Path, ui_cmd: &mut AppWindowCommander) -> Result<(), BusinessError> {
     let mut network = Network::new(config);
@@ -24,12 +25,17 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
     let version_file = exe_dir.join(&config.version_file_path);
     let current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or(":empty:".to_owned());
 
-    ui_cmd.set_label("".to_owned()).await;
+    ui_cmd.set_label("正在检查更新".to_owned()).await;
+    // ui_cmd.set_label_secondary("进度条标签".to_owned()).await;
+    // ui_cmd.set_progress(500).await;
 
     let server_versions = network.request_text("index.json", 0..0, "index file").await.unwrap();
     let server_versions = IndexFile::load_from_json(&server_versions);
 
     ui_cmd.set_label("正在看有没有更新".to_owned()).await;
+
+    // return Err(BusinessError::new("目前无法更新，因为服务端还没有打包任何更新包"));
+    // tokio::time::sleep(std::time::Duration::from_millis(500000)).await;
 
     // 检查服务端版本数量
     if server_versions.len() == 0 {
