@@ -1,5 +1,6 @@
+use std::ops::Deref;
 use std::sync::Arc;
-use std::sync::Mutex;
+use std::time::Duration;
 
 use egui::vec2;
 use egui::Align2;
@@ -11,6 +12,7 @@ use egui::FontId;
 use egui::Rect;
 use egui::Rounding;
 use egui::Sense;
+use tokio::sync::Mutex;
 
 pub struct DialogContent {
     pub title: String,
@@ -20,8 +22,9 @@ pub struct DialogContent {
 }
 
 #[derive(Default)]
-pub struct UIState {
+pub struct UIStateData {
     exit_flag: bool,
+    dialog_choice: Option<bool>,
 
     pub window_title: String,
     pub label: String,
@@ -31,12 +34,88 @@ pub struct UIState {
     pub dialog: Option<DialogContent>,
 }
 
+#[derive(Clone)]
+pub struct UIState1 {
+    inner: Arc<Mutex<UIStateData>>
+}
+
+impl UIState1 {
+    pub fn new() -> Self {
+        Self { inner: Arc::new(Mutex::new(UIStateData::default())) }
+    }
+
+    pub async fn exit(&self) {
+        let mut lock = self.lock().await;
+
+        lock.exit_flag = true;
+    }
+
+    pub async fn set_title(&self, title: String) {
+        let mut lock = self.lock().await;
+
+        lock.window_title = title;
+    }
+
+    pub async fn set_label(&self, label: String) {
+        let mut lock = self.lock().await;
+
+        lock.label = label;
+    }
+
+    pub async fn set_progress(&self, value: f32) {
+        let mut lock = self.lock().await;
+
+        lock.progress = value;
+    }
+
+    pub async fn set_progress_label(&self, plabel: String) {
+        let mut lock = self.lock().await;
+
+        lock.progress_label = plabel;
+    }
+
+    pub async fn popup_dialog(&self, dialog: DialogContent) -> bool {
+        let mut lock = self.lock().await;
+
+        lock.dialog_choice = None;
+        lock.dialog = Some(dialog);
+
+        drop(lock);
+
+        loop {
+            let mut lock = self.lock().await;
+
+            if let Some(choice) = lock.dialog_choice {
+                lock.dialog_choice = None;
+
+                return choice;
+            }
+
+            tokio::time::sleep(Duration::from_millis(100)).await;
+        }
+    }
+
+    // pub fn clear_dialog(&self) {
+    //     let mut lock = self.lock().await;
+
+    //     lock.dialog = None;
+    // }
+}
+
+impl Deref for UIState1 {
+    type Target = Arc<Mutex<UIStateData>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
 pub struct AppWindow {
-    state: Arc<Mutex<UIState>>,
+    state: UIState1,
 }
 
 impl AppWindow {
-    pub fn new(_cc: &eframe::CreationContext<'_>, state: Arc<Mutex<UIState>>) -> Self {
+    pub fn new(_cc: &eframe::CreationContext<'_>, state: UIState1) -> Self {
         let mut fonts = FontDefinitions::default();
 
         fonts.font_data.insert("simhei".to_owned(), FontData::from_static(include_bytes!("simhei.ttf")));
@@ -56,7 +135,7 @@ impl AppWindow {
 
 impl eframe::App for AppWindow {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let mut state = self.state.lock().unwrap();
+        let mut state = self.state.blocking_lock();
         let mut close_dialog = false;
 
         egui::CentralPanel::default().show(ctx, |ui| {

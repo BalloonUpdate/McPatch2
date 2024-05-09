@@ -1,10 +1,6 @@
-use std::sync::Arc;
-use std::sync::Mutex;
-
 use mcpatch_client::run;
 use mcpatch_client::ui::AppWindow;
-use mcpatch_client::ui::DialogContent;
-use mcpatch_client::ui::UIState;
+use mcpatch_client::ui::UIState1;
 use mcpatch_client::StartupParameter;
 
 fn main() {
@@ -22,16 +18,16 @@ fn main() {
         disable_log_file: false,
     };
 
-    let state1 = Arc::new(Mutex::new(UIState::default()));
+    let state1 = UIState1::new();
     let state2 = state1.clone();
 
     {
-        let mut state = state1.lock().unwrap();
+        let mut state = state1.blocking_lock();
         state.label = "等待初始化".to_owned();
         state.progress = 1.0;
         state.progress_label = "100 / 100 已完成".to_owned();
 
-        // state.dialog = Some(DialogContent {
+        // state.dialog = Some(mcpatch_client::ui::DialogContent {
         //     title: "标题".to_owned(),
         //     content: "哈哈哈哈哈".to_owned(),
         //     yes: "确定".to_owned(),

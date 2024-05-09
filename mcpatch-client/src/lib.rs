@@ -7,8 +7,6 @@ pub mod ui;
 
 use std::path::Path;
 use std::path::PathBuf;
-use std::sync::Arc;
-use std::sync::Mutex;
 
 use mcpatch_shared::utility::is_running_under_cargo;
 
@@ -19,7 +17,7 @@ use crate::log::set_log_prefix;
 use crate::log::ConsoleHandler;
 use crate::log::FileHandler;
 use crate::log::MessageLevel;
-use crate::ui::UIState;
+use crate::ui::UIState1;
 use crate::work::work;
 
 pub struct AppContext {
@@ -37,7 +35,7 @@ pub struct StartupParameter {
     // pub external_config_file: String,
 }
 
-pub async fn run(params: StartupParameter, ui_state: Arc<Mutex<UIState>>) {
+pub async fn run(params: StartupParameter, ui_state: UIState1) {
     let working_dir = get_working_dir().await;
     let executable_dir = get_executable_dir().await;
     let global_config = GlobalConfig::load(&executable_dir.join("mcpatch.yml")).await;
@@ -49,7 +47,7 @@ pub async fn run(params: StartupParameter, ui_state: Arc<Mutex<UIState>>) {
     };
 
     // 根据配置文件更新窗口标题
-    ui_state.lock().unwrap().window_title = global_config.window_title.to_owned();
+    ui_state.lock().await.window_title = global_config.window_title.to_owned();
 
     // 初始化文件日志记录器
     if !params.disable_log_file {
@@ -84,7 +82,7 @@ pub async fn run(params: StartupParameter, ui_state: Arc<Mutex<UIState>>) {
     match work(&working_dir, &executable_dir, &base_dir, &global_config, &log_file_path, &ui_state).await {
         Ok(_) => (),
         Err(e) => {
-            let mut ui = ui_state.lock().unwrap();
+            let mut ui = ui_state.lock().await;
             ui.label = e.reason.to_owned();
         },
     }

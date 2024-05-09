@@ -1,8 +1,5 @@
 use std::io::ErrorKind;
 use std::path::Path;
-use std::sync::Arc;
-use std::sync::Mutex;
-use std::time::Duration;
 use std::time::SystemTime;
 
 use mcpatch_shared::common::file_hash::calculate_hash_async;
@@ -19,20 +16,20 @@ use crate::error::BusinessError;
 use crate::global_config::GlobalConfig;
 use crate::log::log_debug;
 use crate::network::Network;
-use crate::ui::UIState;
+use crate::ui::UIState1;
 
-pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &GlobalConfig, log_file_path: &Path, ui_state: &Arc<Mutex<UIState>>) -> Result<(), BusinessError> {
+pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &GlobalConfig, log_file_path: &Path, ui_state: &UIState1) -> Result<(), BusinessError> {
     let mut network = Network::new(config);
 
     let version_file = exe_dir.join(&config.version_file_path);
     let current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or(":empty:".to_owned());
 
-    ui_state.lock().unwrap().label = "正在检查更新".to_owned();
+    ui_state.lock().await.label = "正在检查更新".to_owned();
 
     let server_versions = network.request_text("index.json", 0..0, "index file").await.unwrap();
     let server_versions = IndexFile::load_from_json(&server_versions);
 
-    ui_state.lock().unwrap().label = "正在计算要不要更新".to_owned();
+    ui_state.lock().await.label = "正在计算要不要更新".to_owned();
 
     // 检查服务端版本数量
     if server_versions.len() == 0 {
@@ -69,7 +66,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         let mut counter = 1;
 
         for ver in &missing_versions {
-            ui_state.lock().unwrap().label = format!("正在下载元数据 {} ({}/{})", ver.label, counter, missing_versions.len());
+            ui_state.lock().await.label = format!("正在下载元数据 {} ({}/{})", ver.label, counter, missing_versions.len());
             counter += 1;
 
             let range = ver.offset..(ver.offset + ver.len as u64);
@@ -130,7 +127,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         let mut delete_files = Vec::<String>::new();
         let mut move_files = Vec::<MoveFile>::new();
 
-        ui_state.lock().unwrap().label = "正在收集要更新的文件".to_owned();
+        ui_state.lock().await.label = "正在收集要更新的文件".to_owned();
 
         for meta in &version_metas {
             for change in &meta.metadata.changes {
@@ -221,7 +218,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
             }
         }
 
-        ui_state.lock().unwrap().label = "准备开始下载更新数据".to_owned();
+        ui_state.lock().await.label = "准备开始下载更新数据".to_owned();
 
         let mut counter = 0;
 
@@ -234,7 +231,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
             tokio::fs::create_dir_all(temp_path.parent().unwrap()).await.unwrap();
 
             counter += 1;
-            ui_state.lock().unwrap().label = format!("正在下载 {} 的 {} ({}/{})", label, path, counter, update_files.len());
+            ui_state.lock().await.label = format!("正在下载 {} 的 {} ({}/{})", label, path, counter, update_files.len());
 
             // 发起请求
             let mut temp_file = tokio::fs::File::options().create(true).truncate(true).read(true).write(true).open(&temp_path).await.unwrap();
@@ -263,7 +260,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         }
         
         // 2.处理要移动的文件
-        ui_state.lock().unwrap().label = "正在处理文件移动".to_owned();
+        ui_state.lock().await.label = "正在处理文件移动".to_owned();
 
         for MoveFile { from, to } in move_files {
             let from = base_dir.join(&from);
@@ -275,7 +272,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         }
 
         // 3.处理要删除的文件
-        ui_state.lock().unwrap().label = "正在处理旧文件和旧目录".to_owned();
+        ui_state.lock().await.label = "正在处理旧文件和旧目录".to_owned();
 
         for path in delete_files {
             let path = base_dir.join(&path);
@@ -295,7 +292,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         }
 
         // 5.处理要创建的空目录
-        ui_state.lock().unwrap().label = "正在处理新目录".to_owned();
+        ui_state.lock().await.label = "正在处理新目录".to_owned();
 
         for path in create_folders {
             let path = base_dir.join(&path);
@@ -304,7 +301,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         }
 
         // 6.合并临时文件
-        ui_state.lock().unwrap().label = "正在合并临时文件，请不要关闭程序，避免数据损坏".to_owned();
+        ui_state.lock().await.label = "正在合并临时文件，请不要关闭程序，避免数据损坏".to_owned();
         for u in &update_files {
             let target_path = base_dir.join(&u.path);
             let temp_path = temp_dir.join(&format!("{}.temp", &u.path));
@@ -313,14 +310,14 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         }
 
         // 清理临时文件夹
-        ui_state.lock().unwrap().label = "正在清理临时文件夹".to_owned();
+        ui_state.lock().await.label = "正在清理临时文件夹".to_owned();
         if temp_dir.exists() {
             // println!("removing: {:?}", &temp_dir);
             tokio::fs::remove_dir_all(&temp_dir).await.unwrap();
         }
 
         // 文件基本上更新完了，到这里就要进行收尾工作了
-        ui_state.lock().unwrap().label = "正在进行收尾工作".to_owned();
+        ui_state.lock().await.label = "正在进行收尾工作".to_owned();
 
         // 1.更新客户端版本号
         tokio::fs::write(&version_file, latest_version.as_bytes()).await.unwrap();
@@ -328,9 +325,9 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         // 2.弹出更新记录
         println!("更新成功: {}", join_string(missing_versions.iter().map(|e| &e.label), ", "));
 
-        ui_state.lock().unwrap().label = format!("更新成功: {}", join_string(missing_versions.iter().map(|e| &e.label), ", "));
+        ui_state.lock().await.label = format!("更新成功: {}", join_string(missing_versions.iter().map(|e| &e.label), ", "));
     } else {
-        ui_state.lock().unwrap().label = "没有更新".to_owned();
+        ui_state.lock().await.label = "没有更新".to_owned();
     }
 
     Ok(())
