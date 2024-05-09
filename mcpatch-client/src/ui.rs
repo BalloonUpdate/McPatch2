@@ -1,7 +1,9 @@
 use std::cell::RefCell;
+use std::sync::Arc;
 
 use nwd::NwgUi;
 use nwg::NativeUi;
+use tokio::sync::Mutex;
 
 // type OneshotSender<T> = tokio::sync::oneshot::Sender<T>;
 // type OneshotReceiver<T> = tokio::sync::oneshot::Receiver<T>;
@@ -26,7 +28,7 @@ enum UiCommand {
 
 #[derive(NwgUi)]
 pub struct AppWindow {
-    #[nwg_control(title: "WindowTitle", flags: "WINDOW|VISIBLE", size: (350, 120), center: true, topmost: true)]
+    #[nwg_control(title: "WindowTitle", flags: "WINDOW|VISIBLE", size: (350, 120), center: true, topmost: false)]
     #[nwg_events(OnWindowClose: [AppWindow::try_close_window])]
     window: nwg::Window,
 
@@ -71,9 +73,11 @@ impl AppWindow {
         let win = AppWindow::build_ui(data).unwrap();
 
         let commander = AppWindowCommander { 
-            sender, 
-            receiver, 
-            notice_sender: win.notice.sender(),
+            inner: Arc::new(Mutex::new(AppWindowCommanderInner {
+                sender, 
+                receiver, 
+                notice_sender: win.notice.sender(),
+            }))
         };
 
         (commander, win)
@@ -112,7 +116,10 @@ impl AppWindow {
                     let prams = nwg::MessageParams {
                         title: &dialog.title,
                         content: &dialog.content,
-                        buttons: nwg::MessageButtons::YesNo,
+                        buttons: match dialog.no.is_some() {
+                            true => nwg::MessageButtons::YesNo,
+                            false => nwg::MessageButtons::Ok,
+                        },
                         icons: nwg::MessageIcons::Info,
                     };
                 
@@ -121,6 +128,7 @@ impl AppWindow {
                     let result = match choice {
                         nwg::MessageChoice::No => false,
                         nwg::MessageChoice::Yes => true,
+                        nwg::MessageChoice::Ok => true,
                         _ => false,
                     };
 
@@ -137,42 +145,66 @@ impl AppWindow {
     }
 }
 
-pub struct AppWindowCommander {
+struct AppWindowCommanderInner {
     sender: tokio::sync::mpsc::Sender<UiCommand>,
     receiver: tokio::sync::mpsc::Receiver<bool>,
     notice_sender: nwg::NoticeSender,
 }
 
+#[derive(Clone)]
+pub struct AppWindowCommander {
+    inner: Arc<Mutex<AppWindowCommanderInner>>,
+}
+
 impl AppWindowCommander {
-    pub async fn exit(&self) {
-        self.sender.send(UiCommand::Exit).await.unwrap();
-        self.notice_sender.notice();
+    pub async fn async_exit(&self) {
+        let this = self.inner.lock().await;
+
+        this.sender.send(UiCommand::Exit).await.unwrap();
+        this.notice_sender.notice();
+    }
+
+    pub fn sync_exit(&self) {
+        let this = self.inner.blocking_lock();
+
+        this.sender.blocking_send(UiCommand::Exit).unwrap();
+        this.notice_sender.notice();
     }
 
     pub async fn set_title(&self, title: String) {
-        self.sender.send(UiCommand::SetTitle(title)).await.unwrap();
-        self.notice_sender.notice();
+        let this = self.inner.lock().await;
+        
+        this.sender.send(UiCommand::SetTitle(title)).await.unwrap();
+        this.notice_sender.notice();
     }
 
     pub async fn set_label(&self, text: String) {
-        self.sender.send(UiCommand::SetLabel(text)).await.unwrap();
-        self.notice_sender.notice();
+        let this = self.inner.lock().await;
+        
+        this.sender.send(UiCommand::SetLabel(text)).await.unwrap();
+        this.notice_sender.notice();
     }
 
     pub async fn set_progress(&self, value: u32) {
-        self.sender.send(UiCommand::SetProgress(value)).await.unwrap();
-        self.notice_sender.notice();
+        let this = self.inner.lock().await;
+        
+        this.sender.send(UiCommand::SetProgress(value)).await.unwrap();
+        this.notice_sender.notice();
     }
 
     pub async fn set_label_secondary(&self, text: String) {
-        self.sender.send(UiCommand::SetLabelSecondary(text)).await.unwrap();
-        self.notice_sender.notice();
+        let this = self.inner.lock().await;
+        
+        this.sender.send(UiCommand::SetLabelSecondary(text)).await.unwrap();
+        this.notice_sender.notice();
     }
 
     pub async fn popup_dialog(&mut self, dialog: DialogContent) -> bool {
-        self.sender.send(UiCommand::PupopDialog(dialog)).await.unwrap();
-        self.notice_sender.notice();
+        let mut this = self.inner.lock().await;
+        
+        this.sender.send(UiCommand::PupopDialog(dialog)).await.unwrap();
+        this.notice_sender.notice();
 
-        self.receiver.recv().await.unwrap()
+        this.receiver.recv().await.unwrap()
     }
 }

@@ -12,6 +12,7 @@ use mcpatch_shared::utility::is_running_under_cargo;
 
 use crate::global_config::GlobalConfig;
 use crate::log::add_log_handler;
+use crate::log::log_error;
 use crate::log::log_info;
 use crate::log::set_log_prefix;
 use crate::log::ConsoleHandler;
@@ -84,11 +85,13 @@ pub async fn run(params: StartupParameter, ui_cmd: &mut AppWindowCommander) {
     match work(&working_dir, &executable_dir, &base_dir, &global_config, &log_file_path, ui_cmd).await {
         Ok(_) => (),
         Err(e) => {
+            log_error(&e.reason);
+
             ui_cmd.popup_dialog(DialogContent {
                 title: "Error".to_owned(),
                 content: e.reason.to_owned(),
                 yes: "Ok".to_owned(),
-                no: Some("No".to_owned()),
+                no: None,
             }).await;
         },
     }

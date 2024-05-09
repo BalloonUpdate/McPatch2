@@ -136,10 +136,14 @@ impl MessageHandler for FileHandler {
     fn record(&self, message: &Message) {
         let mut buf = String::with_capacity(message.content.len() + 128);
 
-        buf.push('[');
-        buf.push_str(&Local::now().format("%Y-%m-%d %H:%M:%S").to_string());
-        buf.push(']');
-        buf.push(' ');
+        let time = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+
+        fn push_time(buf: &mut String, time: &str) {
+            buf.push('[');
+            buf.push_str(&time);
+            buf.push(']');
+            buf.push(' ');
+        }
 
         fn push_prefix(buf: &mut String, tag: &str) {
             if !tag.is_empty() {
@@ -149,14 +153,20 @@ impl MessageHandler for FileHandler {
             };
         }
 
+        push_time(&mut buf, &time);
         push_prefix(&mut buf, &message.prefix);
 
         for c in message.content.chars() {
-            if c == '\n' {
-                push_prefix(&mut buf, &message.prefix);
+            if c == '\r' {
+                continue;
             }
 
             buf.push(c);
+
+            if c == '\n' {
+                push_time(&mut buf, &time);
+                push_prefix(&mut buf, &message.prefix);
+            }
         }
 
         if message.new_line {
