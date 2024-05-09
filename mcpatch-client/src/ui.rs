@@ -1,18 +1,7 @@
-use std::ops::Deref;
-use std::sync::Arc;
-use std::time::Duration;
+use std::cell::RefCell;
 
-use egui::vec2;
-use egui::Align2;
-use egui::Color32;
-use egui::FontData;
-use egui::FontDefinitions;
-use egui::FontFamily;
-use egui::FontId;
-use egui::Rect;
-use egui::Rounding;
-use egui::Sense;
-use tokio::sync::Mutex;
+use nwd::NwgUi;
+use nwg::NativeUi;
 
 pub struct DialogContent {
     pub title: String,
@@ -21,162 +10,156 @@ pub struct DialogContent {
     pub no: Option<String>,
 }
 
-#[derive(Default)]
-pub struct UIStateData {
-    exit_flag: bool,
-    dialog_choice: Option<bool>,
-
-    pub window_title: String,
-    pub label: String,
-    pub progress_label: String,
-    pub progress: f32,
-
-    pub dialog: Option<DialogContent>,
+enum UiCommand {
+    Exit,
+    SetTitle(String),
+    SetLabel(String),
+    SetProgress(u32),
+    SetProgressLabel(String),
+    PupopDialog(DialogContent),
 }
 
-#[derive(Clone)]
-pub struct UIState1 {
-    inner: Arc<Mutex<UIStateData>>
-}
-
-impl UIState1 {
-    pub fn new() -> Self {
-        Self { inner: Arc::new(Mutex::new(UIStateData::default())) }
-    }
-
-    pub async fn exit(&self) {
-        let mut lock = self.lock().await;
-
-        lock.exit_flag = true;
-    }
-
-    pub async fn set_title(&self, title: String) {
-        let mut lock = self.lock().await;
-
-        lock.window_title = title;
-    }
-
-    pub async fn set_label(&self, label: String) {
-        let mut lock = self.lock().await;
-
-        lock.label = label;
-    }
-
-    pub async fn set_progress(&self, value: f32) {
-        let mut lock = self.lock().await;
-
-        lock.progress = value;
-    }
-
-    pub async fn set_progress_label(&self, plabel: String) {
-        let mut lock = self.lock().await;
-
-        lock.progress_label = plabel;
-    }
-
-    pub async fn popup_dialog(&self, dialog: DialogContent) -> bool {
-        let mut lock = self.lock().await;
-
-        lock.dialog_choice = None;
-        lock.dialog = Some(dialog);
-
-        drop(lock);
-
-        loop {
-            let mut lock = self.lock().await;
-
-            if let Some(choice) = lock.dialog_choice {
-                lock.dialog_choice = None;
-
-                return choice;
-            }
-
-            tokio::time::sleep(Duration::from_millis(100)).await;
-        }
-    }
-
-    // pub fn clear_dialog(&self) {
-    //     let mut lock = self.lock().await;
-
-    //     lock.dialog = None;
-    // }
-}
-
-impl Deref for UIState1 {
-    type Target = Arc<Mutex<UIStateData>>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.inner
-    }
-}
-
+#[derive(NwgUi)]
 pub struct AppWindow {
-    state: UIState1,
+    #[nwg_control(title: "Basic example", flags: "WINDOW|VISIBLE", size: (300, 135), position: (300, 300))]
+    #[nwg_events(OnWindowClose: [AppWindow::say_goodbye])]
+    window: nwg::Window,
+
+    #[nwg_control(text: "Label", size: (280, 35), position: (10, 10))]
+    label: nwg::Label,
+
+    #[nwg_control(position: (10, 10), size: (100, 30))]
+    progress: nwg::ProgressBar,
+
+    #[nwg_control(text: "Progress Bar", position: (10, 10), size: (100, 30))]
+    progress_label: nwg::Label,
+
+    #[nwg_control]
+    #[nwg_events(OnNotice: [AppWindow::on_noticed])]
+    notice: nwg::Notice,
+
+    sender: tokio::sync::mpsc::Sender<bool>,
+    receiver: RefCell<tokio::sync::mpsc::Receiver<UiCommand>>,
 }
 
 impl AppWindow {
-    pub fn new(_cc: &eframe::CreationContext<'_>, state: UIState1) -> Self {
-        let mut fonts = FontDefinitions::default();
+    pub fn new() -> (AppWindowCommander, app_window_ui::AppWindowUi) {
+        let (sender1, receiver1) = tokio::sync::mpsc::channel(1000);
+        let (sender2, receiver2) = tokio::sync::mpsc::channel(1000);
 
-        fonts.font_data.insert("simhei".to_owned(), FontData::from_static(include_bytes!("simhei.ttf")));
-        // fonts.font_data.insert("XiaolaiSC".to_owned(), FontData::from_static(include_bytes!("XiaolaiSC-Regular.ttf")));
+        let w = AppWindow {
+            window: Default::default(),
+            label: Default::default(),
+            progress: Default::default(),
+            progress_label: Default::default(),
+            notice: Default::default(),
+            sender: sender1,
+            receiver: RefCell::new(receiver2),
+        };
 
-        fonts.families.get_mut(&FontFamily::Proportional).unwrap()
-            .insert(0, "simhei".to_owned());
-        
-        fonts.families.get_mut(&FontFamily::Proportional).unwrap()
-            .push("simhei".to_owned());
+        let win = AppWindow::build_ui(w).unwrap();
 
-        _cc.egui_ctx.set_fonts(fonts);
+        let commander = AppWindowCommander { 
+            sender: sender2, 
+            receiver: receiver1, 
+            notice_sender: win.notice.sender(),
+        };
 
-        AppWindow { state }
+        (commander, win)
+    }
+
+    fn on_noticed(&self) {
+        let mut receiver = self.receiver.borrow_mut();
+
+        while !receiver.is_empty() {
+            let cmd = receiver.blocking_recv().unwrap();
+
+            match cmd {
+                UiCommand::Exit => {
+                    nwg::stop_thread_dispatch();
+                },
+                UiCommand::SetTitle(title) => {
+                    self.window.set_text(&title);
+                },
+                UiCommand::SetLabel(label) => {
+                    self.label.set_text(&label);
+                },
+                UiCommand::SetProgress(progress) => {
+                    self.progress.set_step(progress);
+                },
+                UiCommand::SetProgressLabel(plabel) => {
+                    self.progress_label.set_text(&plabel);
+                },
+                UiCommand::PupopDialog(dialog) => {
+                    let prams = nwg::MessageParams {
+                        title: &dialog.title,
+                        content: &dialog.content,
+                        buttons: nwg::MessageButtons::YesNo,
+                        icons: nwg::MessageIcons::Info,
+                    };
+                
+                    let _choice = nwg::message(&prams);
+
+                    // match choice {
+                    //     nwg::MessageChoice::Abort => todo!(),
+                    //     nwg::MessageChoice::Cancel => todo!(),
+                    //     nwg::MessageChoice::Continue => todo!(),
+                    //     nwg::MessageChoice::Ignore => todo!(),
+                    //     nwg::MessageChoice::No => todo!(),
+                    //     nwg::MessageChoice::Ok => todo!(),
+                    //     nwg::MessageChoice::Retry => todo!(),
+                    //     nwg::MessageChoice::TryAgain => todo!(),
+                    //     nwg::MessageChoice::Yes => todo!(),
+                    // }
+
+                    self.sender.blocking_send(true).unwrap();
+                },
+            }
+        }
+    }
+    
+    fn say_goodbye(&self) {
+        // nwg::modal_info_message(&self.window, "Goodbye", &format!("Goodbye {}", self.name_edit.text()));
+        nwg::stop_thread_dispatch();
     }
 }
 
-impl eframe::App for AppWindow {
-    fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        let mut state = self.state.blocking_lock();
-        let mut close_dialog = false;
+pub struct AppWindowCommander {
+    sender: tokio::sync::mpsc::Sender<UiCommand>,
+    receiver: tokio::sync::mpsc::Receiver<bool>,
+    notice_sender: nwg::NoticeSender,
+}
 
-        egui::CentralPanel::default().show(ctx, |ui| {
-            if let Some(dialog) = &state.dialog {
-                ctx.send_viewport_cmd(egui::ViewportCommand::Title(dialog.title.to_owned()));
+impl AppWindowCommander {
+    pub async fn exit(&self) {
+        self.sender.send(UiCommand::Exit).await.unwrap();
+        self.notice_sender.notice();
+    }
 
-                ui.label(&dialog.content);
+    pub async fn set_title(&self, title: String) {
+        self.sender.send(UiCommand::SetTitle(title)).await.unwrap();
+        self.notice_sender.notice();
+    }
 
-                if ui.button("Yes").clicked() {
-                    close_dialog = true;
-                }
-            } else {
-                ctx.send_viewport_cmd(egui::ViewportCommand::Title(state.window_title.to_owned()));
+    pub async fn set_label(&self, label: String) {
+        self.sender.send(UiCommand::SetLabel(label)).await.unwrap();
+        self.notice_sender.notice();
+    }
 
-                // 主标题
-                ui.heading(&state.label);
+    pub async fn set_progress(&self, value: u32) {
+        self.sender.send(UiCommand::SetProgress(value)).await.unwrap();
+        self.notice_sender.notice();
+    }
 
-                const WIDTH: f32 = 300.0;
-                const HEIGHT: f32 = 40.0;
+    pub async fn set_progress_label(&self, plabel: String) {
+        self.sender.send(UiCommand::SetProgressLabel(plabel)).await.unwrap();
+        self.notice_sender.notice();
+    }
 
-                let (response, painter) = ui.allocate_painter(vec2(WIDTH, HEIGHT), Sense::hover());
+    pub async fn popup_dialog(&mut self, dialog: DialogContent) -> bool {
+        self.sender.send(UiCommand::PupopDialog(dialog)).await.unwrap();
+        self.notice_sender.notice();
 
-                let mut progress_size = response.rect.size();
-                progress_size.x *= state.progress.clamp(0.0, 1.0);
-
-                painter.rect_filled(Rect::from_min_size(response.rect.min, response.rect.size()), Rounding::same(8.0), Color32::GRAY);
-                painter.rect_filled(Rect::from_min_size(response.rect.min, progress_size), Rounding::same(8.0), Color32::GOLD);
-                painter.text(response.rect.center(), Align2::CENTER_CENTER, &state.progress_label, FontId::new(24.0, FontFamily::Proportional), Color32::WHITE);
-            }
-        });
-
-        if ctx.input(|i| i.viewport().close_requested() && state.dialog.is_some()) {
-            close_dialog = true;
-        }
-
-        if close_dialog {
-            state.dialog = None;
-        }
-
-        if state.exit_flag {
-            ctx.send_viewport_cmd(egui::ViewportCommand::Close);
-        }
+        self.receiver.recv().await.unwrap()
     }
 }

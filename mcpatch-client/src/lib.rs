@@ -17,7 +17,8 @@ use crate::log::set_log_prefix;
 use crate::log::ConsoleHandler;
 use crate::log::FileHandler;
 use crate::log::MessageLevel;
-use crate::ui::UIState1;
+use crate::ui::AppWindowCommander;
+use crate::ui::DialogContent;
 use crate::work::work;
 
 pub struct AppContext {
@@ -35,7 +36,7 @@ pub struct StartupParameter {
     // pub external_config_file: String,
 }
 
-pub async fn run(params: StartupParameter, ui_state: UIState1) {
+pub async fn run(params: StartupParameter, mut ui_cmd: AppWindowCommander) {
     let working_dir = get_working_dir().await;
     let executable_dir = get_executable_dir().await;
     let global_config = GlobalConfig::load(&executable_dir.join("mcpatch.yml")).await;
@@ -47,7 +48,7 @@ pub async fn run(params: StartupParameter, ui_state: UIState1) {
     };
 
     // 根据配置文件更新窗口标题
-    ui_state.lock().await.window_title = global_config.window_title.to_owned();
+    ui_cmd.set_title(global_config.window_title.to_owned()).await;
 
     // 初始化文件日志记录器
     if !params.disable_log_file {
@@ -79,11 +80,15 @@ pub async fn run(params: StartupParameter, ui_state: UIState1) {
 
     // todo: localization
 
-    match work(&working_dir, &executable_dir, &base_dir, &global_config, &log_file_path, &ui_state).await {
+    match work(&working_dir, &executable_dir, &base_dir, &global_config, &log_file_path, &mut ui_cmd).await {
         Ok(_) => (),
         Err(e) => {
-            let mut ui = ui_state.lock().await;
-            ui.label = e.reason.to_owned();
+            ui_cmd.popup_dialog(DialogContent {
+                title: "Error".to_owned(),
+                content: e.reason.to_owned(),
+                yes: "Ok".to_owned(),
+                no: Some("No".to_owned()),
+            }).await;
         },
     }
 }
