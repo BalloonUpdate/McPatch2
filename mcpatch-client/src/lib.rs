@@ -5,23 +5,14 @@ pub mod work;
 pub mod network;
 pub mod ui;
 
-use std::path::Path;
 use std::path::PathBuf;
-use std::process::ExitCode;
-
-use mcpatch_shared::utility::is_running_under_cargo;
+use std::sync::Arc;
+use std::sync::Mutex;
 
 use crate::global_config::GlobalConfig;
-use crate::log::add_log_handler;
 use crate::log::log_error;
-use crate::log::log_info;
-use crate::log::set_log_prefix;
-use crate::log::ConsoleHandler;
-use crate::log::FileHandler;
-use crate::log::MessageLevel;
-use crate::ui::AppWindowCommander;
-use crate::ui::DialogContent;
-use crate::work::work;
+use crate::ui::AppWindow;
+use crate::work::run;
 
 pub struct AppContext {
     pub working_dir: PathBuf,
@@ -38,140 +29,95 @@ pub struct StartupParameter {
     // pub external_config_file: String,
 }
 
-pub async fn run(params: StartupParameter, ui_cmd: &mut AppWindowCommander) -> ExitCode {
-    let working_dir = get_working_dir().await;
-    let executable_dir = get_executable_dir().await;
-    let global_config = GlobalConfig::load(&executable_dir.join("mcpatch.yml")).await;
-    let base_dir = get_base_dir(&global_config).await.unwrap();
+pub struct ExitCodeU8(pub i16);
 
-    let log_file_path = match params.graphic_mode {
-        true => executable_dir.join("mcpatch.log"),
-        false => executable_dir.join("mcpatch.log.txt"),
-    };
-
-    // 显示窗口
-    if !global_config.silent_mode {
-        ui_cmd.set_visible(true).await;
-    }
-
-    // 根据配置文件更新窗口标题
-    // #[cfg(not(debug_assertions))]
-    ui_cmd.set_title(global_config.window_title.to_owned()).await;
-
-    // 初始化文件日志记录器
-    if !params.disable_log_file {
-        add_log_handler(Box::new(FileHandler::new(&log_file_path)));
-    }
-
-    // 初始化stdout日志记录器
-    let console_log_level = match is_running_under_cargo() {
-        true => match params.graphic_mode || params.disable_log_file {
-            true => MessageLevel::Debug,
-            false => MessageLevel::Info, // 不需要显示太详细
-        },
-        false => MessageLevel::Debug,
-    };
-    add_log_handler(Box::new(ConsoleHandler::new(console_log_level)));
-
-    // 没有独立进程的话需要加上日志前缀，好方便区分
-    if !params.standalone_progress {
-        set_log_prefix("Mcpatch");
-    }
-
-    // 打印运行环境信息
-    let gm = if params.graphic_mode { "yes" } else { "no" };
-    let sp = if params.standalone_progress { "yes" } else { "no" };
-    log_info(&format!("graphic_mode: {gm}, standalone_process: {sp}"));
-    log_info(&format!("base directory: {}", base_dir.to_str().unwrap()));
-    log_info(&format!("work directory: {}", working_dir.to_str().unwrap()));
-    log_info(&format!("prog directory: {}", executable_dir.to_str().unwrap()));
-
-    match work(&working_dir, &executable_dir, &base_dir, &global_config, &log_file_path, ui_cmd).await {
-        Ok(_) => {
-            log_info("finish");
-
-            ExitCode::from(0)
-        },
-        Err(e) => {
-            log_error(&e.reason);
-
-            if params.graphic_mode {
-                let choice = ui_cmd.popup_dialog(DialogContent {
-                    title: "Error".to_owned(),
-                    content: format!("{}\n\n确定：忽略错误继续启动\n取消：终止启动过程并报错", e.reason),
-                    yesno: true,
-                }).await;
-
-                match choice {
-                    true => ExitCode::from(0),
-                    false => ExitCode::from(1),
-                }
-            } else {
-                match global_config.allow_error {
-                    true => ExitCode::from(0),
-                    false => ExitCode::from(1),
-                }
-            }
-        },
-    }
+#[no_mangle]
+pub extern "C" fn run_from_dll() -> i16 {
+    program().0
 }
 
-/// 获取更新起始目录
-async fn get_base_dir(global_config: &GlobalConfig) -> Result<PathBuf, String> {
-    let working_dir = get_working_dir().await;
+pub fn program() -> ExitCodeU8 {
+    std::env::set_var("RUST_BACKTRACE", "1");
+    
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(4)
+        .enable_all()
+        .build()
+        .unwrap();
 
-    if is_running_under_cargo() {
-        return Ok(working_dir);
-    }
+    nwg::init().expect("Failed to init Native Windows GUI");
+    nwg::Font::set_global_family("Segoe UI").expect("Failed to set default font");
 
-    // 智能搜索.minecraft文件夹
-    if global_config.base_path.is_empty() {
-        let mut current = &working_dir as &Path;
+    let window_close_signal = tokio::sync::oneshot::channel::<()>();
+    
+    let (ui_cmd, _window) = AppWindow::new();
+    let panic_info_captured = Arc::new(Mutex::new(Option::<String>::None));
 
-        for _ in 0..7 {
-            let detect = tokio::fs::try_exists(current.join(".minecraft")).await;
+    // 捕获异常
+    let panic_info_captured2 = panic_info_captured.clone();
+    let old_handler = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |_info| {
+        let backtrace = std::backtrace::Backtrace::force_capture();
+        let text = format!("program paniked!!!\n{:#?}\nBacktrace: \n{}", _info, backtrace);
 
-            match detect {
-                Ok(found) => {
-                    if found {
-                        return Ok(current.to_owned());
-                    }
+        log_error(format!("-----------\n{}-----------", text));
+        *panic_info_captured2.lock().unwrap() = Some(text);
 
-                    current = match current.parent() {
-                        Some(parent) => parent,
-                        None => break,
-                    }
-                },
-                Err(_) => break,
-            }
+        let mp = nwg::MessageParams {
+            title: "Fatal error occurred",
+            content: "程序出现错误，即将结束运行。点击确定直接退出，点击取消打印错误信息",
+            buttons: nwg::MessageButtons::OkCancel,
+            icons: nwg::MessageIcons::Error
+        };
+
+        match nwg::message(&mp) {
+            nwg::MessageChoice::Ok => {},
+            nwg::MessageChoice::Cancel => {
+                nwg::error_message("Error detail", &format!("{:?}\n{}", _info, backtrace));
+            },
+            _ => (),
         }
 
-        return Err(".minecraft not found".into());
-    }
-
-    let base_dir = working_dir.join(&global_config.base_path);
-    tokio::fs::create_dir_all(&base_dir).await.unwrap();
-    Ok(base_dir)
-}
-
-/// 获取可执行文件所在目录
-async fn get_executable_dir() -> PathBuf {
-    if is_running_under_cargo() {
-        get_working_dir().await
-    } else {
-        let exe = std::env::args().next().unwrap();
-        PathBuf::from(exe).parent().unwrap().to_owned()
-    }
-}
-
-/// 获取工作目录
-async fn get_working_dir() -> PathBuf {
-    let mut working_dir = std::env::current_dir().unwrap();
+        old_handler(_info);
+    }));
+    
+    // 开始执行更新逻辑
+    let mut ui_cmd2 = ui_cmd.clone();
+    let work = runtime.spawn(async move {
+        let params = StartupParameter {
+            graphic_mode: true,
+            standalone_progress: true,
+            disable_log_file: false,
+        };
         
-    if is_running_under_cargo() {
-        working_dir = working_dir.join("test").join("client");
-    }
+        tokio::select! {
+            _ = window_close_signal.1 => ExitCodeU8(0),
+            code = run(params, &mut ui_cmd2) => code
+        }
+    });
 
-    tokio::fs::create_dir_all(&working_dir).await.unwrap();
-    working_dir
+    // 守护逻辑，用于关闭ui
+    let guard = runtime.spawn(async move {
+        let result = work.await;
+
+        // work结束运行后，无论是正常结束，还是panic导致的结束，都要关闭ui
+        ui_cmd.exit().await;
+
+        match result {
+            Ok(code) => code,
+            Err(_) => ExitCodeU8(1),
+            // Err(_) => std::process::exit(1), // 强制退出
+        }
+    });
+    
+    // 开始ui事件循环
+    nwg::dispatch_thread_events();
+
+    // 发送成功代表用户手动关闭了窗口
+    if let Ok(_) = window_close_signal.0.send(()) {
+        println!("interupted by user");
+    }
+    
+    // guard不允许出现panic
+    runtime.block_on(guard).unwrap()
 }

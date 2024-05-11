@@ -122,8 +122,8 @@ impl GlobalConfig {
                     .collect(),
                 None => Vec::new(),
             },
-            http_timeout: config["http_connection_timeout"].as_i64().unwrap() as u32,
-            http_retries: config["http_retrying_times"].as_i64().unwrap() as u8,
+            http_timeout: config["http_timeout"].as_i64().unwrap() as u32,
+            http_retries: config["http_retries"].as_i64().unwrap() as u8,
             http_ignore_certificate: config["http_ignore_certificate"].as_bool().unwrap().to_owned(),
         }
     }

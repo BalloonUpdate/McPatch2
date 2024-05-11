@@ -7,7 +7,6 @@ use std::time::Duration;
 use async_trait::async_trait;
 use reqwest::header::HeaderMap;
 use reqwest::header::HeaderName;
-use reqwest::header::IntoHeaderName;
 use reqwest::Client;
 use reqwest::ClientBuilder;
 use reqwest::Response;
@@ -50,7 +49,7 @@ impl HttpProtocol {
 
 #[async_trait]
 impl UpdatingSource for HttpProtocol {
-    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>, config: &GlobalConfig) -> DownloadResult<'a> {
+    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>, _config: &GlobalConfig) -> DownloadResult<'a> {
         let full_url = format!("{}{}{}", self.url, if self.url.ends_with("/") { "" } else { "/" }, path);
 
         let req = self.client.get(&full_url)

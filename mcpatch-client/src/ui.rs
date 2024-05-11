@@ -56,7 +56,7 @@ pub struct AppWindow {
 }
 
 impl AppWindow {
-    pub fn new() -> (AppWindowCommander, app_window_ui::AppWindowUi) {
+    pub fn new() -> (AppWindowCommand, app_window_ui::AppWindowUi) {
         let (dialog_result, receiver) = tokio::sync::mpsc::channel(1000);
         let (sender, commands) = tokio::sync::mpsc::channel(1000);
         
@@ -72,7 +72,7 @@ impl AppWindow {
 
         let win = AppWindow::build_ui(data).unwrap();
 
-        let commander = AppWindowCommander { 
+        let commander = AppWindowCommand { 
             inner: Arc::new(Mutex::new(AppWindowCommanderInner {
                 sender, 
                 receiver, 
@@ -153,22 +153,15 @@ struct AppWindowCommanderInner {
 }
 
 #[derive(Clone)]
-pub struct AppWindowCommander {
+pub struct AppWindowCommand {
     inner: Arc<Mutex<AppWindowCommanderInner>>,
 }
 
-impl AppWindowCommander {
-    pub async fn async_exit(&self) {
+impl AppWindowCommand {
+    pub async fn exit(&self) {
         let this = self.inner.lock().await;
 
         this.sender.send(UiCommand::Exit).await.unwrap();
-        this.notice_sender.notice();
-    }
-
-    pub fn sync_exit(&self) {
-        let this = self.inner.blocking_lock();
-
-        this.sender.blocking_send(UiCommand::Exit).unwrap();
         this.notice_sender.notice();
     }
 
@@ -207,7 +200,7 @@ impl AppWindowCommander {
         this.notice_sender.notice();
     }
 
-    pub async fn popup_dialog(&mut self, dialog: DialogContent) -> bool {
+    pub async fn popup_dialog(&self, dialog: DialogContent) -> bool {
         let mut this = self.inner.lock().await;
         
         this.sender.send(UiCommand::PupopDialog(dialog)).await.unwrap();

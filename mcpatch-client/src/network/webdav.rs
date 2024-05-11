@@ -51,7 +51,7 @@ impl Webdav {
 
 #[async_trait]
 impl UpdatingSource for Webdav {
-    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>, config: &GlobalConfig) -> DownloadResult<'a> {
+    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>, _config: &GlobalConfig) -> DownloadResult<'a> {
         let rsp = match self.client.get(path).await {
             Ok(rsp) => rsp,
             Err(err) => return Err(err.to_string().into()),

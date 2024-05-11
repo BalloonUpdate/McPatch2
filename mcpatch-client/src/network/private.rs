@@ -16,7 +16,7 @@ pub struct PrivateProtocol {
 }
 
 impl PrivateProtocol {
-    pub fn new(addr: &str, config: &GlobalConfig) -> Self {
+    pub fn new(addr: &str, _config: &GlobalConfig) -> Self {
         Self { 
             addr: addr.to_owned(),
             tcp_stream: None,
@@ -57,7 +57,7 @@ impl PrivateProtocol {
 
 #[async_trait]
 impl UpdatingSource for PrivateProtocol {
-    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>, config: &GlobalConfig) -> DownloadResult<'a> {
+    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>, _config: &GlobalConfig) -> DownloadResult<'a> {
         // 首先发送文件路径
         self.send_data(path.as_bytes()).await.unwrap();
         
