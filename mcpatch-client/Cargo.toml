@@ -21,3 +21,4 @@ eframe = "0.27.2"
 egui = "0.27.2"
 nwg = {package = "native-windows-gui", version = "1.0.13"}
 nwd = {package = "native-windows-derive", version = "1.0.5"}
+reqwest_dav = "0.1.11"

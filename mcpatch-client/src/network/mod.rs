@@ -1,5 +1,6 @@
 pub mod http;
 pub mod private;
+pub mod webdav;
 
 use std::ops::Range;
 use std::pin::Pin;
