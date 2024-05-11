@@ -1,9 +1,11 @@
+use std::process::ExitCode;
+
 use mcpatch_client::log::log_error;
 use mcpatch_client::run;
 use mcpatch_client::ui::AppWindow;
 use mcpatch_client::StartupParameter;
 
-fn main() {
+fn main() -> ExitCode {
     std::env::set_var("RUST_BACKTRACE", "1");
     
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -53,11 +55,13 @@ fn main() {
         
         tokio::select! {
             _ = window_close_signal.1 => {
-                println!("interupted!")
+                println!("interupted!");
+                ExitCode::from(0)
             },
-            _ = run(_params, &mut ui_cmd) => {
+            code = run(_params, &mut ui_cmd) => {
                 // 补发一下
                 ui_cmd.async_exit().await;
+                code
             }
         }
     });
@@ -69,8 +73,8 @@ fn main() {
     
     // 异步方法中panic会返回Err
     match runtime.block_on(work) {
-        Ok(_) => (),
-        Err(_e) => (),
+        Ok(code) => code,
+        Err(_e) => ExitCode::from(1),
     }
 }
     

@@ -13,12 +13,12 @@ type MpscReceiver<T> = tokio::sync::mpsc::Receiver<T>;
 pub struct DialogContent {
     pub title: String,
     pub content: String,
-    pub yes: String,
-    pub no: Option<String>,
+    pub yesno: bool,
 }
 
 enum UiCommand {
     Exit,
+    SetVisible(bool),
     SetTitle(String),
     SetLabel(String),
     SetProgress(u32),
@@ -28,23 +28,23 @@ enum UiCommand {
 
 #[derive(NwgUi)]
 pub struct AppWindow {
-    #[nwg_control(title: "WindowTitle", flags: "WINDOW|VISIBLE", size: (350, 120), center: true, topmost: false)]
+    #[nwg_control(title: "WindowTitle", flags: "WINDOW", size: (390, 170), center: true, topmost: false)]
     #[nwg_events(OnWindowClose: [AppWindow::try_close_window])]
     window: nwg::Window,
 
-    #[nwg_control(position: (35, 15), size: (280, 60), text: "Label", 
+    #[nwg_control(position: (35, 15), size: (320, 60), text: "Label", 
         flags: "ELIPSIS|VISIBLE", h_align: HTextAlign::Center, 
         // background_color: Some([255, 0, 255])
     )]
     label: nwg::Label,
 
-    #[nwg_control(position: (35, 45), size: (280, 24), text: "Label Secondary", 
-        flags: "ELIPSIS|VISIBLE", h_align: HTextAlign::Center, 
+    #[nwg_control(position: (35, 45), size: (320, 75), text: "Label Secondary", 
+        flags: "VISIBLE", h_align: HTextAlign::Center, 
         // background_color: Some([0, 255, 255])
     )]
     label_secondary: nwg::Label,
 
-    #[nwg_control(position: (35, 80), size: (280, 20), range: 0..1000)]
+    #[nwg_control(position: (35, 130), size: (320, 20), range: 0..1000)]
     progress: nwg::ProgressBar,
 
     #[nwg_control]
@@ -84,8 +84,8 @@ impl AppWindow {
     }
 
     fn on_noticed(&self) {
-        // println!("enter {:?}", std::thread::current().id());
-
+        // 在本函数里调用nwg::modal_message()会触发on_noticed()的递归，导致运行时借用检查panic
+        // 所以吧poll逻辑单独卸载一个闭包里，最小化运行时借用的范围以避免栈溢出的问题
         let poll_command = || -> Option<UiCommand> {
             let mut receiver = self.commands.borrow_mut();
 
@@ -99,6 +99,9 @@ impl AppWindow {
             match cmd {
                 UiCommand::Exit => {
                     self.window.close();
+                },
+                UiCommand::SetVisible(visible) => {
+                    self.window.set_visible(visible);
                 },
                 UiCommand::SetTitle(title) => {
                     self.window.set_text(&title);
@@ -116,8 +119,8 @@ impl AppWindow {
                     let prams = nwg::MessageParams {
                         title: &dialog.title,
                         content: &dialog.content,
-                        buttons: match dialog.no.is_some() {
-                            true => nwg::MessageButtons::YesNo,
+                        buttons: match dialog.yesno {
+                            true => nwg::MessageButtons::OkCancel,
                             false => nwg::MessageButtons::Ok,
                         },
                         icons: nwg::MessageIcons::Info,
@@ -136,8 +139,6 @@ impl AppWindow {
                 },
             }
         }
-
-        // println!("exit {:?}", std::thread::current().id());
     }
     
     fn try_close_window(&self) {
@@ -146,8 +147,8 @@ impl AppWindow {
 }
 
 struct AppWindowCommanderInner {
-    sender: tokio::sync::mpsc::Sender<UiCommand>,
-    receiver: tokio::sync::mpsc::Receiver<bool>,
+    sender: MpscSender<UiCommand>,
+    receiver: MpscReceiver<bool>,
     notice_sender: nwg::NoticeSender,
 }
 
@@ -168,6 +169,13 @@ impl AppWindowCommander {
         let this = self.inner.blocking_lock();
 
         this.sender.blocking_send(UiCommand::Exit).unwrap();
+        this.notice_sender.notice();
+    }
+
+    pub async fn set_visible(&self, visible: bool) {
+        let this = self.inner.lock().await;
+        
+        this.sender.send(UiCommand::SetVisible(visible)).await.unwrap();
         this.notice_sender.notice();
     }
 

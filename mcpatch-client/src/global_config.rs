@@ -7,23 +7,18 @@ pub struct GlobalConfig {
     /// 更新服务器地址，可以填写多个备用地址，当一个不可用时会切换到备用地址上
     /// 目前支持的协议：http(s)、webdav(s)、私有协议
     ///
-    /// http协议例子：
-    ///   1. http://127.0.0.1:6700/index.json （走http协议）
-    ///   2. https://127.0.0.1:6700/subfolder/index.json （走https协议）
+    /// http协议的例子：（填写索引文件index.json所在的目录就好，不需要填写index.json本身）
+    ///   1. http://127.0.0.1:6700 （走http协议）
+    ///   2. https://127.0.0.1:6700/subfolder （走https协议）
     ///
-    /// webdav协议：（webdav代表走http协议，webdavs代表走https协议，这样写是为了和http源做区分）
-    /// ```
-    ///   1. webdav://user:pass:127.0.0.1:80 （默认形式，webdav使用http协议）
-    ///   2. webdavs://user:pass:127.0.0.1:443/subfolder （子目录形式，webdav使用https协议，注意https默认端口为443，而非80）
-    ///      -------   ---- ---- --------- --- ---------
-    ///         |       |    |       |      |      |
-    ///         |       |    |       |      |      +------ webdav 目录（可选）
-    ///         |       |    |       |      +------------- webdav 端口（注意端口不能省略，通常是80和443
-    ///         |       |    |       +-------------------- webdav 主机地址
-    ///         |       |    +---------------------------- webdav 密码
-    ///         |       +--------------------------------- webdav 用户名
-    ///         +----------------------------------------- webdav 协议，只能是webdav或者webdavs
-    /// ```
+    /// webdav协议的例子：（webdav代表走http协议，webdavs代表走https协议，要这样写只是为了和http源做区分）
+    ///   1. webdav://user:pass:127.0.0.1:80   （webdav走http协议）
+    ///   2. webdavs://user:pass:127.0.0.1:443 （webdav走https协议）
+    ///   注：需要把user和pass这两个地方换成自己的账号密码，127.0.0.1换成主机地址，端口号不能省略
+    /// 
+    /// 私有协议的例子：（私有协议是mcpatch自己的协议，无需备案，如果做内网穿透请走普通tcp隧道而非http隧道）
+    ///   1. mcpatch://127.0.0.1:6700 （私有协议以mcpatch开头，只需要主机和端口号即可，无需输入子目录）
+    /// 
     #[default_value("\n  - mcpatch://127.0.0.1:6700 # 若在公网部署记得换成自己的公网ip或者域名")]
     pub urls: Vec<String>,
 
@@ -63,40 +58,23 @@ pub struct GlobalConfig {
     #[default_value("''")]
     pub base_path: String,
 
-    /// 为http类协议设置headers，包括http(s)，webdav(s)
+    /// 为http/webdav设置协议头
     #[default_value("\n#  User-Agent: This filled by youself # 这是一个自定义UserAgent的配置示例")]
     pub http_headers: Vec<(String, String)>,
 
-    /// http类协议：连接超时判定时间，单位毫秒
+    /// http/webdav协议的连接超时判定时间，单位毫秒，值越小判定越严格
     /// 网络环境较差时可能会频繁出现连接超时，那么此时可以考虑增加此值（建议30s以下）
-    /// 建议连带 http_reading_timeout 选项一起修改，两边的值保持相同即可
-    #[default_value("10000")]
-    pub http_connection_timeout: u32,
+    #[default_value("5000")]
+    pub http_timeout: u32,
 
-    /// http类协议：读取超时判定时间，单位毫秒
-    /// 网络环境较差时可能会频繁出现连接超时，那么此时可以考虑增加此值（建议30s以下）
-    /// 建议连带 http_connection_timeout 选项一起修改，两边的值保持相同即可
-    #[default_value("10000")]
-    pub http_reading_timeout: u32,
-
-    /// http类协议：重试次数，最大值不能超过255
-    /// 当 http_connection_timeout 和 http_connection_timeout 的超时后，会消耗1次重试次数
+    /// http/webdav协议的重试次数，最大值不能超过255
+    /// 当超过http_timeout服务器还是没有响应数据时，会消耗1次重试次数，然后进行重新连接
     /// 当所有的重试次数消耗完后，程序才会真正判定为超时，并弹出网络错误对话框
-    /// 建议总等待时长在60s以下，避免玩家等的太久：http_connection_timeout * http_retrying_times <= 60s
+    /// 建议 http_timeout * http_retries 在20秒以内，避免玩家等的太久
     #[default_value("3")]
-    pub http_retrying_times: u8,
+    pub http_retries: u8,
 
-    /// http类协议：多线程下载时使用的线程数，最大值不能超过255
-    /// 建议使用4线程下载
-    #[default_value("4")]
-    pub http_concurrent_threads: u8,
-
-    /// http类协议：多线程下载时每个任务块的最大大小
-    /// 建议保持默认值4194304(4mb)
-    #[default_value("4194304")]
-    pub http_concurrent_chunk_size: u32,
-
-    /// http类协议：是否忽略SSL证书验证
+    /// http/webdav协议是否忽略SSL证书验证
     #[default_value("false")]
     pub http_ignore_certificate: bool,
 }
@@ -144,11 +122,8 @@ impl GlobalConfig {
                     .collect(),
                 None => Vec::new(),
             },
-            http_connection_timeout: config["http_connection_timeout"].as_i64().unwrap() as u32,
-            http_reading_timeout: config["http_reading_timeout"].as_i64().unwrap() as u32,
-            http_retrying_times: config["http_retrying_times"].as_i64().unwrap() as u8,
-            http_concurrent_threads: config["http_concurrent_threads"].as_i64().unwrap() as u8,
-            http_concurrent_chunk_size: config["http_concurrent_chunk_size"].as_i64().unwrap() as u32,
+            http_timeout: config["http_connection_timeout"].as_i64().unwrap() as u32,
+            http_retries: config["http_retrying_times"].as_i64().unwrap() as u8,
             http_ignore_certificate: config["http_ignore_certificate"].as_bool().unwrap().to_owned(),
         }
     }

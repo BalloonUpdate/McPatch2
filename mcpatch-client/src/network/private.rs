@@ -6,6 +6,7 @@ use tokio::io::AsyncReadExt;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 
+use crate::global_config::GlobalConfig;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
 
@@ -15,7 +16,7 @@ pub struct PrivateProtocol {
 }
 
 impl PrivateProtocol {
-    pub fn new(addr: &str) -> Self {
+    pub fn new(addr: &str, config: &GlobalConfig) -> Self {
         Self { 
             addr: addr.to_owned(),
             tcp_stream: None,
@@ -56,7 +57,7 @@ impl PrivateProtocol {
 
 #[async_trait]
 impl UpdatingSource for PrivateProtocol {
-    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>) -> DownloadResult<'a> {
+    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>, config: &GlobalConfig) -> DownloadResult<'a> {
         // 首先发送文件路径
         self.send_data(path.as_bytes()).await.unwrap();
         

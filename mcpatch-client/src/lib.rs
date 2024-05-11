@@ -7,6 +7,7 @@ pub mod ui;
 
 use std::path::Path;
 use std::path::PathBuf;
+use std::process::ExitCode;
 
 use mcpatch_shared::utility::is_running_under_cargo;
 
@@ -37,7 +38,7 @@ pub struct StartupParameter {
     // pub external_config_file: String,
 }
 
-pub async fn run(params: StartupParameter, ui_cmd: &mut AppWindowCommander) {
+pub async fn run(params: StartupParameter, ui_cmd: &mut AppWindowCommander) -> ExitCode {
     let working_dir = get_working_dir().await;
     let executable_dir = get_executable_dir().await;
     let global_config = GlobalConfig::load(&executable_dir.join("mcpatch.yml")).await;
@@ -48,8 +49,13 @@ pub async fn run(params: StartupParameter, ui_cmd: &mut AppWindowCommander) {
         false => executable_dir.join("mcpatch.log.txt"),
     };
 
+    // 显示窗口
+    if !global_config.silent_mode {
+        ui_cmd.set_visible(true).await;
+    }
+
     // 根据配置文件更新窗口标题
-    #[cfg(not(debug_assertions))]
+    // #[cfg(not(debug_assertions))]
     ui_cmd.set_title(global_config.window_title.to_owned()).await;
 
     // 初始化文件日志记录器
@@ -80,19 +86,32 @@ pub async fn run(params: StartupParameter, ui_cmd: &mut AppWindowCommander) {
     log_info(&format!("work directory: {}", working_dir.to_str().unwrap()));
     log_info(&format!("prog directory: {}", executable_dir.to_str().unwrap()));
 
-    // todo: localization
-
     match work(&working_dir, &executable_dir, &base_dir, &global_config, &log_file_path, ui_cmd).await {
-        Ok(_) => (),
+        Ok(_) => {
+            log_info("finish");
+
+            ExitCode::from(0)
+        },
         Err(e) => {
             log_error(&e.reason);
 
-            ui_cmd.popup_dialog(DialogContent {
-                title: "Error".to_owned(),
-                content: e.reason.to_owned(),
-                yes: "Ok".to_owned(),
-                no: None,
-            }).await;
+            if params.graphic_mode {
+                let choice = ui_cmd.popup_dialog(DialogContent {
+                    title: "Error".to_owned(),
+                    content: format!("{}\n\n确定：忽略错误继续启动\n取消：终止启动过程并报错", e.reason),
+                    yesno: true,
+                }).await;
+
+                match choice {
+                    true => ExitCode::from(0),
+                    false => ExitCode::from(1),
+                }
+            } else {
+                match global_config.allow_error {
+                    true => ExitCode::from(0),
+                    false => ExitCode::from(1),
+                }
+            }
         },
     }
 }

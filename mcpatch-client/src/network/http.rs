@@ -1,16 +1,20 @@
 use std::future::Future;
 use std::ops::Range;
 use std::pin::Pin;
+use std::str::FromStr;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use reqwest::header::HeaderMap;
+use reqwest::header::HeaderName;
+use reqwest::header::IntoHeaderName;
 use reqwest::Client;
 use reqwest::ClientBuilder;
 use reqwest::Response;
 use tokio::io::AsyncRead;
 use tokio::pin;
 
+use crate::global_config::GlobalConfig;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
 
@@ -21,15 +25,23 @@ pub struct HttpProtocol {
 }
 
 impl HttpProtocol {
-    pub fn new(url: &str) -> Self {
+    pub fn new(url: &str, config: &GlobalConfig) -> Self {
+        // 添加自定义协议头
         let mut def_headers = HeaderMap::new();
 
         // def_headers.insert("Host", host.parse().unwrap());
         def_headers.insert("Content-Type", "application/octet-stream".parse().unwrap());
 
+        for header in &config.http_headers {
+            let k = HeaderName::from_str(&header.0).unwrap();
+            let v = header.1.to_owned().parse().unwrap();
+            def_headers.insert(k, v);
+        }
+
         let client = ClientBuilder::new()
             .default_headers(def_headers)
-            .timeout(Duration::from_secs(60))
+            .timeout(Duration::from_millis(config.http_timeout as u64))
+            .danger_accept_invalid_certs(config.http_ignore_certificate)
             .build().unwrap();
 
         Self { url: url.to_owned(), client, range_bytes_supported: false }
@@ -38,7 +50,7 @@ impl HttpProtocol {
 
 #[async_trait]
 impl UpdatingSource for HttpProtocol {
-    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>) -> DownloadResult<'a> {
+    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>, config: &GlobalConfig) -> DownloadResult<'a> {
         let full_url = format!("{}{}{}", self.url, if self.url.ends_with("/") { "" } else { "/" }, path);
 
         let req = self.client.get(&full_url)

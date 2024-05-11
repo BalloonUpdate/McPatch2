@@ -17,23 +17,24 @@ use crate::global_config::GlobalConfig;
 use crate::log::log_debug;
 use crate::network::Network;
 use crate::ui::AppWindowCommander;
+use crate::ui::DialogContent;
 
 pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &GlobalConfig, log_file_path: &Path, ui_cmd: &mut AppWindowCommander) -> Result<(), BusinessError> {
     let mut network = Network::new(config);
 
     let version_file = exe_dir.join(&config.version_file_path);
-    let current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or(":empty:".to_owned());
+    let mut current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or(":empty:".to_owned());
+
+    if current_version.trim().is_empty() {
+        current_version = ":empty:".to_owned();
+    }
     
     ui_cmd.set_label("正在检查更新".to_owned()).await;
-    // ui_cmd.set_label_secondary("进度条标签".to_owned()).await;
-    // ui_cmd.set_progress(500).await;
 
     let server_versions = network.request_text("index.json", 0..0, "index file").await.unwrap();
     let server_versions = IndexFile::load_from_json(&server_versions);
 
     ui_cmd.set_label("正在看有没有更新".to_owned()).await;
-
-    // tokio::time::sleep(std::time::Duration::from_millis(500000)).await;
 
     // 检查服务端版本数量
     if server_versions.len() == 0 {
@@ -55,6 +56,10 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
     let latest_version = &server_versions[server_versions.len() - 1].label;
 
     if latest_version != &current_version {
+        if config.silent_mode {
+            ui_cmd.set_visible(true).await;
+        }
+
         // 收集落后的版本
         let missing_versions = (&server_versions).into_iter()
             .skip_while(|v| v.label == current_version)
@@ -222,9 +227,17 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
             }
         }
 
-        ui_cmd.set_label("准备开始下载更新数据".to_owned()).await;
+        ui_cmd.set_label("下载更新数据".to_owned()).await;
+        // tokio::time::sleep(std::time::Duration::from_millis(500000)).await;
 
-        let mut counter = 0;
+        let mut total_bytes = 0u64;
+        let mut total_downloaded = 0u64;
+
+        for u in &update_files {
+            total_bytes += u.len;
+        }
+
+        let mut file_counter = 0;
 
         // 下载到临时文件
         for UpdateFile { package, label, path, hash, len, modified: _, offset } in &update_files {
@@ -234,13 +247,15 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
 
             tokio::fs::create_dir_all(temp_path.parent().unwrap()).await.unwrap();
 
-            counter += 1;
-            ui_cmd.set_label(format!("正在下载 {} 的 {} ({}/{})", label, path, counter, update_files.len())).await;
+            file_counter += 1;
+            ui_cmd.set_label(format!("下载版本 {} 的更新数据 ({}/{})", label, file_counter, update_files.len())).await;
+            ui_cmd.set_label_secondary(format!("{}", path)).await;
 
             // 发起请求
             let mut temp_file = tokio::fs::File::options().create(true).truncate(true).read(true).write(true).open(&temp_path).await.unwrap();
             let mut stream = network.request_file(package, *offset..(offset + len), format!("{} in {}", path, label)).await.unwrap();
             let mut buf = [0u8; 16 * 1024];
+            let mut bytes_counter = 0u64;
 
             loop {
                 let read = stream.1.read(&mut buf).await.unwrap();
@@ -250,6 +265,14 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
                 }
 
                 temp_file.write_all(&buf[0..read]).await.unwrap();
+
+                bytes_counter += read as u64;
+                total_downloaded += read as u64;
+                
+                // tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                
+                ui_cmd.set_progress(((total_downloaded as f32 / total_bytes as f32) * 1000f32) as u32).await;
+                ui_cmd.set_label_secondary(format!("{} ({:.1}%)", path, ((bytes_counter as f32 / *len as f32) * 100f32))).await;
             }
 
             // 检查下载的文件的hash对不对
@@ -331,7 +354,11 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         // 2.弹出更新记录
         println!("更新成功: {}", join_string(missing_versions.iter().map(|e| &e.label), ", "));
 
-        ui_cmd.set_label(format!("更新成功: {}", join_string(missing_versions.iter().map(|e| &e.label), ", "))).await;
+        ui_cmd.popup_dialog(DialogContent {
+            title: "更新成功".to_owned(),
+            content: format!("更新成功: {}", join_string(missing_versions.iter().map(|e| &e.label), ", ")),
+            yesno: false,
+        }).await;
     } else {
         ui_cmd.set_label("没有更新".to_owned()).await;
     }
