@@ -2,6 +2,10 @@ use std::path::Path;
 
 use config_template_derive::ConfigTemplate;
 
+use crate::error::BusinessResult;
+use crate::error::OptionToBusinessError;
+use crate::error::ResultToBusinessError;
+
 #[derive(ConfigTemplate)]
 pub struct GlobalConfig {
     /// 更新服务器地址，可以填写多个备用地址，当一个不可用时会切换到备用地址上
@@ -80,26 +84,32 @@ pub struct GlobalConfig {
 }
 
 impl GlobalConfig {
-    pub async fn load(file: &Path) -> Self {
+    pub async fn load(file: &Path) -> BusinessResult<Self> {
         let mut config = yaml_rust::yaml::Hash::new();
 
         // 生成默认的配置文件
         if !file.exists() {
-            tokio::fs::write(&file, GlobalConfigTemplate).await.unwrap();
+            tokio::fs::write(&file, GlobalConfigTemplate).await
+                .be(|e| format!("生成默认配置文件失败，原因：{}", e))?;
         }
 
         // 读取配置文件
-        let content = tokio::fs::read_to_string(file).await.unwrap();
-        let first = yaml_rust::YamlLoader::load_from_str(&content).unwrap().remove(0);
+        let content = tokio::fs::read_to_string(file).await
+            .be(|e| format!("读取配置文件失败，原因：{}", e))?;
+        let first = yaml_rust::YamlLoader::load_from_str(&content)
+            .be(|e| format!("配置文件解析失败，原因：{}", e))?
+            .remove(0);
 
         for (k ,v) in first.into_hash().unwrap() {
             config.insert(k, v);
         }
 
         // 补全默认配置
-        let default = yaml_rust::YamlLoader::load_from_str(GlobalConfigTemplate).unwrap().remove(0);
+        let default = yaml_rust::YamlLoader::load_from_str(GlobalConfigTemplate)
+            .be(|e| format!("配置文件模板解析失败，原因：{}", e))?
+            .remove(0);
         
-        for (k ,v) in default.into_hash().unwrap() {
+        for (k ,v) in default.into_hash().be(|| "配置文件模板格式不正确")? {
             if !config.contains_key(&k) {
                 config.insert(k, v);
             }
@@ -107,24 +117,39 @@ impl GlobalConfig {
 
         let config = yaml_rust::Yaml::Hash(config);
 
-        GlobalConfig {
-            urls: config["urls"].as_vec().unwrap().iter()
-                .map(|e| e.as_str().unwrap().to_owned())
+        let urls = config["urls"].as_vec().be(|| "配置文件中找不到")?.iter()
+                .map(|e| e.as_str().expect("配置文件 urls 中只能包含纯字符串元素").to_owned())
+                .collect();
+        let version_file_path = config["version_file_path"].as_str().be(|| "配置文件中找不到 version_file_path")?.to_owned();
+        let allow_error = config["allow_error"].as_bool().be(|| "配置文件中找不到 allow_error")?.to_owned();
+        let silent_mode = config["silent_mode"].as_bool().be(|| "配置文件中找不到 silent_mode")?.to_owned();
+        let window_title = config["window_title"].as_str().be(|| "配置文件中找不到 window_title")?.to_owned();
+        let base_path = config["base_path"].as_str().be(|| "配置文件中找不到 base_path")?.to_owned();
+        let http_headers = match config["http_headers"].as_hash() {
+            Some(map) => map.iter()
+                .map(|e| {
+                    let k = e.0.as_str().expect("http协议头中列表元素的 key 只能是字符串").to_owned();
+                    let v = e.1.as_str().expect("http协议头中列表元素的 value 只能是字符串").to_owned();
+                    (k, v)
+                })
                 .collect(),
-            version_file_path: config["version_file_path"].as_str().unwrap().to_owned(),
-            allow_error: config["allow_error"].as_bool().unwrap().to_owned(),
-            silent_mode: config["silent_mode"].as_bool().unwrap().to_owned(),
-            window_title: config["window_title"].as_str().unwrap().to_owned(),
-            base_path: config["base_path"].as_str().unwrap().to_owned(),
-            http_headers: match config["http_headers"].as_hash() {
-                Some(map) => map.iter()
-                    .map(|e| (e.0.as_str().unwrap().to_owned(), e.1.as_str().unwrap().to_owned()))
-                    .collect(),
-                None => Vec::new(),
-            },
-            http_timeout: config["http_timeout"].as_i64().unwrap() as u32,
-            http_retries: config["http_retries"].as_i64().unwrap() as u8,
-            http_ignore_certificate: config["http_ignore_certificate"].as_bool().unwrap().to_owned(),
-        }
+            None => Vec::new(),
+        };
+        let http_timeout = config["http_timeout"].as_i64().be(|| "配置文件中找不到 http_timeout")? as u32;
+        let http_retries = config["http_retries"].as_i64().be(|| "配置文件中找不到 http_retries")? as u8;
+        let http_ignore_certificate = config["http_ignore_certificate"].as_bool().be(|| "配置文件中找不到 http_ignore_certificate")?.to_owned();
+
+        Ok(GlobalConfig {
+            urls,
+            version_file_path,
+            allow_error,
+            silent_mode,
+            window_title,
+            base_path,
+            http_headers,
+            http_timeout,
+            http_retries,
+            http_ignore_certificate,
+        })
     }
 }

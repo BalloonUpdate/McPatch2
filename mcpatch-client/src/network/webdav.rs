@@ -13,16 +13,18 @@ use reqwest_dav::ClientBuilder;
 use tokio::io::AsyncRead;
 use tokio::pin;
 
+use crate::error::BusinessError;
 use crate::global_config::GlobalConfig;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
 
 pub struct Webdav {
-    client: Client
+    client: Client,
+    index: u32,
 }
 
 impl Webdav {
-    pub fn new(host: String, user: String, pass: String, config: &GlobalConfig) -> Self {
+    pub fn new(host: String, user: String, pass: String, config: &GlobalConfig, index: u32) -> Self {
         // 添加自定义协议头
         let mut def_headers = HeaderMap::new();
 
@@ -45,28 +47,28 @@ impl Webdav {
             .build()
             .unwrap();
 
-        Self { client }
+        Self { client, index }
     }
 }
 
 #[async_trait]
 impl UpdatingSource for Webdav {
-    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>, _config: &GlobalConfig) -> DownloadResult<'a> {
+    async fn request(&mut self, path: &str, range: &Range<u64>, desc: &str, _config: &GlobalConfig) -> DownloadResult {
         let rsp = match self.client.get(path).await {
             Ok(rsp) => rsp,
-            Err(err) => return Err(err.to_string().into()),
+            Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
         };
 
         let len = match rsp.content_length() {
             Some(len) => len,
-            None => return Err(format!("the server doest not respond the content-length on {}", path).into()),
+            None => return Ok(Err(BusinessError::new(format!("服务器({})没有返回content-length头: {} ({})", self.index, path, desc)))),
         };
 
         if len != range.end - range.start {
-            return Err(format!("the content-length does not equal to {} on {}", range.end - range.start, path).into());
+            return Ok(Err(BusinessError::new(format!("服务器({})返回的content-length头不等于{}: {} ({})", self.index, range.end - range.start, path, desc))));
         }
         
-        Ok((len, Box::pin(AsyncStreamBody(rsp))))
+        Ok(Ok((len, Box::pin(AsyncStreamBody(rsp)))))
     }
 }
 

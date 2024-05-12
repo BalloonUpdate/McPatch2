@@ -23,6 +23,7 @@ pub struct AppContext {
 }
 
 pub struct StartupParameter {
+    pub call_from_dll: bool,
     pub graphic_mode: bool,
     pub standalone_progress: bool,
     pub disable_log_file: bool,
@@ -33,10 +34,10 @@ pub struct ExitCodeU8(pub i16);
 
 #[no_mangle]
 pub extern "C" fn run_from_dll() -> i16 {
-    program().0
+    program(true).0
 }
 
-pub fn program() -> ExitCodeU8 {
+pub fn program(call_from_dll: bool) -> ExitCodeU8 {
     std::env::set_var("RUST_BACKTRACE", "1");
     
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -85,6 +86,7 @@ pub fn program() -> ExitCodeU8 {
     let mut ui_cmd2 = ui_cmd.clone();
     let work = runtime.spawn(async move {
         let params = StartupParameter {
+            call_from_dll,
             graphic_mode: true,
             standalone_progress: true,
             disable_log_file: false,

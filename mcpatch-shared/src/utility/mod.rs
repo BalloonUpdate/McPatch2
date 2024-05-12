@@ -67,5 +67,11 @@ pub fn join_string(iter: impl Iterator<Item = impl AsRef<str>>, split: &str) -> 
 
 /// 判断是否在cargo环境中运行
 pub fn is_running_under_cargo() -> bool {
-    std::env::vars().any(|p| p.0.eq_ignore_ascii_case("CARGO"))
+    #[cfg(debug_assertions)]
+    let result = std::env::vars().any(|p| p.0.eq_ignore_ascii_case("CARGO"));
+
+    #[cfg(not(debug_assertions))]
+    let result = false;
+
+    result
 }

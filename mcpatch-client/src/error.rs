@@ -32,3 +32,33 @@ impl Debug for BusinessError {
         
 //     }
 // }
+
+// pub fn berror(text: impl AsRef<str>) -> BusinessError {
+//     BusinessError::new(text)
+// }
+
+pub trait ResultToBusinessError<T, E> {
+    fn be<S: AsRef<str>>(self, map: impl FnOnce(E) -> S) -> BusinessResult<T>;
+}
+
+impl<T, E> ResultToBusinessError<T, E> for Result<T, E> {
+    fn be<S: AsRef<str>>(self, map: impl FnOnce(E) -> S) -> BusinessResult<T> {
+        match self {
+            Ok(d) => Ok(d),
+            Err(e) => Err(BusinessError::new(map(e))),
+        }
+    }
+}
+
+pub trait OptionToBusinessError<T> {
+    fn be<S: AsRef<str>>(self, map: impl FnOnce() -> S) -> BusinessResult<T>;
+}
+
+impl<T> OptionToBusinessError<T> for Option<T> {
+    fn be<S: AsRef<str>>(self, map: impl FnOnce() -> S) -> BusinessResult<T> {
+        match self {
+            Some(d) => Ok(d),
+            None => Err(BusinessError::new(map())),
+        }
+    }
+}

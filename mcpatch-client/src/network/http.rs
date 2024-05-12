@@ -13,6 +13,7 @@ use reqwest::Response;
 use tokio::io::AsyncRead;
 use tokio::pin;
 
+use crate::error::BusinessError;
 use crate::global_config::GlobalConfig;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
@@ -21,14 +22,14 @@ pub struct HttpProtocol {
     pub url: String,
     pub client: Client,
     pub range_bytes_supported: bool,
+    index: u32,
 }
 
 impl HttpProtocol {
-    pub fn new(url: &str, config: &GlobalConfig) -> Self {
+    pub fn new(url: &str, config: &GlobalConfig, index: u32) -> Self {
         // 添加自定义协议头
         let mut def_headers = HeaderMap::new();
 
-        // def_headers.insert("Host", host.parse().unwrap());
         def_headers.insert("Content-Type", "application/octet-stream".parse().unwrap());
 
         for header in &config.http_headers {
@@ -41,42 +42,44 @@ impl HttpProtocol {
             .default_headers(def_headers)
             .timeout(Duration::from_millis(config.http_timeout as u64))
             .danger_accept_invalid_certs(config.http_ignore_certificate)
-            .build().unwrap();
+            .build()
+            .unwrap();
 
-        Self { url: url.to_owned(), client, range_bytes_supported: false }
+        Self { url: url.to_owned(), client, range_bytes_supported: false, index }
     }
 }
 
 #[async_trait]
 impl UpdatingSource for HttpProtocol {
-    async fn request<'a>(&'a mut self, path: &str, range: &Range<u64>, _config: &GlobalConfig) -> DownloadResult<'a> {
+    async fn request(&mut self, path: &str, range: &Range<u64>, desc: &str, _config: &GlobalConfig) -> DownloadResult {
         let full_url = format!("{}{}{}", self.url, if self.url.ends_with("/") { "" } else { "/" }, path);
 
         let req = self.client.get(&full_url)
             .header("Range", format!("bytes={}-{}", range.start, range.end))
-            .build().unwrap();
+            .build()
+            .unwrap();
 
         let rsp = match self.client.execute(req).await {
             Ok(rsp) => rsp,
-            Err(err) => return Err(err.to_string().into()),
+            Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
         };
 
         let code = rsp.status().as_u16();
 
         if code != 206 {
-            return Err(format!("the http code returned {} is not 206 on {}", code, full_url).into());
+            return Ok(Err(BusinessError::new(format!("服务器({})返回了{}而不是206: {} ({})", self.index, code, path, desc))));
         }
 
         let len = match rsp.content_length() {
             Some(len) => len,
-            None => return Err(format!("the server doest not respond the content-length on {}", full_url).into()),
+            None => return Ok(Err(BusinessError::new(format!("服务器({})没有返回content-length头: {} ({})", self.index, path, desc)))),
         };
 
         if len != range.end - range.start {
-            return Err(format!("the content-length does not equal to {} on {}", range.end - range.start, full_url).into());
+            return Ok(Err(BusinessError::new(format!("服务器({})返回的content-length头不等于{}: {}", self.index, range.end - range.start, path))));
         }
         
-        Ok((len, Box::pin(AsyncStreamBody(rsp))))
+        Ok(Ok((len, Box::pin(AsyncStreamBody(rsp)))))
     }
 }
 

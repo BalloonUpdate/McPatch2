@@ -1,6 +1,7 @@
 use std::io::ErrorKind;
 use std::path::Path;
 use std::path::PathBuf;
+use std::str::FromStr;
 use std::time::SystemTime;
 
 use mcpatch_shared::common::file_hash::calculate_hash_async;
@@ -15,6 +16,9 @@ use tokio::io::AsyncSeekExt;
 use tokio::io::AsyncWriteExt;
 
 use crate::error::BusinessError;
+use crate::error::BusinessResult;
+use crate::error::OptionToBusinessError;
+use crate::error::ResultToBusinessError;
 use crate::global_config::GlobalConfig;
 use crate::log::add_log_handler;
 use crate::log::log_debug;
@@ -31,26 +35,6 @@ use crate::ExitCodeU8;
 use crate::StartupParameter;
 
 pub async fn run(params: StartupParameter, ui_cmd: &AppWindowCommand) -> ExitCodeU8 {
-    let working_dir = get_working_dir().await;
-    let executable_dir = get_executable_dir().await;
-    let global_config = GlobalConfig::load(&executable_dir.join("mcpatch.yml")).await;
-    let base_dir = get_base_dir(&global_config).await.unwrap();
-
-    let log_file_path = match params.graphic_mode {
-        true => executable_dir.join("mcpatch.log"),
-        false => executable_dir.join("mcpatch.log.txt"),
-    };
-
-    // 显示窗口
-    if !global_config.silent_mode {
-        ui_cmd.set_visible(true).await;
-    }
-
-    // 初始化窗口内容
-    ui_cmd.set_title(global_config.window_title.to_owned()).await;
-    ui_cmd.set_label("".to_owned()).await;
-    ui_cmd.set_label_secondary("".to_owned()).await;    
-
     // 初始化终端日志记录器
     let console_log_level = match is_running_under_cargo() {
         true => match params.graphic_mode || params.disable_log_file {
@@ -61,25 +45,10 @@ pub async fn run(params: StartupParameter, ui_cmd: &AppWindowCommand) -> ExitCod
     };
     add_log_handler(Box::new(ConsoleHandler::new(console_log_level)));
 
-    // 初始化文件日志记录器
-    if !params.disable_log_file {
-        add_log_handler(Box::new(FileHandler::new(&log_file_path)));
-    }
+    let mut allow_error = false;
 
-    // 没有独立进程的话需要加上日志前缀，好方便区分
-    if !params.standalone_progress {
-        set_log_prefix("Mcpatch");
-    }
-
-    // 打印运行环境信息
-    let gm = if params.graphic_mode { "yes" } else { "no" };
-    let sp = if params.standalone_progress { "yes" } else { "no" };
-    log_info(&format!("graphic_mode: {gm}, standalone_process: {sp}"));
-    log_info(&format!("base directory: {}", base_dir.to_str().unwrap()));
-    log_info(&format!("work directory: {}", working_dir.to_str().unwrap()));
-    log_info(&format!("prog directory: {}", executable_dir.to_str().unwrap()));
-
-    match work(&working_dir, &executable_dir, &base_dir, &global_config, &log_file_path, ui_cmd).await {
+    // 将更新主逻辑单独拆到一个方法里以方便处理错误
+    match work(&params, ui_cmd, &mut allow_error).await {
         Ok(_) => {
             log_info("finish");
 
@@ -100,7 +69,7 @@ pub async fn run(params: StartupParameter, ui_cmd: &AppWindowCommand) -> ExitCod
                     false => ExitCodeU8(1),
                 }
             } else {
-                match global_config.allow_error {
+                match allow_error {
                     true => ExitCodeU8(0),
                     false => ExitCodeU8(1),
                 }
@@ -109,70 +78,48 @@ pub async fn run(params: StartupParameter, ui_cmd: &AppWindowCommand) -> ExitCod
     }
 }
 
-/// 获取更新起始目录
-async fn get_base_dir(global_config: &GlobalConfig) -> Result<PathBuf, String> {
-    let working_dir = get_working_dir().await;
+pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_error: &mut bool) -> Result<(), BusinessError> {
+    let working_dir = get_working_dir(params).await?;
+    let exe_dir = get_executable_dir(params).await?;
+    let config = GlobalConfig::load(&exe_dir.join("mcpatch.yml")).await?;
+    let base_dir = get_base_dir(params, &config).await?;
 
-    if is_running_under_cargo() {
-        return Ok(working_dir);
+    *allow_error = config.allow_error;
+
+    let log_file_path = match params.graphic_mode {
+        true => exe_dir.join("mcpatch.log"),
+        false => exe_dir.join("mcpatch.log.txt"),
+    };
+
+    // 显示窗口
+    if !config.silent_mode {
+        ui_cmd.set_visible(true).await;
     }
 
-    // 智能搜索.minecraft文件夹
-    if global_config.base_path.is_empty() {
-        let mut current = &working_dir as &Path;
+    // 初始化窗口内容
+    ui_cmd.set_title(config.window_title.to_owned()).await;
+    ui_cmd.set_label("".to_owned()).await;
+    ui_cmd.set_label_secondary("".to_owned()).await;    
 
-        for _ in 0..7 {
-            let detect = tokio::fs::try_exists(current.join(".minecraft")).await;
-
-            match detect {
-                Ok(found) => {
-                    if found {
-                        return Ok(current.to_owned());
-                    }
-
-                    current = match current.parent() {
-                        Some(parent) => parent,
-                        None => break,
-                    }
-                },
-                Err(_) => break,
-            }
-        }
-
-        return Err(".minecraft not found".into());
+    // 初始化文件日志记录器
+    if !params.disable_log_file {
+        add_log_handler(Box::new(FileHandler::new(&log_file_path)));
     }
 
-    let base_dir = working_dir.join(&global_config.base_path);
-    tokio::fs::create_dir_all(&base_dir).await.unwrap();
-    Ok(base_dir)
-}
-
-/// 获取可执行文件所在目录
-async fn get_executable_dir() -> PathBuf {
-    if is_running_under_cargo() {
-        get_working_dir().await
-    } else {
-        let exe = std::env::args().next().unwrap();
-        PathBuf::from(exe).parent().unwrap().to_owned()
-    }
-}
-
-/// 获取工作目录
-async fn get_working_dir() -> PathBuf {
-    let mut working_dir = std::env::current_dir().unwrap();
-        
-    if is_running_under_cargo() {
-        working_dir = working_dir.join("test").join("client");
+    // 没有独立进程的话需要加上日志前缀，好方便区分
+    if !params.standalone_progress {
+        set_log_prefix("Mcpatch");
     }
 
-    tokio::fs::create_dir_all(&working_dir).await.unwrap();
-    working_dir
-}
+    // 打印运行环境信息
+    let gm = if params.graphic_mode { "yes" } else { "no" };
+    let sp = if params.standalone_progress { "yes" } else { "no" };
+    log_info(&format!("graphic_mode: {gm}, standalone_process: {sp}"));
+    log_info(&format!("base directory: {}", base_dir.to_str().unwrap()));
+    log_info(&format!("work directory: {}", working_dir.to_str().unwrap()));
+    log_info(&format!("prog directory: {}", exe_dir.to_str().unwrap()));
 
-
-
-pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &GlobalConfig, log_file_path: &Path, ui_cmd: &AppWindowCommand) -> Result<(), BusinessError> {
-    let mut network = Network::new(config);
+    let mut network = Network::new(&config);
 
     let version_file = exe_dir.join(&config.version_file_path);
     let mut current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or(":empty:".to_owned());
@@ -183,7 +130,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
     
     ui_cmd.set_label("正在检查更新".to_owned()).await;
 
-    let server_versions = network.request_text("index.json", 0..0, "index file").await.unwrap();
+    let server_versions = network.request_text("index.json", 0..0, "index file").await?;
     let server_versions = IndexFile::load_from_json(&server_versions);
 
     ui_cmd.set_label("正在看有没有更新".to_owned()).await;
@@ -231,11 +178,11 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
             counter += 1;
 
             let range = ver.offset..(ver.offset + ver.len as u64);
-            let meta_text = network.request_text(&ver.filename, range, format!("metadata of {}", ver.label)).await.unwrap();
+            let meta_text = network.request_text(&ver.filename, range, format!("metadata of {}", ver.label)).await?;
 
             // println!("meta: <{}> {}", meta_text, meta_text.len());
 
-            let meta = json::parse(&meta_text).unwrap();
+            let meta = json::parse(&meta_text).be(|e| format!("版本 {} 的元数据解析失败，原因：{}", ver.label, e))?;
 
             for meta in meta.members().map(|e| VersionMeta::load(e)) {
                 version_metas.push(FullVersionMeta { filename: ver.filename.to_owned(), metadata: meta });
@@ -318,11 +265,13 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
 
         // 过滤一些不安全行为
         // 1.不能更新自己
-        let current_exe = std::env::current_exe().unwrap();
-        create_folders.remove_if(|e| base_dir.join(&e) == current_exe);
-        update_files.remove_if(|e| base_dir.join(&e.path) == current_exe);
-        delete_files.remove_if(|e| base_dir.join(&e) == current_exe);
-        move_files.remove_if(|e| base_dir.join(&e.from) == current_exe || base_dir.join(&e.to) == current_exe);
+        if !params.call_from_dll {
+            let current_exe = std::env::current_exe().unwrap();
+            create_folders.remove_if(|e| base_dir.join(&e) == current_exe);
+            update_files.remove_if(|e| base_dir.join(&e.path) == current_exe);
+            delete_files.remove_if(|e| base_dir.join(&e) == current_exe);
+            move_files.remove_if(|e| base_dir.join(&e.from) == current_exe || base_dir.join(&e.to) == current_exe);
+        }
 
         // 2.不能更新日志文件
         create_folders.remove_if(|e| base_dir.join(&e) == log_file_path);
@@ -336,7 +285,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
 
         // 创建临时文件夹
         if !update_files.is_empty() {
-            tokio::fs::create_dir_all(&temp_dir).await.unwrap();
+            tokio::fs::create_dir_all(&temp_dir).await.be(|e| format!("创建临时目录失败，原因：{}", e))?;
         }
 
         // 尽可能跳过要下载的文件
@@ -358,13 +307,15 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
                     }
 
                     // 可以跳过更新，todo: 这里判断会有精度问题
-                    if meta.modified().unwrap() == f.modified && meta.len() == f.len {
+                    let modified = meta.modified().be(|e| format!("获取文件修改失败失败({:?})，原因：{}", target_path, e))?;
+                    if modified == f.modified && meta.len() == f.len {
                         update_files.remove(i);
                         continue;
                     }
 
                     // 对比hash，如果相同也可以跳过更新
-                    let mut open = tokio::fs::File::open(&target_path).await.unwrap();
+                    let mut open = tokio::fs::File::open(&target_path).await
+                        .be(|e| format!("打开文件失败({:?})，原因：{}", target_path, e))?;
 
                     if calculate_hash_async(&mut open).await == f.hash {
                         update_files.remove(i);
@@ -373,7 +324,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
                 },
                 Err(e) => {
                     if e.kind() != ErrorKind::NotFound {
-                        Result::<std::fs::Metadata, std::io::Error>::Err(e).unwrap();
+                        return Err(BusinessError::new(format!("获取文件metadata失败({:?})，原因：{}", target_path, e)));
                     }
                 },
             }
@@ -397,39 +348,64 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
             
             // println!("download to {:?}", temp_path);
 
-            tokio::fs::create_dir_all(temp_path.parent().unwrap()).await.unwrap();
+            let temp_directory = temp_path.parent().be(|| format!("获取{:?}的上级目录失败，可能是抵达了文件系统根目录", temp_path))?;
+            tokio::fs::create_dir_all(temp_directory).await.be(|e| format!("创建临时目录失败({:?})，原因：{}", temp_directory, e))?;
 
             file_counter += 1;
             ui_cmd.set_label(format!("下载版本 {} 的更新数据 ({}/{})", label, file_counter, update_files.len())).await;
             ui_cmd.set_label_secondary(format!("{}", path)).await;
 
-            // 发起请求
-            let mut temp_file = tokio::fs::File::options().create(true).truncate(true).read(true).write(true).open(&temp_path).await.unwrap();
-            let mut stream = network.request_file(package, *offset..(offset + len), format!("{} in {}", path, label)).await.unwrap();
-            let mut buf = [0u8; 16 * 1024];
-            let mut bytes_counter = 0u64;
+            let mut temp_file = tokio::fs::File::options().create(true).truncate(true).read(true).write(true).open(&temp_path).await
+                .be(|e| format!("打开临时文件失败({:?})，原因：{}", temp_path, e))?;
 
-            loop {
-                let read = stream.1.read(&mut buf).await.unwrap();
+            // 开始下载
+            let mut io_error = Option::<std::io::Error>::None;
+            'outer: for i in 0..config.http_retries + 1 {
+                temp_file.seek(std::io::SeekFrom::Start(0)).await.be(|e| format!("归零临时文件读写指针失败({:?})，原因：{}", temp_path, e))?;
+                
+                let (_, mut stream) = network.request_file(&package, *offset..(offset + len), &format!("{} in {}", path, label)).await?;
 
-                if read == 0 {
-                    break;
+                let mut buf = [0u8; 16 * 1024];
+                let mut bytes_counter = 0u64;
+
+                loop {
+                    let read = match stream.read(&mut buf).await {
+                        Ok(read) => read,
+                        Err(e) => {
+                            io_error = Some(e);
+                            total_downloaded -= bytes_counter;
+                            if i != config.http_retries {
+                                log_error("retrying")
+                            }
+                            continue 'outer;
+                        },
+                    };
+        
+                    if read == 0 {
+                        break;
+                    }
+        
+                    temp_file.write_all(&buf[0..read]).await.be(|e| format!("写入临时文件时失败(本地文件 {:?}, 远端信息: {} 里 {} 版本的 {})，原因：{}", temp_path, package, label, path, e))?;
+        
+                    bytes_counter += read as u64;
+                    total_downloaded += read as u64;
+                    
+                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    
+                    ui_cmd.set_progress(((total_downloaded as f32 / total_bytes as f32) * 1000f32) as u32).await;
+                    ui_cmd.set_label_secondary(format!("{} ({:.1}%)", path, ((bytes_counter as f32 / *len as f32) * 100f32))).await;
                 }
 
-                temp_file.write_all(&buf[0..read]).await.unwrap();
+                break;
+            }
 
-                bytes_counter += read as u64;
-                total_downloaded += read as u64;
-                
-                // tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-                
-                ui_cmd.set_progress(((total_downloaded as f32 / total_bytes as f32) * 1000f32) as u32).await;
-                ui_cmd.set_label_secondary(format!("{} ({:.1}%)", path, ((bytes_counter as f32 / *len as f32) * 100f32))).await;
+            if let Some(err) = io_error {
+                return Err(BusinessError::new(format!("文件下载失败(本地文件 {:?}, 远端信息: {} 里 {} 版本的 {})，原因：{}", temp_path, package, label, path, err)));
             }
 
             // 检查下载的文件的hash对不对
-            temp_file.flush().await.unwrap();
-            temp_file.seek(std::io::SeekFrom::Start(0)).await.unwrap();
+            temp_file.flush().await.be(|e| format!("刷新临时文件失败({:?})，原因：{}", temp_path, e))?;
+            temp_file.seek(std::io::SeekFrom::Start(0)).await.be(|e| format!("归零临时文件读写指针失败({:?})，原因：{}", temp_path, e))?;
 
             let temp_hash = calculate_hash_async(&mut temp_file).await;
 
@@ -437,6 +413,9 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
                 return Err(format!("the temp file hash {} does not match {}", &temp_hash, hash).into());
             }
         }
+
+        // 6.合并临时文件
+        ui_cmd.set_label("正在合并临时文件，请不要关闭程序，避免数据损坏".to_owned()).await;
         
         // 2.处理要移动的文件
         ui_cmd.set_label("正在处理文件移动".to_owned()).await;
@@ -446,7 +425,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
             let to = base_dir.join(&to);
 
             if from.exists() {
-                tokio::fs::rename(from, to).await.unwrap();
+                tokio::fs::rename(&from, &to).await.be(|e| format!("处理文件移动失败({:?} => {:?})，原因：{}", from, to, e))?;
             }
         }
 
@@ -456,7 +435,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         for path in delete_files {
             let path = base_dir.join(&path);
 
-            tokio::fs::remove_file(path).await.unwrap();
+            tokio::fs::remove_file(&path).await.be(|e| format!("删除旧文件失败({:?})，原因：{}", path, e))?;
         }
 
         // 4.处理要删除的目录
@@ -464,10 +443,7 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
             let path = base_dir.join(&path);
 
             // 删除失败了不用管
-            match tokio::fs::remove_dir(path).await {
-                Ok(_) => {},
-                Err(_) => {},
-            }
+            let _ = tokio::fs::remove_dir(path).await;
         }
 
         // 5.处理要创建的空目录
@@ -476,17 +452,14 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
         for path in create_folders {
             let path = base_dir.join(&path);
 
-            tokio::fs::create_dir_all(path).await.unwrap();
+            tokio::fs::create_dir_all(&path).await.be(|e| format!("创建新目录失败({:?})，原因：{}", path, e))?;
         }
-
-        // 6.合并临时文件
-        ui_cmd.set_label("正在合并临时文件，请不要关闭程序，避免数据损坏".to_owned()).await;
 
         for u in &update_files {
             let target_path = base_dir.join(&u.path);
             let temp_path = temp_dir.join(&format!("{}.temp", &u.path));
-
-            tokio::fs::rename(temp_path, target_path).await.unwrap();
+            
+            tokio::fs::rename(&temp_path, &target_path).await.be(|e| format!("移动临时文件失败({:?} => {:?})，原因：{}", temp_path, target_path, e))?;
         }
 
         // 清理临时文件夹
@@ -494,14 +467,14 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
 
         if temp_dir.exists() {
             // println!("removing: {:?}", &temp_dir);
-            tokio::fs::remove_dir_all(&temp_dir).await.unwrap();
+            tokio::fs::remove_dir_all(&temp_dir).await.be(|e| format!("清理临时目录失败({:?})，原因：{}", temp_dir, e))?;
         }
 
         // 文件基本上更新完了，到这里就要进行收尾工作了
         ui_cmd.set_label("正在进行收尾工作".to_owned()).await;
 
         // 1.更新客户端版本号
-        tokio::fs::write(&version_file, latest_version.as_bytes()).await.unwrap();
+        tokio::fs::write(&version_file, latest_version.as_bytes()).await.be(|e| format!("更新客户端版本号文件为 {} 时失败({:?})，原因：{}", latest_version, version_file, e))?;
 
         // 2.弹出更新记录
         println!("更新成功: {}", join_string(missing_versions.iter().map(|e| &e.label), ", "));
@@ -516,5 +489,71 @@ pub async fn work(_work_dir: &Path, exe_dir: &Path, base_dir: &Path, config: &Gl
     }
 
     Ok(())
+}
+
+/// 获取更新起始目录
+async fn get_base_dir(params: &StartupParameter, global_config: &GlobalConfig) -> BusinessResult<PathBuf> {
+    let working_dir = get_working_dir(params).await?;
+
+    if is_running_under_cargo() {
+        return Ok(working_dir);
+    }
+
+    // 智能搜索.minecraft文件夹
+    if global_config.base_path.is_empty() {
+        let mut current = &working_dir as &Path;
+
+        for _ in 0..7 {
+            let detect = tokio::fs::try_exists(current.join(".minecraft")).await;
+
+            match detect {
+                Ok(found) => {
+                    if found {
+                        return Ok(current.to_owned());
+                    }
+
+                    current = match current.parent() {
+                        Some(parent) => parent,
+                        None => break,
+                    }
+                },
+                Err(_) => break,
+            }
+        }
+
+        return Err(BusinessError::new(".minecraft not found"));
+    }
+
+    let base_dir = working_dir.join(&global_config.base_path);
+    tokio::fs::create_dir_all(&base_dir).await.be(|e| format!("创建更新起始目录失败({:?})，原因：{}", base_dir, e))?;
+    Ok(base_dir)
+}
+
+/// 获取可执行文件所在目录
+async fn get_executable_dir(params: &StartupParameter) -> BusinessResult<PathBuf> {
+    if is_running_under_cargo() {
+        get_working_dir(params).await
+    } else {
+        Ok(std::env::current_exe().be(|e| format!("获取exe文件路径失败，原因：{}", e))?)
+    }
+}
+
+/// 获取工作目录
+async fn get_working_dir(params: &StartupParameter) -> BusinessResult<PathBuf> {
+    let mut working_dir = match params.call_from_dll {
+        true => PathBuf::from_str(
+            &std::env::var("MCPATCH_WORKDIR").be(|_e| "环境变量获取失败：MCPATCH_WORKDIR")?
+        ).expect("环境变量 MCPATCH_WORKDIR 包含无效utf8字符"),
+        false => std::env::current_dir().be(|e| format!("获取工作目录失败，原因：{}", e))?,
+    };
+        
+    if is_running_under_cargo() {
+        working_dir = working_dir.join("test").join("client");
+    }
+
+    tokio::fs::create_dir_all(&working_dir).await
+        .be(|e| format!("创建工作目录失败，原因：{}", e))?;
+
+    Ok(working_dir)
 }
 
