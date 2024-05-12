@@ -1,0 +1,43 @@
+name: Manager build and release
+
+on:
+  push:
+    tags:
+      - "m*"
+
+permissions:
+  contents: write
+  pages: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Cargo build
+        run: |-
+          cargo build --bin mcpatch-manager
+      
+      - name: Append version label
+        shell: python
+        run: |-
+          import os
+          import re
+
+          os.mkdir('target/debug/upload')
+
+          GIT_TAG = os.environ.get('GITHUB_REF_NAME', ' 0.0.0')[1:]
+
+          os.rename('target/debug/mcpatch-manager.exe', f'target/debug/upload/mcpatch-manager-{GIT_TAG}.exe')
+          os.rename('target/debug/mcpatch_manager.pdb', f'target/debug/upload/mcpatch_manager_{GIT_TAG}.pdb')
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/debug/upload/*
+
