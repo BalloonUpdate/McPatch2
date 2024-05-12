@@ -28,23 +28,23 @@ enum UiCommand {
 
 #[derive(NwgUi)]
 pub struct AppWindow {
-    #[nwg_control(title: "WindowTitle", flags: "WINDOW", size: (390, 170), center: true, topmost: false)]
+    #[nwg_control(title: "WindowTitle", flags: "WINDOW", size: (400, 150), center: true, topmost: false)]
     #[nwg_events(OnWindowClose: [AppWindow::try_close_window])]
     window: nwg::Window,
 
-    #[nwg_control(position: (35, 15), size: (320, 60), text: "Label", 
-        flags: "ELIPSIS|VISIBLE", h_align: HTextAlign::Center, 
+    #[nwg_control(position: (2, 15), size: (396, 24), text: "Label", 
+        flags: "VISIBLE|ELIPSIS", h_align: HTextAlign::Center, 
         // background_color: Some([255, 0, 255])
     )]
     label: nwg::Label,
 
-    #[nwg_control(position: (35, 45), size: (320, 75), text: "Label Secondary", 
-        flags: "VISIBLE", h_align: HTextAlign::Center, 
+    #[nwg_control(position: (2, 55), size: (396, 24), text: "Label Secondary", 
+        flags: "VISIBLE|ELIPSIS", h_align: HTextAlign::Center, 
         // background_color: Some([0, 255, 255])
     )]
     label_secondary: nwg::Label,
 
-    #[nwg_control(position: (35, 130), size: (320, 20), range: 0..1000)]
+    #[nwg_control(position: (35, 110), size: (330, 20), range: 0..1000)]
     progress: nwg::ProgressBar,
 
     #[nwg_control]
@@ -91,7 +91,7 @@ impl AppWindow {
 
             match receiver.is_empty() {
                 true => None,
-                false => Some(receiver.blocking_recv().unwrap()),
+                false => receiver.blocking_recv(),
             }
         };
         

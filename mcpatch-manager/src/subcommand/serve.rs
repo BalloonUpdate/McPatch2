@@ -82,7 +82,7 @@ async fn serve_loop(stream: std::net::TcpStream, ctx: AppContext) {
         file.seek(std::io::SeekFrom::Start(start)).await?;
 
         while remains > 0 {
-            let mut buf = [0u8; 32];
+            let mut buf = [0u8; 32 * 1024];
             let limit = buf.len().min(remains as usize);
             let buf = &mut buf[0..limit];
             

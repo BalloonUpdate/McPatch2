@@ -28,7 +28,7 @@ pub struct GlobalConfig {
 
     /// 记录客户端版本号文件的路径
     /// 客户端的版本号会被存储在这个文件里，并以此为依据判断是否更新到了最新版本
-    #[default_value("mcpatch-version.txt")]
+    #[default_value("version-label.txt")]
     pub version_file_path: String,
 
     /// 当程序发生错误而更新失败时，是否可以继续进入游戏
@@ -37,6 +37,11 @@ pub struct GlobalConfig {
     /// 此选项仅当程序以非图形模式启动时有效，因为在图形模式下，会主动弹框并将选择权交给用户
     #[default_value("false")]
     pub allow_error: bool,
+
+    /// 在没有更新时，是否显示“资源文件暂无更新!”提示框
+    /// 在有更新时，此选项不生效
+    #[default_value("true")]
+    pub show_finish_message: bool,
 
     /// 安静模式，是否只在下载文件时才显示窗口
     /// 如果为true，程序启动后在后台静默检查文件更新，而不显示窗口，若没有更新会直接启动Minecraft，
@@ -90,14 +95,14 @@ impl GlobalConfig {
         // 生成默认的配置文件
         if !file.exists() {
             tokio::fs::write(&file, GlobalConfigTemplate).await
-                .be(|e| format!("生成默认配置文件失败，原因：{}", e))?;
+                .be(|e| format!("生成默认配置文件失败({:?})，原因：{}", file, e))?;
         }
 
         // 读取配置文件
         let content = tokio::fs::read_to_string(file).await
-            .be(|e| format!("读取配置文件失败，原因：{}", e))?;
+            .be(|e| format!("读取配置文件失败({:?})，原因：{}", file, e))?;
         let first = yaml_rust::YamlLoader::load_from_str(&content)
-            .be(|e| format!("配置文件解析失败，原因：{}", e))?
+            .be(|e| format!("配置文件解析失败({:?})，原因：{}", file, e))?
             .remove(0);
 
         for (k ,v) in first.into_hash().unwrap() {
@@ -120,12 +125,13 @@ impl GlobalConfig {
         let urls = config["urls"].as_vec().be(|| "配置文件中找不到")?.iter()
                 .map(|e| e.as_str().expect("配置文件 urls 中只能包含纯字符串元素").to_owned())
                 .collect();
-        let version_file_path = config["version_file_path"].as_str().be(|| "配置文件中找不到 version_file_path")?.to_owned();
-        let allow_error = config["allow_error"].as_bool().be(|| "配置文件中找不到 allow_error")?.to_owned();
-        let silent_mode = config["silent_mode"].as_bool().be(|| "配置文件中找不到 silent_mode")?.to_owned();
-        let window_title = config["window_title"].as_str().be(|| "配置文件中找不到 window_title")?.to_owned();
-        let base_path = config["base_path"].as_str().be(|| "配置文件中找不到 base_path")?.to_owned();
-        let http_headers = match config["http_headers"].as_hash() {
+        let version_file_path = config["version-file-path"].as_str().be(|| "配置文件中找不到 version-file-path")?.to_owned();
+        let allow_error = config["allow-error"].as_bool().be(|| "配置文件中找不到 allow-error")?.to_owned();
+        let show_finish_message = config["show-finish-message"].as_bool().be(|| "配置文件中找不到 show-finish-message")?.to_owned();
+        let silent_mode = config["silent-mode"].as_bool().be(|| "配置文件中找不到 silent-mode")?.to_owned();
+        let window_title = config["window-title"].as_str().be(|| "配置文件中找不到 window-title")?.to_owned();
+        let base_path = config["base-path"].as_str().be(|| "配置文件中找不到 base-path")?.to_owned();
+        let http_headers = match config["http-headers"].as_hash() {
             Some(map) => map.iter()
                 .map(|e| {
                     let k = e.0.as_str().expect("http协议头中列表元素的 key 只能是字符串").to_owned();
@@ -135,14 +141,15 @@ impl GlobalConfig {
                 .collect(),
             None => Vec::new(),
         };
-        let http_timeout = config["http_timeout"].as_i64().be(|| "配置文件中找不到 http_timeout")? as u32;
-        let http_retries = config["http_retries"].as_i64().be(|| "配置文件中找不到 http_retries")? as u8;
-        let http_ignore_certificate = config["http_ignore_certificate"].as_bool().be(|| "配置文件中找不到 http_ignore_certificate")?.to_owned();
+        let http_timeout = config["http-timeout"].as_i64().be(|| "配置文件中找不到 http-timeout")? as u32;
+        let http_retries = config["http-retries"].as_i64().be(|| "配置文件中找不到 http-retries")? as u8;
+        let http_ignore_certificate = config["http-ignore-certificate"].as_bool().be(|| "配置文件中找不到 http-ignore-certificate")?.to_owned();
 
         Ok(GlobalConfig {
             urls,
             version_file_path,
             allow_error,
+            show_finish_message,
             silent_mode,
             window_title,
             base_path,

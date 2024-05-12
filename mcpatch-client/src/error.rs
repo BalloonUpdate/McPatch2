@@ -1,4 +1,5 @@
 use std::fmt::Debug;
+use std::fmt::Display;
 
 pub type BusinessResult<T> = Result<T, BusinessError>;
 
@@ -22,6 +23,12 @@ impl<S: AsRef<str>> From<S> for BusinessError {
 }
 
 impl Debug for BusinessError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.reason)
+    }
+}
+
+impl Display for BusinessError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.reason)
     }

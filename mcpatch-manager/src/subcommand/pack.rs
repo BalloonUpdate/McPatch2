@@ -6,6 +6,7 @@
 //! 2. 将所有“覆盖的文件”的数据和元数据写入到更新包中，同时更新元数据中每个文件的偏移值
 //! 3. 更新索引文件
 
+use std::ops::Deref;
 use std::rc::Weak;
 
 use mcpatch_shared::data::index_file::IndexFile;
@@ -30,6 +31,8 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
         return 2;
     }
 
+    println!("正在读取数据");
+
     let mut history = HistoryFile::new_dir("workspace_root", Weak::new());
 
     // 读取现有更新包，并复现在history上
@@ -43,6 +46,8 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     }
 
     // 对比文件
+    println!("正在扫描文件更改");
+
     let disk_file = DiskFile::new(ctx.workspace_dir.clone(), Weak::new());
     let diff = Diff::diff(&disk_file, &history, Some(&ctx.config.filter_rules));
 
@@ -60,7 +65,11 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     let mut writer = TarWriter::new(&version_file);
 
     // 写入每个更新的文件数据
+    let mut counter = 1;
     for f in &diff.updated_files {
+        println!("打包({}/{}) {}", counter, diff.updated_files.len(), f.path().deref());
+        counter += 1;
+
         let path = f.path().to_owned();
         let disk_file = ctx.workspace_dir.join(&path);
         let open = std::fs::File::options().read(true).open(disk_file).unwrap();
@@ -69,6 +78,8 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     }
 
     // 写入元数据
+    println!("写入元数据");
+
     let meta = VersionMeta::new(version_label.clone(), "没有写更新记录".to_owned(), diff.to_file_changes());
     let meta_group = VersionMetaGroup::with_one(meta);
     let meta_info = writer.finish(meta_group);
@@ -82,6 +93,8 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
         hash: "no hash".to_owned(),
     });
     index_file.save(&ctx.index_file);
+
+    println!("打包完成！");
 
     0
 }

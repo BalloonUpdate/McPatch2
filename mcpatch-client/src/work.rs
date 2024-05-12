@@ -1,15 +1,15 @@
 use std::io::ErrorKind;
 use std::path::Path;
 use std::path::PathBuf;
-use std::str::FromStr;
+use std::time::Duration;
 use std::time::SystemTime;
 
 use mcpatch_shared::common::file_hash::calculate_hash_async;
 use mcpatch_shared::data::index_file::IndexFile;
 use mcpatch_shared::data::version_meta::FileChange;
 use mcpatch_shared::data::version_meta::VersionMeta;
+use mcpatch_shared::utility::filename_ext::GetFileNamePart;
 use mcpatch_shared::utility::is_running_under_cargo;
-use mcpatch_shared::utility::join_string;
 use mcpatch_shared::utility::vec_ext::VecRemoveIf;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncSeekExt;
@@ -29,12 +29,14 @@ use crate::log::ConsoleHandler;
 use crate::log::FileHandler;
 use crate::log::MessageLevel;
 use crate::network::Network;
+use crate::speed_sampler::SpeedCalculator;
 use crate::ui::AppWindowCommand;
 use crate::ui::DialogContent;
-use crate::ExitCodeU8;
+use crate::utils::convert_bytes;
+use crate::McpatchExitCode;
 use crate::StartupParameter;
 
-pub async fn run(params: StartupParameter, ui_cmd: &AppWindowCommand) -> ExitCodeU8 {
+pub async fn run(params: StartupParameter, ui_cmd: &AppWindowCommand) -> McpatchExitCode {
     // 初始化终端日志记录器
     let console_log_level = match is_running_under_cargo() {
         true => match params.graphic_mode || params.disable_log_file {
@@ -52,7 +54,7 @@ pub async fn run(params: StartupParameter, ui_cmd: &AppWindowCommand) -> ExitCod
         Ok(_) => {
             log_info("finish");
 
-            ExitCodeU8(0)
+            McpatchExitCode(0)
         },
         Err(e) => {
             log_error(&e.reason);
@@ -65,13 +67,13 @@ pub async fn run(params: StartupParameter, ui_cmd: &AppWindowCommand) -> ExitCod
                 }).await;
 
                 match choice {
-                    true => ExitCodeU8(0),
-                    false => ExitCodeU8(1),
+                    true => McpatchExitCode(0),
+                    false => McpatchExitCode(1),
                 }
             } else {
                 match allow_error {
-                    true => ExitCodeU8(0),
-                    false => ExitCodeU8(1),
+                    true => McpatchExitCode(0),
+                    false => McpatchExitCode(1),
                 }
             }
         },
@@ -119,7 +121,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
     log_info(&format!("work directory: {}", working_dir.to_str().unwrap()));
     log_info(&format!("prog directory: {}", exe_dir.to_str().unwrap()));
 
-    let mut network = Network::new(&config);
+    let mut network = Network::new(&config).be(|e| format!("服务器地址加载失败，原因：{}", e))?;
 
     let version_file = exe_dir.join(&config.version_file_path);
     let mut current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or(":empty:".to_owned());
@@ -130,7 +132,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
     
     ui_cmd.set_label("正在检查更新".to_owned()).await;
 
-    let server_versions = network.request_text("index.json", 0..0, "index file").await?;
+    let server_versions = network.request_text("index.json", 0..0, "index file").await.be(|e| format!("检查更新失败，原因：{}", e))?;
     let server_versions = IndexFile::load_from_json(&server_versions);
 
     ui_cmd.set_label("正在看有没有更新".to_owned()).await;
@@ -178,7 +180,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             counter += 1;
 
             let range = ver.offset..(ver.offset + ver.len as u64);
-            let meta_text = network.request_text(&ver.filename, range, format!("metadata of {}", ver.label)).await?;
+            let meta_text = network.request_text(&ver.filename, range, format!("metadata of {}", ver.label)).await.be(|e| format!("元数据下载失败，原因：{}", e))?;
 
             // println!("meta: <{}> {}", meta_text, meta_text.len());
 
@@ -265,13 +267,11 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
         // 过滤一些不安全行为
         // 1.不能更新自己
-        if !params.call_from_dll {
-            let current_exe = std::env::current_exe().unwrap();
-            create_folders.remove_if(|e| base_dir.join(&e) == current_exe);
-            update_files.remove_if(|e| base_dir.join(&e.path) == current_exe);
-            delete_files.remove_if(|e| base_dir.join(&e) == current_exe);
-            move_files.remove_if(|e| base_dir.join(&e.from) == current_exe || base_dir.join(&e.to) == current_exe);
-        }
+        let current_exe = std::env::current_exe().unwrap();
+        create_folders.remove_if(|e| base_dir.join(&e) == current_exe);
+        update_files.remove_if(|e| base_dir.join(&e.path) == current_exe);
+        delete_files.remove_if(|e| base_dir.join(&e) == current_exe);
+        move_files.remove_if(|e| base_dir.join(&e.from) == current_exe || base_dir.join(&e.to) == current_exe);
 
         // 2.不能更新日志文件
         create_folders.remove_if(|e| base_dir.join(&e) == log_file_path);
@@ -340,7 +340,9 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             total_bytes += u.len;
         }
 
-        let mut file_counter = 0;
+        let mut _file_counter = 0;
+        let mut speed = SpeedCalculator::new(1500);
+        let mut ui_timer = SystemTime::now() - Duration::from_millis(600);
 
         // 下载到临时文件
         for UpdateFile { package, label, path, hash, len, modified: _, offset } in &update_files {
@@ -351,9 +353,15 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             let temp_directory = temp_path.parent().be(|| format!("获取{:?}的上级目录失败，可能是抵达了文件系统根目录", temp_path))?;
             tokio::fs::create_dir_all(temp_directory).await.be(|e| format!("创建临时目录失败({:?})，原因：{}", temp_directory, e))?;
 
-            file_counter += 1;
-            ui_cmd.set_label(format!("下载版本 {} 的更新数据 ({}/{})", label, file_counter, update_files.len())).await;
-            ui_cmd.set_label_secondary(format!("{}", path)).await;
+            _file_counter += 1;
+            let now = SystemTime::now();
+            if now.duration_since(ui_timer).unwrap().as_millis() > 100 {
+                ui_timer = now;
+                // ui_cmd.set_label(format!("下载版本 {} 的更新数据 ({}/{})", label, file_counter, update_files.len())).await;
+                ui_cmd.set_progress(((total_downloaded as f32 / total_bytes as f32) * 1000f32) as u32).await;
+                ui_cmd.set_label_secondary(format!("{}", temp_path.filename())).await; // {:.1}% percent
+                ui_cmd.set_label(format!("正在下载 {} 版本：{}/{} （{}/s）", label, convert_bytes(total_downloaded), convert_bytes(total_bytes), speed.sample_speed2())).await;
+            }
 
             let mut temp_file = tokio::fs::File::options().create(true).truncate(true).read(true).write(true).open(&temp_path).await
                 .be(|e| format!("打开临时文件失败({:?})，原因：{}", temp_path, e))?;
@@ -363,9 +371,9 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             'outer: for i in 0..config.http_retries + 1 {
                 temp_file.seek(std::io::SeekFrom::Start(0)).await.be(|e| format!("归零临时文件读写指针失败({:?})，原因：{}", temp_path, e))?;
                 
-                let (_, mut stream) = network.request_file(&package, *offset..(offset + len), &format!("{} in {}", path, label)).await?;
+                let (_, mut stream) = network.request_file(&package, *offset..(offset + len), &format!("{} in {}", path, label)).await.be(|e| format!("文件下载失败，原因：{}", e))?;
 
-                let mut buf = [0u8; 16 * 1024];
+                let mut buf = [0u8; 32 * 1024];
                 let mut bytes_counter = 0u64;
 
                 loop {
@@ -389,12 +397,27 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         
                     bytes_counter += read as u64;
                     total_downloaded += read as u64;
+                    speed.feed(read);
                     
-                    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                    // tokio::time::sleep(std::time::Duration::from_millis(100)).await;
                     
-                    ui_cmd.set_progress(((total_downloaded as f32 / total_bytes as f32) * 1000f32) as u32).await;
-                    ui_cmd.set_label_secondary(format!("{} ({:.1}%)", path, ((bytes_counter as f32 / *len as f32) * 100f32))).await;
+                    let now = SystemTime::now();
+                    if now.duration_since(ui_timer).unwrap().as_millis() > 500 {
+                        ui_timer = now;
+                        // let percent = (bytes_counter as f32 / *len as f32) * 100f32;
+                        ui_cmd.set_label(format!("正在下载 {} 版本：{}/{} （{}/s）", label, convert_bytes(total_downloaded), convert_bytes(total_bytes), speed.sample_speed2())).await;
+                        // ui_cmd.set_label_secondary(format!("{}", temp_path.filename())).await; // {:.1}% percent
+                        ui_cmd.set_progress(((total_downloaded as f32 / total_bytes as f32) * 1000f32) as u32).await;
+                        // ui_cmd.set_title(format!("{} {}/s", config.window_title, spd)).await;
+                    }
                 }
+
+                // 单文件下载进度
+                // let now = SystemTime::now();
+                // if now.duration_since(ui_timer).unwrap().as_millis() > 500 {
+                //     ui_timer = now;
+                //     ui_cmd.set_label_secondary(format!("{} ({:.1}%)", path, ((bytes_counter as f32 / *len as f32) * 100f32))).await;
+                // }
 
                 break;
             }
@@ -477,15 +500,29 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         tokio::fs::write(&version_file, latest_version.as_bytes()).await.be(|e| format!("更新客户端版本号文件为 {} 时失败({:?})，原因：{}", latest_version, version_file, e))?;
 
         // 2.弹出更新记录
-        println!("更新成功: {}", join_string(missing_versions.iter().map(|e| &e.label), ", "));
+        let mut changelogs = "".to_owned();
+
+        for meta in &version_metas {
+            changelogs += &format!("{}\n{}\n\n", meta.metadata.label, meta.metadata.logs);
+        }
+
+        println!("更新成功: \n{}", changelogs.trim());
 
         ui_cmd.popup_dialog(DialogContent {
             title: "更新成功".to_owned(),
-            content: format!("更新成功: {}", join_string(missing_versions.iter().map(|e| &e.label), ", ")),
+            content: changelogs.trim().to_owned(),
             yesno: false,
         }).await;
     } else {
         ui_cmd.set_label("没有更新".to_owned()).await;
+
+        if config.show_finish_message {
+            ui_cmd.popup_dialog(DialogContent {
+                title: "".to_owned(),
+                content: "资源文件暂无更新".to_owned(),
+                yesno: false,
+            }).await;
+        }
     }
 
     Ok(())
@@ -534,18 +571,13 @@ async fn get_executable_dir(params: &StartupParameter) -> BusinessResult<PathBuf
     if is_running_under_cargo() {
         get_working_dir(params).await
     } else {
-        Ok(std::env::current_exe().be(|e| format!("获取exe文件路径失败，原因：{}", e))?)
+        Ok(std::env::current_exe().be(|e| format!("获取exe文件路径失败，原因：{}", e))?.parent().unwrap().to_owned())
     }
 }
 
 /// 获取工作目录
-async fn get_working_dir(params: &StartupParameter) -> BusinessResult<PathBuf> {
-    let mut working_dir = match params.call_from_dll {
-        true => PathBuf::from_str(
-            &std::env::var("MCPATCH_WORKDIR").be(|_e| "环境变量获取失败：MCPATCH_WORKDIR")?
-        ).expect("环境变量 MCPATCH_WORKDIR 包含无效utf8字符"),
-        false => std::env::current_dir().be(|e| format!("获取工作目录失败，原因：{}", e))?,
-    };
+async fn get_working_dir(_params: &StartupParameter) -> BusinessResult<PathBuf> {
+    let mut working_dir = std::env::current_dir().be(|e| format!("获取工作目录失败，原因：{}", e))?;
         
     if is_running_under_cargo() {
         working_dir = working_dir.join("test").join("client");

@@ -15,6 +15,7 @@ use crate::error::ResultToBusinessError;
 use crate::global_config::GlobalConfig;
 use crate::log::log_debug;
 use crate::log::log_error;
+use crate::log::log_info;
 use crate::network::http::HttpProtocol;
 use crate::network::private::PrivateProtocol;
 
@@ -27,7 +28,7 @@ pub struct Network<'a> {
 }
 
 impl<'a> Network<'a> {
-    pub fn new(config: &'a GlobalConfig) -> Self {
+    pub fn new(config: &'a GlobalConfig) -> BusinessResult<Self> {
         let mut sources = Vec::<Box<dyn UpdatingSource + Sync + Send>>::new();
         let mut index = 0u32;
 
@@ -36,12 +37,16 @@ impl<'a> Network<'a> {
                 sources.push(Box::new(HttpProtocol::new(url, &config, index)))
             } else if url.starts_with("mcpatch://") {
                 sources.push(Box::new(PrivateProtocol::new(&url["mcpatch://".len()..], &config, index)))
+            } else {
+                log_info(format!("unknown url: {}", url));
             }
 
             index += 1;
         }
 
-        Network { sources, skip_sources: 0, config }
+        log_debug(format!("loaded {} urls", sources.len()));
+
+        Ok(Network { sources, skip_sources: 0, config })
     }
 
     pub async fn request_text(&mut self, path: &str, range: Range<u64>, desc: impl AsRef<str>) -> BusinessResult<String> {

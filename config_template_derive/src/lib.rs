@@ -42,7 +42,7 @@ pub fn derive_config_template(input: TokenStream) -> TokenStream {
                     }
                 }
 
-                let field_ident = f.ident.unwrap().to_string();
+                let field_ident = f.ident.unwrap().to_string().replace("_", "-");
 
                 match default_value {
                     Some(dv) => {

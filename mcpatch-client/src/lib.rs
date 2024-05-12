@@ -4,6 +4,8 @@ pub mod log;
 pub mod work;
 pub mod network;
 pub mod ui;
+pub mod speed_sampler;
+pub mod utils;
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -23,21 +25,15 @@ pub struct AppContext {
 }
 
 pub struct StartupParameter {
-    pub call_from_dll: bool,
     pub graphic_mode: bool,
     pub standalone_progress: bool,
     pub disable_log_file: bool,
     // pub external_config_file: String,
 }
 
-pub struct ExitCodeU8(pub i16);
+pub struct McpatchExitCode(pub i8);
 
-#[no_mangle]
-pub extern "C" fn run_from_dll() -> i16 {
-    program(true).0
-}
-
-pub fn program(call_from_dll: bool) -> ExitCodeU8 {
+pub fn program() -> McpatchExitCode {
     std::env::set_var("RUST_BACKTRACE", "1");
     
     let runtime = tokio::runtime::Builder::new_multi_thread()
@@ -86,14 +82,13 @@ pub fn program(call_from_dll: bool) -> ExitCodeU8 {
     let mut ui_cmd2 = ui_cmd.clone();
     let work = runtime.spawn(async move {
         let params = StartupParameter {
-            call_from_dll,
             graphic_mode: true,
             standalone_progress: true,
             disable_log_file: false,
         };
         
         tokio::select! {
-            _ = window_close_signal.1 => ExitCodeU8(0),
+            _ = window_close_signal.1 => McpatchExitCode(0),
             code = run(params, &mut ui_cmd2) => code
         }
     });
@@ -107,7 +102,7 @@ pub fn program(call_from_dll: bool) -> ExitCodeU8 {
 
         match result {
             Ok(code) => code,
-            Err(_) => ExitCodeU8(1),
+            Err(_) => McpatchExitCode(1),
             // Err(_) => std::process::exit(1), // 强制退出
         }
     });

@@ -1,9 +1,7 @@
 use std::process::ExitCode;
 
-use libmcpatch_client::program;
+use mcpatch_client::program;
 
 fn main() -> ExitCode {
-    ExitCode::from(program(false).0 as u8)
-    
-    // ExitCode::from(0)
+    ExitCode::from(program().0 as u8)
 }
