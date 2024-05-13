@@ -80,7 +80,12 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     // 写入元数据
     println!("写入元数据");
 
-    let meta = VersionMeta::new(version_label.clone(), "没有写更新记录".to_owned(), diff.to_file_changes());
+    let logs = match std::fs::read_to_string(ctx.working_dir.join("logs.txt")) {
+        Ok(text) => text,
+        Err(_) => "没有更新记录".to_owned(),
+    };
+
+    let meta = VersionMeta::new(version_label.clone(), logs, diff.to_file_changes());
     let meta_group = VersionMetaGroup::with_one(meta);
     let meta_info = writer.finish(meta_group);
 
