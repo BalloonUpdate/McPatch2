@@ -3,4 +3,10 @@
 # 过滤规则使用正则表达式，不支持glob表达式
 # 以英文感叹号!打头的规则判定条件会翻转，!本身不会被带进正则中
 # 编写规则时可以使用test命令快速调试（用pack目录会很麻烦）
-filter_rules = []
+filter-rules = []
+
+# 上传脚本的模板文件
+upload-script-template = "upload-template.txt"
+
+# 上传脚本的输出文件
+upload-script-output = "upload.txt"

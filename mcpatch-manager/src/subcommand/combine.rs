@@ -13,6 +13,8 @@ use crate::common::archive_tester::ArchiveTester;
 use crate::common::tar_reader::TarReader;
 use crate::common::tar_writer::TarWriter;
 use crate::diff::history_file::HistoryFile;
+use crate::upload::generate_upload_script;
+use crate::upload::TemplateContext;
 use crate::AppContext;
 
 pub const COMBINED_FILENAME: &str = "combined.tar";
@@ -49,15 +51,17 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
     println!("测试通过，开始更新包合并流程");
 
     // 开始合并流程
-    let non_combined_versions = (&index_file).into_iter()
+    let versions_to_be_combined = (&index_file).into_iter()
         .filter(|e| e.filename != COMBINED_FILENAME)
         .collect::<LinkedList<_>>();
 
-    if non_combined_versions.is_empty() {
+    if versions_to_be_combined.is_empty() {
         println!("没有更新包可以合并");
         return 0;
     }
 
+    println!("正在读取数据");
+    
     let mut history = HistoryFile::new_dir("workspace_root", Weak::new());
     let mut data_locations = HashMap::<String, Location>::new();
 
@@ -99,6 +103,8 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
         meta_group.add_group(group);
     }
 
+    println!("正在合并数据");
+
     // 生成新的合并包
     let new_tar_file = ctx.public_dir.join("_combined.temp.tar");
     let mut writer = TarWriter::new(&new_tar_file);
@@ -110,6 +116,8 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
         let read = reader.open_file(loc.offset, loc.len);
         writer.add_file(read, loc.len, &loc.path, &loc.label);
     }
+
+    println!("正在更新元数据");
 
     // 写入元数据
     let meta_loc = writer.finish(meta_group);
@@ -141,9 +149,24 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
     std::fs::rename(&new_tar_file, &combine_file).unwrap();
     std::fs::remove_file(&new_index_filepath).unwrap();
     
-    for v in &non_combined_versions {
+    for v in &versions_to_be_combined {
         std::fs::remove_file(ctx.public_dir.join(&v.filename)).unwrap();
     }
+
+    println!("合并完成！");
+
+    // 生成上传脚本
+    let context = TemplateContext {
+        upload_files: vec![combine_file.strip_prefix(&ctx.working_dir).unwrap().to_str().unwrap().to_owned()],
+        delete_files: versions_to_be_combined.iter().map(|e| {
+            ctx.public_dir.join(&e.filename)
+                .strip_prefix(&ctx.working_dir).unwrap()
+                .to_str().unwrap()
+                .to_owned()
+        }).collect(),
+    };
+
+    generate_upload_script(context, ctx, "combined");
 
     0
 }

@@ -17,6 +17,7 @@ pub mod utility;
 pub mod subcommand;
 pub mod diff;
 pub mod common;
+pub mod upload;
 
 const CONFIG_TEMPLATE_STRING: &str = include_str!("../config.template.toml");
 
@@ -51,8 +52,11 @@ enum Commands {
 }
 
 #[derive(Deserialize, Clone)]
+#[serde(rename_all = "kebab-case")]
 pub struct AppConfig {
-   filter_rules: Vec<String>,
+   pub filter_rules: Vec<String>,
+   pub upload_script_template: String,
+   pub upload_script_output: String,
 }
 
 #[derive(Clone)]

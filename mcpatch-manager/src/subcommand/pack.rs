@@ -20,6 +20,8 @@ use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
+use crate::upload::generate_upload_script;
+use crate::upload::TemplateContext;
 use crate::AppContext;
 
 /// 执行新版本打包
@@ -100,6 +102,14 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     index_file.save(&ctx.index_file);
 
     println!("打包完成！");
+
+    // 生成上传脚本
+    let context = TemplateContext {
+        upload_files: vec![version_file.strip_prefix(&ctx.working_dir).unwrap().to_str().unwrap().to_owned()],
+        delete_files: Vec::new(),
+    };
+
+    generate_upload_script(context, ctx, &version_label);
 
     0
 }
