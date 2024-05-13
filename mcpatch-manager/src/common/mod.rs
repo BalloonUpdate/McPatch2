@@ -15,3 +15,4 @@
 pub mod tar_reader;
 pub mod tar_writer;
 pub mod archive_tester;
+pub mod rule_filter;
