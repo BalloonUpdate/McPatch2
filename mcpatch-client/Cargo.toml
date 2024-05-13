@@ -19,3 +19,6 @@ reqwest_dav = "0.1.11"
 [target.'cfg(target_os = "windows")'.dependencies]
 nwg = {package = "native-windows-gui", version = "1.0.13"}
 nwd = {package = "native-windows-derive", version = "1.0.5"}
+
+[target.'cfg(target_os = "windows")'.build-dependencies]
+embed-resource = "2.4"
