@@ -13,11 +13,11 @@ use tokio::net::TcpStream;
 
 use crate::AppContext;
 
-pub fn do_serve(_ctx: &AppContext) -> i32 {
+pub fn do_serve(port: u16, _ctx: &AppContext) -> i32 {
     println!("启动内置服务端");
 
     let host = "0.0.0.0";
-    let port = "6700";
+    let port = format!("{}", port);
 
     let listener = TcpListener::bind(format!("{}:{}", host, port)).unwrap();
     println!("listening on {}:{}", host, port);

@@ -48,7 +48,10 @@ enum Commands {
     Test,
 
     /// 运行内置服务端
-    Serve,
+    Serve {
+        /// 端口
+        port: u16
+    },
 }
 
 #[derive(Deserialize, Clone)]
@@ -109,7 +112,7 @@ fn main() {
         Commands::Check => do_check(&context),
         Commands::Combine => do_combine(&context),
         Commands::Test => do_test(&context),
-        Commands::Serve => do_serve(&context),
+        Commands::Serve { port } => do_serve(port, &context),
     };
 
     std::process::exit(eixt_code)
