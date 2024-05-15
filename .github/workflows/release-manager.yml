@@ -14,7 +14,10 @@ env:
 
 jobs:
   build:
-    runs-on: windows-latest
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,13 +31,15 @@ jobs:
         run: |-
           import os
           import re
+          import sys
 
           os.mkdir('target/debug/upload')
-
           GIT_TAG = os.environ.get('GITHUB_REF_NAME', ' 0.0.0')[1:]
-
-          os.rename('target/debug/mcpatch-manager.exe', f'target/debug/upload/mcpatch-manager-{GIT_TAG}.exe')
-          os.rename('target/debug/mcpatch_manager.pdb', f'target/debug/upload/mcpatch_manager_{GIT_TAG}.pdb')
+          if sys.platform.startswith('win'):
+              os.rename('target/debug/mcpatch-manager.exe', f'target/debug/upload/mcpatch-manager-{GIT_TAG}.exe')
+              os.rename('target/debug/mcpatch_manager.pdb', f'target/debug/upload/mcpatch_manager_{GIT_TAG}.pdb')
+          elif sys.platform.startswith('linux'):
+            os.rename('target/debug/mcpatch-manager', f'target/debug/upload/mcpatch-manager-{GIT_TAG}')
 
       - name: Release
         uses: softprops/action-gh-release@v2
