@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 fn main() {
+    // 为windows平台增加pe文件版本号信息
     let rc_file = PathBuf::from(std::env::var("OUT_DIR").unwrap()).join("pe.rc");
 
     println!("cargo:rerun-if-changed={}", rc_file.to_str().unwrap());
