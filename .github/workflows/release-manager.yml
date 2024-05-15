@@ -24,7 +24,7 @@ jobs:
 
       - name: Cargo build
         run: |-
-          cargo build --bin mcpatch-manager
+          cargo build --bin mcpatch-manager --release
       
       - name: Append version label
         shell: python
@@ -33,16 +33,17 @@ jobs:
           import re
           import sys
 
-          os.mkdir('target/debug/upload')
+          os.mkdir('target/release/upload')
           GIT_TAG = os.environ.get('GITHUB_REF_NAME', ' 0.0.0')[1:]
           if sys.platform.startswith('win'):
-              os.rename('target/debug/mcpatch-manager.exe', f'target/debug/upload/mcpatch-manager-{GIT_TAG}.exe')
-              os.rename('target/debug/mcpatch_manager.pdb', f'target/debug/upload/mcpatch_manager_{GIT_TAG}.pdb')
+              os.rename('target/release/mcpatch-manager.exe', f'target/release/upload/mcpatch-manager-{GIT_TAG}.exe')
+              os.rename('target/release/mcpatch_manager.pdb', f'target/release/upload/mcpatch_manager_{GIT_TAG}.pdb')
           elif sys.platform.startswith('linux'):
-            os.rename('target/debug/mcpatch-manager', f'target/debug/upload/mcpatch-manager-{GIT_TAG}')
+            os.rename('target/release/mcpatch-manager', f'target/release/upload/mcpatch-manager-{GIT_TAG}')
+            os.rename('target/release/mcpatch-manager.dwp', f'target/release/upload/mcpatch-manager-{GIT_TAG}.dwp')
 
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/debug/upload/*
+          files: target/release/upload/*
 
