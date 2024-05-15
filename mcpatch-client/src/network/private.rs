@@ -1,5 +1,6 @@
 use std::ops::Range;
 use std::sync::Arc;
+use std::time::Duration;
 
 use async_trait::async_trait;
 use tokio::io::AsyncRead;
@@ -33,11 +34,16 @@ impl PrivateProtocol {
 
 #[async_trait]
 impl UpdatingSource for PrivateProtocol {
-    async fn request(&mut self, path: &str, range: &Range<u64>, desc: &str, _config: &GlobalConfig) -> DownloadResult {
+    async fn request(&mut self, path: &str, range: &Range<u64>, desc: &str, config: &GlobalConfig) -> DownloadResult {
         let mut stream_lock = self.tcp_stream.clone().lock_owned().await;
 
         if stream_lock.is_none() {
-            *stream_lock = Some(TcpStream::connect(&self.addr).await?);
+            let tcp = TcpStream::connect(&self.addr).await?;
+            let std_tcp = tcp.into_std().unwrap();
+            std_tcp.set_read_timeout(Some(Duration::from_millis(config.private_timeout as u64))).unwrap();
+            std_tcp.set_write_timeout(Some(Duration::from_millis(config.private_timeout as u64))).unwrap();
+
+            *stream_lock = Some(tokio::net::TcpStream::from_std(std_tcp).unwrap());
         }
 
         let index = self.index;

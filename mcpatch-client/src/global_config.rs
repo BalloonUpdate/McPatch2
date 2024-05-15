@@ -67,6 +67,11 @@ pub struct GlobalConfig {
     #[default_value("''")]
     pub base_path: String,
 
+    /// 私有协议的超时判定时间，单位毫秒，值越小判定越严格
+    /// 网络环境较差时可能会频繁出现连接超时，那么此时可以考虑增加此值（建议30s以下）
+    #[default_value("7000")]
+    pub private_timeout: u32,
+
     /// 为http/webdav设置协议头
     #[default_value("\n#  User-Agent: This filled by youself # 这是一个自定义UserAgent的配置示例")]
     pub http_headers: Vec<(String, String)>,
@@ -131,6 +136,7 @@ impl GlobalConfig {
         let silent_mode = config["silent-mode"].as_bool().be(|| "配置文件中找不到 silent-mode")?.to_owned();
         let window_title = config["window-title"].as_str().be(|| "配置文件中找不到 window-title")?.to_owned();
         let base_path = config["base-path"].as_str().be(|| "配置文件中找不到 base-path")?.to_owned();
+        let private_timeout = config["private-timeout"].as_i64().be(|| "配置文件中找不到 private-timeout")? as u32;
         let http_headers = match config["http-headers"].as_hash() {
             Some(map) => map.iter()
                 .map(|e| {
@@ -153,6 +159,7 @@ impl GlobalConfig {
             silent_mode,
             window_title,
             base_path,
+            private_timeout,
             http_headers,
             http_timeout,
             http_retries,
