@@ -54,10 +54,17 @@ impl UpdatingSource for HttpProtocol {
     async fn request(&mut self, path: &str, range: &Range<u64>, desc: &str, _config: &GlobalConfig) -> DownloadResult {
         let full_url = format!("{}{}{}", self.url, if self.url.ends_with("/") { "" } else { "/" }, path);
 
-        let req = self.client.get(&full_url)
-            .header("Range", format!("bytes={}-{}", range.start, range.end))
-            .build()
-            .unwrap();
+        let partial_file = range.start > 0 || range.end > 0;
+
+        if partial_file {
+            assert!(range.end >= range.start);
+        }
+
+        let mut req = self.client.get(&full_url);
+        if partial_file {
+            req = req.header("Range", format!("bytes={}-{}", range.start, range.end));
+        }
+        let req = req.build().unwrap();
 
         let rsp = match self.client.execute(req).await {
             Ok(rsp) => rsp,
@@ -66,7 +73,7 @@ impl UpdatingSource for HttpProtocol {
 
         let code = rsp.status().as_u16();
 
-        if code != 206 {
+        if partial_file && code != 206 {
             return Ok(Err(BusinessError::new(format!("服务器({})返回了{}而不是206: {} ({})", self.index, code, path, desc))));
         }
 
@@ -75,8 +82,8 @@ impl UpdatingSource for HttpProtocol {
             None => return Ok(Err(BusinessError::new(format!("服务器({})没有返回content-length头: {} ({})", self.index, path, desc)))),
         };
 
-        if len != range.end - range.start {
-            return Ok(Err(BusinessError::new(format!("服务器({})返回的content-length头不等于{}: {}", self.index, range.end - range.start, path))));
+        if (range.end - range.start) > 0 && len != range.end - range.start {
+            return Ok(Err(BusinessError::new(format!("服务器({})返回的content-length头 {} 不等于{}: {}", self.index, len, range.end - range.start, path))));
         }
         
         Ok(Ok((len, Box::pin(AsyncStreamBody(rsp)))))

@@ -7,6 +7,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use reqwest_dav::re_exports::reqwest::header::HeaderMap;
 use reqwest_dav::re_exports::reqwest::header::HeaderName;
+use reqwest_dav::re_exports::reqwest::Method;
 use reqwest_dav::re_exports::reqwest::Response;
 use reqwest_dav::Client;
 use reqwest_dav::ClientBuilder;
@@ -24,9 +25,19 @@ pub struct Webdav {
 }
 
 impl Webdav {
-    pub fn new(host: String, user: String, pass: String, config: &GlobalConfig, index: u32) -> Self {
+    pub fn new(url: &str, config: &GlobalConfig, index: u32) -> Self {
+        let split_at = url.find("://").unwrap() + 3;
+        let scheme = &url[0..split_at].replace("webdav", "http");
+        let str = &url[split_at..];
+        let parsed = str.splitn(3, ":").collect::<Vec<_>>();
+        let user = parsed[0].to_owned();
+        let pass = parsed[1].to_owned();
+        let host = format!("{}{}", scheme, parsed[2]);
+        
         // 添加自定义协议头
         let mut def_headers = HeaderMap::new();
+
+        println!("host: {}, user: {}, pass: {}", host, user, pass);
 
         for header in &config.http_headers {
             let k = HeaderName::from_str(&header.0).unwrap();
@@ -54,18 +65,40 @@ impl Webdav {
 #[async_trait]
 impl UpdatingSource for Webdav {
     async fn request(&mut self, path: &str, range: &Range<u64>, desc: &str, _config: &GlobalConfig) -> DownloadResult {
-        let rsp = match self.client.get(path).await {
+        let partial_file = range.start > 0 || range.end > 0;
+
+        if partial_file {
+            assert!(range.end >= range.start);
+        }
+
+        let req = match self.client.start_request(Method::GET, &path).await {
+            Ok(mut builder) => {
+                if partial_file {
+                    builder = builder.header("Range", format!("bytes={}-{}", range.start, range.end - 1));
+                }
+                builder
+            },
+            Err(e) => return Err(std::io::Error::new(std::io::ErrorKind::Other, e)),
+        };
+
+        let rsp = match req.send().await {
             Ok(rsp) => rsp,
             Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
         };
+
+        let code = rsp.status().as_u16();
+
+        if partial_file && code != 206 {
+            return Ok(Err(BusinessError::new(format!("服务器({})返回了{}而不是206: {} ({})", self.index, code, path, desc))));
+        }
 
         let len = match rsp.content_length() {
             Some(len) => len,
             None => return Ok(Err(BusinessError::new(format!("服务器({})没有返回content-length头: {} ({})", self.index, path, desc)))),
         };
 
-        if len != range.end - range.start {
-            return Ok(Err(BusinessError::new(format!("服务器({})返回的content-length头不等于{}: {} ({})", self.index, range.end - range.start, path, desc))));
+        if partial_file && len != range.end - range.start {
+            return Ok(Err(BusinessError::new(format!("服务器({})返回的content-length头 {} 不等于{}: {} ({})", self.index, len, range.end - range.start, path, desc))));
         }
         
         Ok(Ok((len, Box::pin(AsyncStreamBody(rsp)))))

@@ -11,6 +11,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use mcpatch_shared::utility::is_running_under_cargo;
+
 use crate::global_config::GlobalConfig;
 use crate::log::log_error;
 use crate::ui::AppWindow;
@@ -75,7 +77,9 @@ pub fn program() -> McpatchExitCode {
             _ => (),
         }
 
-        old_handler(_info);
+        if !is_running_under_cargo() {
+            old_handler(_info);
+        }
     }));
     
     // 开始执行更新逻辑

@@ -18,6 +18,7 @@ use crate::log::log_error;
 use crate::log::log_info;
 use crate::network::http::HttpProtocol;
 use crate::network::private::PrivateProtocol;
+use crate::network::webdav::Webdav;
 
 pub type DownloadResult = std::io::Result<BusinessResult<(u64, Pin<Box<dyn AsyncRead + Send>>)>>;
 
@@ -37,6 +38,8 @@ impl<'a> Network<'a> {
                 sources.push(Box::new(HttpProtocol::new(url, &config, index)))
             } else if url.starts_with("mcpatch://") {
                 sources.push(Box::new(PrivateProtocol::new(&url["mcpatch://".len()..], &config, index)))
+            } else if url.starts_with("webdav://") {
+                sources.push(Box::new(Webdav::new(&url, &config, index)))
             } else {
                 log_info(format!("unknown url: {}", url));
             }
