@@ -28,13 +28,15 @@ jobs:
         run: |-
           import os
           import re
+          import sys
+          import platform
 
           os.mkdir('target/release/upload')
-
           GIT_TAG = os.environ.get('GITHUB_REF_NAME', ' 0.0.0')[1:]
+          suffix = f'{sys.platform}-{platform.machine().lower()}-{GIT_TAG}'
 
-          os.rename('target/release/mcpatch-client.exe', f'target/release/upload/mcpatch-client-{GIT_TAG}.exe')
-          os.rename('target/release/mcpatch_client.pdb', f'target/release/upload/mcpatch_client_{GIT_TAG}.pdb')
+          os.rename('target/release/mcpatch-client.exe', f'target/release/upload/mcpatch-client-{suffix}.exe')
+          os.rename('target/release/mcpatch_client.pdb', f'target/release/upload/mcpatch-client-{suffix}.pdb')
 
       - name: Release
         uses: softprops/action-gh-release@v2
