@@ -15,6 +15,6 @@ sha1 = "0.10.6"
 chrono = {version = "0.4.31", features = ["clock"]}
 
 [profile.release]
-debug = "line-tables-only"
+debug = "line-directives-only"
 split-debuginfo = "packed"
 overflow-checks = true
