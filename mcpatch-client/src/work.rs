@@ -437,6 +437,15 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             }
         }
 
+        // 2.处理要创建的空目录
+        ui_cmd.set_label("正在处理新目录".to_owned()).await;
+
+        for path in create_folders {
+            let path = base_dir.join(&path);
+
+            tokio::fs::create_dir_all(&path).await.be(|e| format!("创建新目录失败({:?})，原因：{}", path, e))?;
+        }
+
         // 6.合并临时文件
         ui_cmd.set_label("正在合并临时文件，请不要关闭程序，避免数据损坏".to_owned()).await;
         
@@ -467,15 +476,6 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
             // 删除失败了不用管
             let _ = tokio::fs::remove_dir(path).await;
-        }
-
-        // 5.处理要创建的空目录
-        ui_cmd.set_label("正在处理新目录".to_owned()).await;
-
-        for path in create_folders {
-            let path = base_dir.join(&path);
-
-            tokio::fs::create_dir_all(&path).await.be(|e| format!("创建新目录失败({:?})，原因：{}", path, e))?;
         }
 
         for u in &update_files {

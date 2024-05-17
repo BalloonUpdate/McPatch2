@@ -8,6 +8,7 @@ use std::rc::Rc;
 use std::rc::Weak;
 use std::time::SystemTime;
 
+use mcpatch_shared::data::index_file::VersionIndex;
 use mcpatch_shared::data::version_meta::FileChange;
 use mcpatch_shared::data::version_meta::VersionMeta;
 
@@ -16,6 +17,34 @@ use crate::diff::abstract_file::find_file_helper;
 use crate::diff::abstract_file::walk_abstract_file;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::abstract_file::BorrowIntoIterator;
+
+/// 代表一个位于更新包中的文件的位置
+#[derive(Clone)]
+pub struct FilePackedLoc {
+    // pub version_num: usize,
+    pub offset: u64,
+    pub length: u32,
+}
+
+impl Default for FilePackedLoc {
+    fn default() -> Self {
+        Self {
+            // version_num: usize::MAX, 
+            offset: 0, 
+            length: 0,
+        }
+    }
+}
+
+impl From<&VersionIndex> for FilePackedLoc {
+    fn from(v: &VersionIndex) -> Self {
+        FilePackedLoc {
+            // version: v.label.to_owned(), 
+            offset: v.offset, 
+            length: v.len,
+        }
+    }
+}
 
 /// 借用子文件列表
 pub struct IntoIter<'a>(std::cell::Ref<'a, HashMap<String, HistoryFile>>);
@@ -50,6 +79,9 @@ pub struct Inner {
 
     /// 文件的哈希值
     hash: String,
+
+    /// 所属版本
+    loc: FilePackedLoc,
     
     /// 子文件列表
     children: RefCell<HashMap<String, HistoryFile>>,
@@ -61,7 +93,7 @@ pub struct HistoryFile(Rc<Inner>);
 
 impl HistoryFile {
     /// 创建一个文件对象
-    pub fn new_file(name: &str, modified: SystemTime, len: u64, hash: String, parent: Weak<Inner>) -> Self {
+    pub fn new_file(name: &str, modified: SystemTime, len: u64, hash: String, parent: Weak<Inner>, loc: FilePackedLoc) -> Self {
         let strong_parent = parent.clone().upgrade().map(|p| HistoryFile(p));
         
         Self(Rc::new(Inner {
@@ -72,12 +104,13 @@ impl HistoryFile {
             is_dir: false,
             path: RefCell::new(calculate_path_helper(name, strong_parent.as_ref())),
             hash,
+            loc,
             children: RefCell::new(HashMap::new()),
         }))
     }
 
     /// 创建一个目录对象
-    pub fn new_dir(name: &str, parent: Weak<Inner>) -> Self {
+    pub fn new_dir(name: &str, parent: Weak<Inner>, loc: FilePackedLoc) -> Self {
         let strong_parent = parent.clone().upgrade().map(|p| HistoryFile(p));
         
         Self(Rc::new(Inner {
@@ -88,21 +121,23 @@ impl HistoryFile {
             is_dir: true,
             path: RefCell::new(calculate_path_helper(name, strong_parent.as_ref())),
             hash: "it is a dir".to_owned(),
+            loc,
             children: RefCell::new(HashMap::new()),
         }))
     }
 
     /// 创建一个空目录
     pub fn new_empty() -> Self {
-        HistoryFile::new_dir("empty_root", Weak::new())
+        HistoryFile::new_dir("empty_root", Weak::new(), FilePackedLoc::default())
     }
 
     /// 复现`meta`上的所有文件操作
-    pub fn replay_operations(&mut self, meta: &VersionMeta) {
+    pub fn replay_operations(&mut self, meta: &VersionMeta, loc: FilePackedLoc) {
         for change in &meta.changes {
+            let loc = loc.clone();
             match change {
-                FileChange::CreateFolder { path } =>  self.create_directory(&path),
-                FileChange::UpdateFile { path, hash, len, modified, .. } => self.update_file(&path, hash, len, modified),
+                FileChange::CreateFolder { path } =>  self.create_directory(&path, loc),
+                FileChange::UpdateFile { path, hash, len, modified, .. } => self.update_file(&path, hash, len, modified, loc),
                 FileChange::DeleteFolder { path } => self.delete_file_or_directory(&path),
                 FileChange::DeleteFile { path } => self.delete_file_or_directory(&path),
                 FileChange::MoveFile { from, to } => self.move_file(&from, &to),
@@ -111,19 +146,19 @@ impl HistoryFile {
     }
 
     /// 复现一个“更新文件”的操作
-    pub fn update_file(&self, path: &str, hash: &String, len: &u64, modified: &SystemTime) {
+    pub fn update_file(&self, path: &str, hash: &String, len: &u64, modified: &SystemTime, loc: FilePackedLoc) {
         let (parent, end) = self.lookup_parent_and_end(path);
 
-        let file = HistoryFile::new_file(end, *modified, *len, hash.to_owned(), Rc::downgrade(&parent));
+        let file = HistoryFile::new_file(end, *modified, *len, hash.to_owned(), Rc::downgrade(&parent), loc);
 
         parent.children.borrow_mut().insert(end.to_owned(), file);
     }
 
     /// 复现一个“创建目录”的操
-    pub fn create_directory(&self, path: &str) {
+    pub fn create_directory(&self, path: &str, loc: FilePackedLoc) {
         let (parent, end) = self.lookup_parent_and_end(path);
         
-        let dir = HistoryFile::new_dir(end, Rc::downgrade(&parent));
+        let dir = HistoryFile::new_dir(end, Rc::downgrade(&parent), loc);
 
         parent.children.borrow_mut().insert(end.to_owned(), dir);
     }
@@ -153,6 +188,11 @@ impl HistoryFile {
         let holding = parent.children.borrow_mut().remove(end).unwrap();
 
         assert!(holding.children.borrow().is_empty());
+    }
+
+    /// 获取文件在更新包中的位置
+    pub fn file_location(&self) -> &FilePackedLoc {
+        &self.loc
     }
 
     /// 查找一个文件

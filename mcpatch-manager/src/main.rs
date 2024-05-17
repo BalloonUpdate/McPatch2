@@ -10,6 +10,7 @@ use serde::Deserialize;
 use crate::subcommand::check::do_check;
 use crate::subcommand::combine::do_combine;
 use crate::subcommand::pack::do_pack;
+use crate::subcommand::revert::do_revert;
 use crate::subcommand::serve::do_serve;
 use crate::subcommand::test::do_test;
 
@@ -46,6 +47,9 @@ enum Commands {
     
     /// 测试所有更新包是否能正常读取
     Test,
+
+    /// 还原工作空间目录的修改
+    Revert,
 
     /// 运行内置服务端
     Serve {
@@ -112,6 +116,7 @@ fn main() {
         Commands::Check => do_check(&context),
         Commands::Combine => do_combine(&context),
         Commands::Test => do_test(&context),
+        Commands::Revert => do_revert(&context),
         Commands::Serve { port } => do_serve(port, &context),
     };
 

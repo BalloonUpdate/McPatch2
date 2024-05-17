@@ -14,19 +14,23 @@ use crate::AppContext;
 pub fn do_check(ctx: &AppContext) -> i32 {
     let index_file = IndexFile::load_from_file(&ctx.index_file);
     
+    // 读取现有更新包，并复现在history上
+    println!("正在读取数据");
+
     let mut history = HistoryFile::new_empty();
 
-    // 读取现有更新包，并复现在history上
     for v in &index_file {
         let mut reader = TarReader::new(ctx.public_dir.join(&v.filename));
         let meta_group = reader.read_metadata_group(v.offset, v.len);
 
         for meta in meta_group {
-            history.replay_operations(&meta);
+            history.replay_operations(&meta, v.into());
         }
     }
 
     // 对比文件
+    println!("正在扫描文件更改");
+
     let disk_file = DiskFile::new(ctx.workspace_dir.clone(), Weak::new());
     let diff = Diff::diff(&disk_file, &history, Some(&ctx.config.filter_rules));
 
