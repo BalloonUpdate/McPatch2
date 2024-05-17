@@ -19,7 +19,6 @@ use crate::common::tar_writer::TarWriter;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
-use crate::diff::history_file::FilePackedLoc;
 use crate::diff::history_file::HistoryFile;
 use crate::upload::generate_upload_script;
 use crate::upload::TemplateContext;
@@ -37,14 +36,14 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     // 读取现有更新包，并复现在history上
     println!("正在读取数据");
 
-    let mut history = HistoryFile::new_dir("workspace_root", Weak::new(), FilePackedLoc::default());
+    let mut history = HistoryFile::new_dir("workspace_root", Weak::new());
 
     for v in &index_file {
         let mut reader = TarReader::new(ctx.public_dir.join(&v.filename));
         let meta_group = reader.read_metadata_group(v.offset, v.len);
 
         for meta in &meta_group {
-            history.replay_operations(&meta, v.into());
+            history.replay_operations(&meta);
         }
     }
 

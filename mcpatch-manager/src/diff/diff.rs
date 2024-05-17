@@ -161,10 +161,16 @@ impl<N: AbstractFile, O: AbstractFile> Diff<N, O> {
                 let n = newer.find(updated.path().deref()).unwrap();
                 let o = older.find(deleted.path().deref()).unwrap();
 
+                if n.modified() == o.modified() {
+                    continue;
+                }
+
                 if n.hash().deref() == o.hash().deref() {
                     self.renamed_files.push((o, n));
                 }
             }
+
+            // println!("{}", updated.path().deref());
         }
 
         // 如果有多个同名但不同路径的文件移动，就将它们退回复制操作，而非移动

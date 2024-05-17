@@ -12,7 +12,6 @@ use mcpatch_shared::data::version_meta_group::VersionMetaGroup;
 use crate::common::archive_tester::ArchiveTester;
 use crate::common::tar_reader::TarReader;
 use crate::common::tar_writer::TarWriter;
-use crate::diff::history_file::FilePackedLoc;
 use crate::diff::history_file::HistoryFile;
 use crate::upload::generate_upload_script;
 use crate::upload::TemplateContext;
@@ -63,7 +62,7 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
 
     println!("正在读取数据");
     
-    let mut history = HistoryFile::new_dir("workspace_root", Weak::new(), FilePackedLoc::default());
+    let mut history = HistoryFile::new_dir("workspace_root", Weak::new());
     let mut data_locations = HashMap::<String, Location>::new();
 
     // 保留所有元数据，最后会合并写入tar包里
@@ -75,7 +74,7 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
         let group = reader.read_metadata_group(v.offset, v.len);
 
         for meta in &group {
-            history.replay_operations(&meta, v.into());
+            history.replay_operations(&meta);
 
             // 记录所有文件的数据和来源
             for change in &meta.changes {

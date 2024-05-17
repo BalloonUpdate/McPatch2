@@ -12,7 +12,6 @@ use mcpatch_shared::utility::filename_ext::GetFileNamePart;
 use crate::common::tar_reader::TarReader;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
-use crate::diff::history_file::FilePackedLoc;
 use crate::diff::history_file::HistoryFile;
 
 pub struct ArchiveTester {
@@ -40,7 +39,7 @@ impl ArchiveTester {
         let meta_group = reader.read_metadata_group(meta_offset, meta_len);
 
         for meta in &meta_group {
-            self.history.replay_operations(&meta, FilePackedLoc::default());
+            self.history.replay_operations(&meta);
     
             // 记录所有文件的数据和来源
             for change in &meta.changes {

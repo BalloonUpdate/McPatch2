@@ -8,7 +8,6 @@ use std::rc::Rc;
 use std::rc::Weak;
 use std::time::SystemTime;
 
-use mcpatch_shared::data::index_file::VersionIndex;
 use mcpatch_shared::data::version_meta::FileChange;
 use mcpatch_shared::data::version_meta::VersionMeta;
 
@@ -21,27 +20,17 @@ use crate::diff::abstract_file::BorrowIntoIterator;
 /// 代表一个位于更新包中的文件的位置
 #[derive(Clone)]
 pub struct FilePackedLoc {
-    // pub version_num: usize,
+    pub version: String,
     pub offset: u64,
-    pub length: u32,
+    pub length: u64,
 }
 
 impl Default for FilePackedLoc {
     fn default() -> Self {
         Self {
-            // version_num: usize::MAX, 
+            version: "none".to_owned(), 
             offset: 0, 
             length: 0,
-        }
-    }
-}
-
-impl From<&VersionIndex> for FilePackedLoc {
-    fn from(v: &VersionIndex) -> Self {
-        FilePackedLoc {
-            // version: v.label.to_owned(), 
-            offset: v.offset, 
-            length: v.len,
         }
     }
 }
@@ -110,7 +99,7 @@ impl HistoryFile {
     }
 
     /// 创建一个目录对象
-    pub fn new_dir(name: &str, parent: Weak<Inner>, loc: FilePackedLoc) -> Self {
+    pub fn new_dir(name: &str, parent: Weak<Inner>) -> Self {
         let strong_parent = parent.clone().upgrade().map(|p| HistoryFile(p));
         
         Self(Rc::new(Inner {
@@ -121,23 +110,28 @@ impl HistoryFile {
             is_dir: true,
             path: RefCell::new(calculate_path_helper(name, strong_parent.as_ref())),
             hash: "it is a dir".to_owned(),
-            loc,
+            loc: FilePackedLoc::default(),
             children: RefCell::new(HashMap::new()),
         }))
     }
 
     /// 创建一个空目录
     pub fn new_empty() -> Self {
-        HistoryFile::new_dir("empty_root", Weak::new(), FilePackedLoc::default())
+        HistoryFile::new_dir("empty_root", Weak::new())
     }
 
     /// 复现`meta`上的所有文件操作
-    pub fn replay_operations(&mut self, meta: &VersionMeta, loc: FilePackedLoc) {
+    pub fn replay_operations(&mut self, meta: &VersionMeta) {
         for change in &meta.changes {
-            let loc = loc.clone();
             match change {
-                FileChange::CreateFolder { path } =>  self.create_directory(&path, loc),
-                FileChange::UpdateFile { path, hash, len, modified, .. } => self.update_file(&path, hash, len, modified, loc),
+                FileChange::CreateFolder { path } =>  self.create_directory(&path),
+                FileChange::UpdateFile { path, hash, offset, len, modified, .. } => {
+                    self.update_file(&path, hash, len, modified, FilePackedLoc {
+                        version: meta.label.to_owned(), 
+                        offset: *offset, 
+                        length: (*len),
+                    })
+                },
                 FileChange::DeleteFolder { path } => self.delete_file_or_directory(&path),
                 FileChange::DeleteFile { path } => self.delete_file_or_directory(&path),
                 FileChange::MoveFile { from, to } => self.move_file(&from, &to),
@@ -155,10 +149,10 @@ impl HistoryFile {
     }
 
     /// 复现一个“创建目录”的操
-    pub fn create_directory(&self, path: &str, loc: FilePackedLoc) {
+    pub fn create_directory(&self, path: &str) {
         let (parent, end) = self.lookup_parent_and_end(path);
         
-        let dir = HistoryFile::new_dir(end, Rc::downgrade(&parent), loc);
+        let dir = HistoryFile::new_dir(end, Rc::downgrade(&parent));
 
         parent.children.borrow_mut().insert(end.to_owned(), dir);
     }

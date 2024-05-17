@@ -24,7 +24,7 @@ pub fn do_check(ctx: &AppContext) -> i32 {
         let meta_group = reader.read_metadata_group(v.offset, v.len);
 
         for meta in meta_group {
-            history.replay_operations(&meta, v.into());
+            history.replay_operations(&meta);
         }
     }
 
