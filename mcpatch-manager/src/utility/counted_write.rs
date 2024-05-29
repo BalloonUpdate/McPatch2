@@ -1,9 +1,7 @@
 use std::io::Write;
-use std::ops::Deref;
-use std::ops::DerefMut;
 
 /// 代表一个计数的Write对象
-pub struct CountedWrite<W: Write>(pub W, u64);
+pub struct CountedWrite<W: Write>(W, u64);
 
 impl<W: Write> CountedWrite<W> {
     pub fn new(write: W) -> Self {
@@ -31,16 +29,35 @@ impl<W: Write> Write for CountedWrite<W> {
     }
 }
 
-impl<W: Write> Deref for CountedWrite<W> {
-    type Target = W;
+// impl<W: Write> Deref for CountedWrite<W> {
+//     type Target = W;
 
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
+//     fn deref(&self) -> &Self::Target {
+//         &self.0
+//     }
+// }
 
-impl<W: Write> DerefMut for CountedWrite<W> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
+// impl<W: Write> DerefMut for CountedWrite<W> {
+//     fn deref_mut(&mut self) -> &mut Self::Target {
+//         &mut self.0
+//     }
+// }
+
+#[cfg(test)]
+mod tests {
+    use std::io::Read;
+
+    use crate::utility::counted_write::CountedWrite;
+
+    #[test]
+    fn test_counted_writer() {
+        let count = 1024 * 1024 * 64;
+
+        let mut src = std::io::repeat(0).take(count);
+        let mut dst = CountedWrite::new(std::io::sink());
+
+        let copied = std::io::copy(&mut src, &mut dst).unwrap();
+
+        assert_eq!(copied, count);
     }
 }

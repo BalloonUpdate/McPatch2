@@ -7,7 +7,6 @@ use std::path::PathBuf;
 
 use mcpatch_shared::common::file_hash::calculate_hash;
 use mcpatch_shared::data::version_meta::FileChange;
-use mcpatch_shared::utility::filename_ext::GetFileNamePart;
 
 use crate::common::tar_reader::TarReader;
 use crate::diff::abstract_file::AbstractFile;
@@ -68,13 +67,14 @@ impl ArchiveTester {
         let empty = HistoryFile::new_empty();
         let diff = Diff::diff(&self.history, &empty, None);
 
-        for up in diff.updated_files {
+        let total = diff.updated_files.len();
+
+        for (index, up) in diff.updated_files.iter().enumerate() {
             let path = up.path();
             let path = path.deref();
             let (archive, offset, len, label) = self.file_locations.get(path).unwrap();
-            let filename = archive.filename();
 
-            println!("正在测试 {label} 的 {path} ({offset}+{len})");
+            println!("{index}/{total} 正在测试 {label} 的 {path} ({offset}+{len})");
 
             let mut reader = TarReader::new(&archive);
             let mut open = reader.open_file(*offset, *len);
@@ -84,8 +84,8 @@ impl ArchiveTester {
 
             assert!(
                 &actual == expected, 
-                "文件哈希不匹配！文件名: {}, 版本: {} 实际: {}, 预期: {}",
-                filename, label, actual, expected
+                "文件哈希不匹配！文件路径: {}, 版本: {} 实际: {}, 预期: {}, 偏移: 0x{offset:x}, 长度: {len}",
+                path, label, actual, expected
             );
         }
     }

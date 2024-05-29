@@ -14,6 +14,7 @@ use mcpatch_shared::data::index_file::VersionIndex;
 use mcpatch_shared::data::version_meta::VersionMeta;
 use mcpatch_shared::data::version_meta_group::VersionMetaGroup;
 
+use crate::common::archive_tester::ArchiveTester;
 use crate::common::tar_reader::TarReader;
 use crate::common::tar_writer::TarWriter;
 use crate::diff::abstract_file::AbstractFile;
@@ -76,6 +77,10 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
         let disk_file = ctx.workspace_dir.join(&path);
         let open = std::fs::File::options().read(true).open(disk_file).unwrap();
 
+        // 提供的len必须和读取到的长度严格相等
+        let meta = open.metadata().unwrap();
+        assert_eq!(meta.len(), f.len());
+
         writer.add_file(open, f.len(), &path, &version_label);
     }
 
@@ -99,9 +104,19 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
         len: meta_info.length,
         hash: "no hash".to_owned(),
     });
-    index_file.save(&ctx.index_file);
 
-    println!("打包完成！");
+    // 进行解压测试
+    println!("正在测试");
+
+    let mut tester = ArchiveTester::new();
+    for v in &index_file {
+        tester.feed(ctx.public_dir.join(&v.filename), v.offset, v.len);
+    }
+    tester.finish();
+
+    println!("测试通过，打包完成！");
+    
+    index_file.save(&ctx.index_file);
 
     // 生成上传脚本
     let context = TemplateContext {

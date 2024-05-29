@@ -6,6 +6,7 @@ use std::path::Path;
 
 use mcpatch_shared::data::version_meta::FileChange;
 use mcpatch_shared::data::version_meta_group::VersionMetaGroup;
+use mcpatch_shared::utility::partial_read::PartialRead;
 
 use crate::utility::counted_write::CountedWrite;
 
@@ -34,17 +35,31 @@ impl TarWriter {
     }
 
     /// 往更新包里添加一个文件，除了数据和长度以外，还需要额外提供文件路径和所属版本号
-    pub fn add_file(&mut self, data: impl Read, len: u64, path: &str, version: &str) {
+    pub fn add_file(&mut self, mut data: impl Read, len: u64, path: &str, version: &str) {
         assert!(!self.finished, "TarWriter has already closed");
-
-        // 记录当前指针位置
-        let key = format!("{}_{}", path, version);
-        self.addresses.insert(key, self.builder.get_ref().count() + 512);
 
         // 写入更新包中
         let mut header = tar::Header::new_gnu();
         header.set_size(len);
-        self.builder.append_data(&mut header, path, data).unwrap();
+
+        let partial_read = PartialRead::new(&mut data, len);
+        self.builder.append_data(&mut header, path, partial_read).unwrap();
+
+        let mut padding = 512 - (len % 512);
+
+        if padding >= 512 {
+            padding = 0;
+        }
+
+        let position = self.builder.get_ref().count();
+
+        // println!(">>> {}: {}, {}, padding: {}", path, len, ptr, padding);
+        
+        // 记录当前数据偏移位置
+        let key = format!("{}_{}", path, version);
+        let tar_offset = position - len - padding;
+
+        self.addresses.insert(key, tar_offset);
     }
 
     /// 完成更新包的创建，并返回元数据的偏移值和长度
