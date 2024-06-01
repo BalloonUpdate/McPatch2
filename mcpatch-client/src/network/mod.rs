@@ -34,7 +34,7 @@ impl<'a> Network<'a> {
         let mut index = 0u32;
 
         for url in &config.urls {
-            if url.starts_with("http://") {
+            if url.starts_with("http://") || url.starts_with("https://") {
                 sources.push(Box::new(HttpProtocol::new(url, &config, index)))
             } else if url.starts_with("mcpatch://") {
                 sources.push(Box::new(PrivateProtocol::new(&url["mcpatch://".len()..], &config, index)))
