@@ -62,7 +62,7 @@ impl UpdatingSource for HttpProtocol {
 
         let mut req = self.client.get(&full_url);
         if partial_file {
-            req = req.header("Range", format!("bytes={}-{}", range.start, range.end));
+            req = req.header("Range", format!("bytes={}-{}", range.start, range.end - 1));
         }
         let req = req.build().unwrap();
 
