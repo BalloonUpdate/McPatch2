@@ -34,9 +34,15 @@ jobs:
           import sys
           import platform
 
+          def get_platform():
+              pt = sys.platform
+              return pt if pt != 'win32' else 'windows'
+          def get_architecture():
+              return platform.machine().lower()
+
           os.mkdir('target/release/upload')
           GIT_TAG = os.environ.get('GITHUB_REF_NAME', ' 0.0.0')[1:]
-          suffix = f'{sys.platform}-{platform.machine().lower()}-{GIT_TAG}'
+          suffix = f'{get_platform()}-{get_architecture()}-{GIT_TAG}'
 
           if sys.platform.startswith('win'):
               os.rename('target/release/mcpatch-manager.exe', f'target/release/upload/mcpatch-manager-{suffix}.exe')
