@@ -540,21 +540,31 @@ async fn get_base_dir(params: &StartupParameter, global_config: &GlobalConfig) -
     if global_config.base_path.is_empty() {
         let mut current = &working_dir as &Path;
 
+        // 第一次搜索同级目录，有没有.minecraft文件夹
+        if tokio::fs::try_exists(current.join(".minecraft")).await.unwrap_or(false) {
+            return Ok(current.to_owned());
+        }
+
+        // 从第二次开始搜索上级目录，检查上级目录是不是.minecraft文件夹。搜索7次
         for _ in 0..7 {
-            let detect = tokio::fs::try_exists(current.join(".minecraft")).await;
+            // 转到上级目录
+            current = match current.parent() {
+                Some(parent) => parent,
+                None => break,
+            };
 
-            match detect {
-                Ok(found) => {
-                    if found {
-                        return Ok(current.to_owned());
-                    }
+            // 尝试获取文件名，获取失败直接方法返回
+            let filename = match current.file_name() {
+                Some(filename) => filename,
+                None => break,
+            };
 
-                    current = match current.parent() {
-                        Some(parent) => parent,
-                        None => break,
-                    }
-                },
-                Err(_) => break,
+            // 是.minecraft目录就返回结果
+            if filename == ".minecraft" {
+                match current.parent() {
+                    Some(base) => return Ok(base.to_owned()),
+                    None => break,
+                }
             }
         }
 
