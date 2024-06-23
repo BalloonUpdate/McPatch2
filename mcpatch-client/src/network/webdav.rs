@@ -1,6 +1,4 @@
-use std::future::Future;
 use std::ops::Range;
-use std::pin::Pin;
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -8,14 +6,12 @@ use async_trait::async_trait;
 use reqwest_dav::re_exports::reqwest::header::HeaderMap;
 use reqwest_dav::re_exports::reqwest::header::HeaderName;
 use reqwest_dav::re_exports::reqwest::Method;
-use reqwest_dav::re_exports::reqwest::Response;
 use reqwest_dav::Client;
 use reqwest_dav::ClientBuilder;
-use tokio::io::AsyncRead;
-use tokio::pin;
 
 use crate::error::BusinessError;
 use crate::global_config::GlobalConfig;
+use crate::network::http::AsyncStreamBody;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
 
@@ -101,37 +97,37 @@ impl UpdatingSource for Webdav {
             return Ok(Err(BusinessError::new(format!("服务器({})返回的content-length头 {} 不等于{}: {} ({})", self.index, len, range.end - range.start, path, desc))));
         }
         
-        Ok(Ok((len, Box::pin(AsyncStreamBody(rsp)))))
+        Ok(Ok((len, Box::pin(AsyncStreamBody(rsp, None)))))
     }
 }
 
-pub struct AsyncStreamBody(pub Response);
+// pub struct AsyncStreamBody(pub Response);
 
-impl AsyncRead for AsyncStreamBody {
-    fn poll_read(
-        mut self: Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-        buf: &mut tokio::io::ReadBuf<'_>,
-    ) -> std::task::Poll<std::io::Result<()>> {
-        let chunk = self.0.chunk();
-        pin!(chunk);
+// impl AsyncRead for AsyncStreamBody {
+//     fn poll_read(
+//         mut self: Pin<&mut Self>,
+//         cx: &mut std::task::Context<'_>,
+//         buf: &mut tokio::io::ReadBuf<'_>,
+//     ) -> std::task::Poll<std::io::Result<()>> {
+//         let chunk = self.0.chunk();
+//         pin!(chunk);
 
-        let bytes = match chunk.poll(cx) {
-            std::task::Poll::Ready(r) => match r {
-                Ok(bytes) => bytes,
-                Err(e) => {
-                    let err = std::io::Error::new(std::io::ErrorKind::UnexpectedEof, e);
+//         let bytes = match chunk.poll(cx) {
+//             std::task::Poll::Ready(r) => match r {
+//                 Ok(bytes) => bytes,
+//                 Err(e) => {
+//                     let err = std::io::Error::new(std::io::ErrorKind::UnexpectedEof, e);
 
-                    return std::task::Poll::Ready(Err(err))
-                },
-            },
-            std::task::Poll::Pending => return std::task::Poll::Pending,
-        };
+//                     return std::task::Poll::Ready(Err(err))
+//                 },
+//             },
+//             std::task::Poll::Pending => return std::task::Poll::Pending,
+//         };
 
-        if let Some(bytes) = bytes {
-            buf.put_slice(&bytes);
-        }
+//         if let Some(bytes) = bytes {
+//             buf.put_slice(&bytes);
+//         }
 
-        std::task::Poll::Ready(Ok(()))
-    }
-}
+//         std::task::Poll::Ready(Ok(()))
+//     }
+// }

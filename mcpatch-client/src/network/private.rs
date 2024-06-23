@@ -114,7 +114,6 @@ impl AsyncRead for PrivatePartialAsyncRead {
         let partial = &mut buf.take(limit);
 
         let read = self.0.as_mut().unwrap();
-
         pin!(read);
 
         match read.poll_read(cx, partial) {

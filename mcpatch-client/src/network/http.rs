@@ -85,12 +85,12 @@ impl UpdatingSource for HttpProtocol {
         if (range.end - range.start) > 0 && len != range.end - range.start {
             return Ok(Err(BusinessError::new(format!("服务器({})返回的content-length头 {} 不等于{}: {}", self.index, len, range.end - range.start, path))));
         }
-        
-        Ok(Ok((len, Box::pin(AsyncStreamBody(rsp)))))
+
+        Ok(Ok((len, Box::pin(AsyncStreamBody(rsp, None)))))
     }
 }
 
-pub struct AsyncStreamBody(pub Response);
+pub struct AsyncStreamBody(pub Response, pub Option<bytes::Bytes>);
 
 impl AsyncRead for AsyncStreamBody {
     fn poll_read(
@@ -98,23 +98,33 @@ impl AsyncRead for AsyncStreamBody {
         cx: &mut std::task::Context<'_>,
         buf: &mut tokio::io::ReadBuf<'_>,
     ) -> std::task::Poll<std::io::Result<()>> {
-        let chunk = self.0.chunk();
-        pin!(chunk);
+        if buf.remaining() == 0 {
+            return std::task::Poll::Ready(Ok(()));
+        }
 
-        let bytes = match chunk.poll(cx) {
-            std::task::Poll::Ready(r) => match r {
-                Ok(bytes) => bytes,
-                Err(e) => {
-                    let err = std::io::Error::new(std::io::ErrorKind::UnexpectedEof, e);
+        if self.1.is_none() {
+            let bytes = {
+                let chunk = self.0.chunk();
+                pin!(chunk);
+        
+                match chunk.poll(cx) {
+                    std::task::Poll::Ready(Ok(Some(chunk))) => chunk,
+                    std::task::Poll::Ready(Ok(None)) => return std::task::Poll::Ready(Ok(())),
+                    std::task::Poll::Ready(Err(err)) => return std::task::Poll::Ready(Err(std::io::Error::new(std::io::ErrorKind::UnexpectedEof, err))),
+                    std::task::Poll::Pending => return std::task::Poll::Pending,
+                }
+            };
 
-                    return std::task::Poll::Ready(Err(err))
-                },
-            },
-            std::task::Poll::Pending => return std::task::Poll::Pending,
-        };
+            self.1 = Some(bytes);
+        }
 
-        if let Some(bytes) = bytes {
-            buf.put_slice(&bytes);
+        let holding = self.1.as_mut().unwrap();
+        let amount = buf.remaining().min(holding.len());
+
+        buf.put_slice(&holding.split_to(amount));
+
+        if holding.len() == 0 {
+            self.1 = None;
         }
 
         std::task::Poll::Ready(Ok(()))
