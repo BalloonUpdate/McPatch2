@@ -127,7 +127,7 @@ impl GlobalConfig {
 
         let config = yaml_rust::Yaml::Hash(config);
 
-        let urls = config["urls"].as_vec().be(|| "配置文件中找不到")?.iter()
+        let urls = config["urls"].as_vec().be(|| "配置文件中找不到 urls")?.iter()
                 .map(|e| e.as_str().expect("配置文件 urls 中只能包含纯字符串元素").to_owned())
                 .collect();
         let version_file_path = config["version-file-path"].as_str().be(|| "配置文件中找不到 version-file-path")?.to_owned();
