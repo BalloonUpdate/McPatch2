@@ -186,8 +186,11 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
             let meta = json::parse(&meta_text).be(|e| format!("版本 {} 的元数据解析失败，原因：{}", ver.label, e))?;
 
+            // 避免重复添加元数据
             for meta in meta.members().map(|e| VersionMeta::load(e)) {
-                version_metas.push(FullVersionMeta { filename: ver.filename.to_owned(), metadata: meta });
+                if version_metas.iter().find(|e| e.metadata.label == meta.label).is_none() {
+                    version_metas.push(FullVersionMeta { filename: ver.filename.to_owned(), metadata: meta });
+                }
             }
         }
 
@@ -242,25 +245,50 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         for meta in &version_metas {
             for change in &meta.metadata.changes {
                 match change.clone() {
-                    FileChange::CreateFolder { path } => 
-                        create_folders.push(path),
-                    FileChange::UpdateFile { path, hash, len, modified, offset } => 
+                    FileChange::CreateFolder { path } => {
+                        assert!(!create_folders.contains(&path));
+
+                        // 先删除 delete_folders 里的文件夹。没有的话，再加入 create_folders 里面
+                        match delete_folders.iter().position(|e| e == &path) {
+                            Some(index) => { delete_folders.remove(index); },
+                            None => { create_folders.push(path); },
+                        }
+                    },
+                    FileChange::UpdateFile { path, hash, len, modified, offset } => {
+                        // assert!(update_files.iter().find(|e| e.path == path).is_none());
+
+                        match update_files.iter().position(|e| e.path == path) {
+                            Some(index) => { update_files.remove(index); },
+                            None => { },
+                        }
+
                         update_files.push(UpdateFile { 
                             package: meta.filename.to_owned(), 
                             label: meta.metadata.label.to_owned(), 
                             path, hash, len, modified, offset 
-                        }),
-                    FileChange::DeleteFolder { path } => 
-                        delete_folders.push(path),
+                        });
+                    },
+                    FileChange::DeleteFolder { path } => {
+                        assert!(!delete_folders.contains(&path));
+                        
+                        // 先删除 create_folders 里的文件夹。没有的话，再加入 delete_folders 里面
+                        match create_folders.iter().position(|e| e == &path) {
+                            Some(index) => { create_folders.remove(index); },
+                            None => delete_folders.push(path),
+                        }
+                    },
                     FileChange::DeleteFile { path } => {
                         // 处理哪些刚下载又马上要被删的文件
                         match update_files.iter().position(|e| e.path == path) {
                             Some(index) => { update_files.remove(index); },
-                            None => delete_files.push(path),
+                            None => { delete_files.push(path); },
                         }
                     },
-                    FileChange::MoveFile { from, to } => 
-                        move_files.push(MoveFile { from, to }),
+                    FileChange::MoveFile { from, to } => {
+                        assert!(move_files.iter().find(|e| e.from == from || e.to == to).is_none());
+
+                        move_files.push(MoveFile { from, to });
+                    },
                 }
             }
         }
