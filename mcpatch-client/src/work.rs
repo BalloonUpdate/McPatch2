@@ -113,6 +113,10 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         set_log_prefix("Mcpatch");
     }
 
+    // println!(">>>>>>>>>>>>>>>>>>>>>>>>>>> {:?}", base_dir);
+    // tokio::fs::remove_dir_all(&base_dir).await.be(|e| format!("清理临时目录失败({:?})，原因：{}", base_dir, e))?;
+    // tokio::fs::create_dir_all(&base_dir).await.be(|e| format!("创建新目录失败({:?})，原因：{}", base_dir, e))?;
+
     // 打印运行环境信息
     let gm = if params.graphic_mode { "yes" } else { "no" };
     let sp = if params.standalone_progress { "yes" } else { "no" };
@@ -308,6 +312,12 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             }
         }
 
+        // let mut cnt = 0;
+        // for e in &update_files {
+        //     println!("update_file({}): {}({})", cnt, e.path, e.label);
+        //     cnt += 1;
+        // }
+
         // 过滤一些不安全行为
         // 1.不能更新自己
         let current_exe = std::env::current_exe().unwrap();
@@ -321,6 +331,10 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         update_files.remove_if(|e| base_dir.join(&e.path) == log_file_path);
         delete_files.remove_if(|e| base_dir.join(&e) == log_file_path);
         move_files.remove_if(|e| base_dir.join(&e.from) == log_file_path || base_dir.join(&e.to) == log_file_path);
+
+        for mf in &move_files {
+            println!("move files: {} => {}", mf.from, mf.to);
+        }
         
         // 执行更新流程
         // 1.处理要下载的文件，下载到临时文件
@@ -496,6 +510,8 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         ui_cmd.set_label("正在处理文件移动".to_owned()).await;
 
         for MoveFile { from, to } in move_files {
+            // println!("mvoe {} to {}", from, to);
+
             let from = base_dir.join(&from);
             let to = base_dir.join(&to);
 
@@ -524,6 +540,8 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         for u in &update_files {
             let target_path = base_dir.join(&u.path);
             let temp_path = temp_dir.join(&format!("{}.temp", &u.path));
+
+            // println!("{} => {}", &u.path, format!("{}.temp", &u.path));
             
             tokio::fs::rename(&temp_path, &target_path).await.be(|e| format!("移动临时文件失败({:?} => {:?})，原因：{}", temp_path, target_path, e))?;
         }
@@ -583,31 +601,21 @@ async fn get_base_dir(params: &StartupParameter, global_config: &GlobalConfig) -
     if global_config.base_path.is_empty() {
         let mut current = &working_dir as &Path;
 
-        // 第一次搜索同级目录，有没有.minecraft文件夹
-        if tokio::fs::try_exists(current.join(".minecraft")).await.unwrap_or(false) {
-            return Ok(current.to_owned());
-        }
-
-        // 从第二次开始搜索上级目录，检查上级目录是不是.minecraft文件夹。搜索7次
         for _ in 0..7 {
-            // 转到上级目录
-            current = match current.parent() {
-                Some(parent) => parent,
-                None => break,
-            };
+            let detect = tokio::fs::try_exists(current.join(".minecraft")).await;
 
-            // 尝试获取文件名，获取失败直接方法返回
-            let filename = match current.file_name() {
-                Some(filename) => filename,
-                None => break,
-            };
+            match detect {
+                Ok(found) => {
+                    if found {
+                        return Ok(current.to_owned());
+                    }
 
-            // 是.minecraft目录就返回结果
-            if filename == ".minecraft" {
-                match current.parent() {
-                    Some(base) => return Ok(base.to_owned()),
-                    None => break,
-                }
+                    current = match current.parent() {
+                        Some(parent) => parent,
+                        None => break,
+                    }
+                },
+                Err(_) => break,
             }
         }
 
