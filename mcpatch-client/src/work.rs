@@ -285,9 +285,24 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
                         }
                     },
                     FileChange::MoveFile { from, to } => {
-                        assert!(move_files.iter().find(|e| e.from == from || e.to == to).is_none());
+                        // 单独处理还没有下载的文件
+                        match update_files.iter().position(|e| e.path == from) {
+                            Some(index) => {
+                                let removed = update_files.get_mut(index).unwrap();
 
-                        move_files.push(MoveFile { from, to });
+                                // 目标文件不能存在
+                                assert!(move_files.iter().find(|e| e.to == to).is_none());
+                                
+                                // 移动文件
+                                removed.path = to;
+                            },
+                            None => {
+                                // 处理存在的文件
+                                assert!(move_files.iter().find(|e| e.from == from || e.to == to).is_none());
+
+                                move_files.push(MoveFile { from, to });
+                            },
+                        }
                     },
                 }
             }
