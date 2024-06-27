@@ -427,6 +427,11 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             let mut io_error = Option::<std::io::Error>::None;
             'outer: for i in 0..config.http_retries + 1 {
                 temp_file.seek(std::io::SeekFrom::Start(0)).await.be(|e| format!("归零临时文件读写指针失败({:?})，原因：{}", temp_path, e))?;
+
+                // 空文件不需要下载
+                if *len == 0 {
+                    break;
+                }
                 
                 let (_, mut stream) = network.request_file(&package, *offset..(offset + len), &format!("{} in {}", path, label)).await.be(|e| format!("文件下载失败，原因：{}", e))?;
 
