@@ -125,7 +125,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
     log_info(&format!("work directory: {}", working_dir.to_str().unwrap()));
     log_info(&format!("prog directory: {}", exe_dir.to_str().unwrap()));
 
-    let mut network = Network::new(&config).be(|e| format!("服务器地址加载失败，原因：{}", e))?;
+    let mut network = Network::new(&config).be(|e| format!("服务器地址加载失败，原因：{:?}", e))?;
 
     let version_file = exe_dir.join(&config.version_file_path);
     let mut current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or(":empty:".to_owned());
@@ -136,7 +136,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
     
     ui_cmd.set_label("正在检查更新".to_owned()).await;
 
-    let server_versions = network.request_text("index.json", 0..0, "index file").await.be(|e| format!("检查更新失败，原因：{}", e))?;
+    let server_versions = network.request_text("index.json", 0..0, "index file").await.be(|e| format!("检查更新失败，原因：{:?}", e))?;
     let server_versions = IndexFile::load_from_json(&server_versions);
 
     ui_cmd.set_label("正在看有没有更新".to_owned()).await;
@@ -184,11 +184,11 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             counter += 1;
 
             let range = ver.offset..(ver.offset + ver.len as u64);
-            let meta_text = network.request_text(&ver.filename, range, format!("metadata of {}", ver.label)).await.be(|e| format!("元数据下载失败，原因：{}", e))?;
+            let meta_text = network.request_text(&ver.filename, range, format!("metadata of {}", ver.label)).await.be(|e| format!("元数据下载失败，原因：{:?}", e))?;
 
             // println!("meta: <{}> {}", meta_text, meta_text.len());
 
-            let meta = json::parse(&meta_text).be(|e| format!("版本 {} 的元数据解析失败，原因：{}", ver.label, e))?;
+            let meta = json::parse(&meta_text).be(|e| format!("版本 {} 的元数据解析失败，原因：{:?}", ver.label, e))?;
 
             // 避免重复添加元数据
             for meta in meta.members().map(|e| VersionMeta::load(e)) {
@@ -342,7 +342,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
         // 创建临时文件夹
         if !update_files.is_empty() {
-            tokio::fs::create_dir_all(&temp_dir).await.be(|e| format!("创建临时目录失败，原因：{}", e))?;
+            tokio::fs::create_dir_all(&temp_dir).await.be(|e| format!("创建临时目录失败，原因：{:?}", e))?;
         }
 
         // 尽可能跳过要下载的文件
@@ -364,7 +364,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
                     }
 
                     // 可以跳过更新，todo: 这里判断会有精度问题
-                    let modified = meta.modified().be(|e| format!("获取文件修改失败失败({:?})，原因：{}", target_path, e))?;
+                    let modified = meta.modified().be(|e| format!("获取文件修改失败失败({:?})，原因：{:?}", target_path, e))?;
                     if modified == f.modified && meta.len() == f.len {
                         update_files.remove(i);
                         continue;
@@ -372,7 +372,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
                     // 对比hash，如果相同也可以跳过更新
                     let mut open = tokio::fs::File::open(&target_path).await
-                        .be(|e| format!("打开文件失败({:?})，原因：{}", target_path, e))?;
+                        .be(|e| format!("打开文件失败({:?})，原因：{:?}", target_path, e))?;
 
                     if calculate_hash_async(&mut open).await == f.hash {
                         update_files.remove(i);
@@ -381,7 +381,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
                 },
                 Err(e) => {
                     if e.kind() != ErrorKind::NotFound {
-                        return Err(BusinessError::new(format!("获取文件metadata失败({:?})，原因：{}", target_path, e)));
+                        return Err(BusinessError::new(format!("获取文件metadata失败({:?})，原因：{:?}", target_path, e)));
                     }
                 },
             }
@@ -408,7 +408,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             // println!("download to {:?}", temp_path);
 
             let temp_directory = temp_path.parent().be(|| format!("获取{:?}的上级目录失败，可能是抵达了文件系统根目录", temp_path))?;
-            tokio::fs::create_dir_all(temp_directory).await.be(|e| format!("创建临时目录失败({:?})，原因：{}", temp_directory, e))?;
+            tokio::fs::create_dir_all(temp_directory).await.be(|e| format!("创建临时目录失败({:?})，原因：{:?}", temp_directory, e))?;
 
             _file_counter += 1;
             let now = SystemTime::now();
@@ -421,19 +421,19 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             }
 
             let mut temp_file = tokio::fs::File::options().create(true).truncate(true).read(true).write(true).open(&temp_path).await
-                .be(|e| format!("打开临时文件失败({:?})，原因：{}", temp_path, e))?;
+                .be(|e| format!("打开临时文件失败({:?})，原因：{:?}", temp_path, e))?;
 
             // 开始下载
             let mut io_error = Option::<std::io::Error>::None;
             'outer: for i in 0..config.http_retries + 1 {
-                temp_file.seek(std::io::SeekFrom::Start(0)).await.be(|e| format!("归零临时文件读写指针失败({:?})，原因：{}", temp_path, e))?;
+                temp_file.seek(std::io::SeekFrom::Start(0)).await.be(|e| format!("归零临时文件读写指针失败({:?})，原因：{:?}", temp_path, e))?;
 
                 // 空文件不需要下载
                 if *len == 0 {
                     break;
                 }
                 
-                let (_, mut stream) = network.request_file(&package, *offset..(offset + len), &format!("{} in {}", path, label)).await.be(|e| format!("文件下载失败，原因：{}", e))?;
+                let (_, mut stream) = network.request_file(&package, *offset..(offset + len), &format!("{} in {}", path, label)).await.be(|e| format!("文件下载失败，原因：{:?}", e))?;
 
                 let mut buf = [0u8; 32 * 1024];
                 let mut bytes_counter = 0u64;
@@ -455,7 +455,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
                         break;
                     }
         
-                    temp_file.write_all(&buf[0..read]).await.be(|e| format!("写入临时文件时失败(本地文件 {:?}, 远端信息: {} 里 {} 版本的 {})，原因：{}", temp_path, package, label, path, e))?;
+                    temp_file.write_all(&buf[0..read]).await.be(|e| format!("写入临时文件时失败(本地文件 {:?}, 远端信息: {} 里 {} 版本的 {})，原因：{:?}", temp_path, package, label, path, e))?;
         
                     bytes_counter += read as u64;
                     total_downloaded += read as u64;
@@ -485,12 +485,12 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             }
 
             if let Some(err) = io_error {
-                return Err(BusinessError::new(format!("文件下载失败(本地文件 {:?}, 远端信息: {} 里 {} 版本的 {})，原因：{}", temp_path, package, label, path, err)));
+                return Err(BusinessError::new(format!("文件下载失败(本地文件 {:?}, 远端信息: {} 里 {} 版本的 {})，原因：{:?}", temp_path, package, label, path, err)));
             }
 
             // 检查下载的文件的hash对不对
-            temp_file.flush().await.be(|e| format!("刷新临时文件失败({:?})，原因：{}", temp_path, e))?;
-            temp_file.seek(std::io::SeekFrom::Start(0)).await.be(|e| format!("归零临时文件读写指针失败({:?})，原因：{}", temp_path, e))?;
+            temp_file.flush().await.be(|e| format!("刷新临时文件失败({:?})，原因：{:?}", temp_path, e))?;
+            temp_file.seek(std::io::SeekFrom::Start(0)).await.be(|e| format!("归零临时文件读写指针失败({:?})，原因：{:?}", temp_path, e))?;
 
             let temp_hash = calculate_hash_async(&mut temp_file).await;
 
@@ -505,7 +505,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         for path in create_folders {
             let path = base_dir.join(&path);
 
-            tokio::fs::create_dir_all(&path).await.be(|e| format!("创建新目录失败({:?})，原因：{}", path, e))?;
+            tokio::fs::create_dir_all(&path).await.be(|e| format!("创建新目录失败({:?})，原因：{:?}", path, e))?;
         }
 
         // 6.合并临时文件
@@ -521,7 +521,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             let to = base_dir.join(&to);
 
             if from.exists() {
-                tokio::fs::rename(&from, &to).await.be(|e| format!("处理文件移动失败({:?} => {:?})，原因：{}", from, to, e))?;
+                tokio::fs::rename(&from, &to).await.be(|e| format!("处理文件移动失败({:?} => {:?})，原因：{:?}", from, to, e))?;
             }
         }
 
@@ -531,7 +531,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         for path in delete_files {
             let path = base_dir.join(&path);
 
-            tokio::fs::remove_file(&path).await.be(|e| format!("删除旧文件失败({:?})，原因：{}", path, e))?;
+            tokio::fs::remove_file(&path).await.be(|e| format!("删除旧文件失败({:?})，原因：{:?}", path, e))?;
         }
 
         // 4.处理要删除的目录
@@ -548,7 +548,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
             // println!("{} => {}", &u.path, format!("{}.temp", &u.path));
             
-            tokio::fs::rename(&temp_path, &target_path).await.be(|e| format!("移动临时文件失败({:?} => {:?})，原因：{}", temp_path, target_path, e))?;
+            tokio::fs::rename(&temp_path, &target_path).await.be(|e| format!("移动临时文件失败({:?} => {:?})，原因：{:?}", temp_path, target_path, e))?;
         }
 
         // 清理临时文件夹
@@ -556,14 +556,14 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
         if temp_dir.exists() {
             // println!("removing: {:?}", &temp_dir);
-            tokio::fs::remove_dir_all(&temp_dir).await.be(|e| format!("清理临时目录失败({:?})，原因：{}", temp_dir, e))?;
+            tokio::fs::remove_dir_all(&temp_dir).await.be(|e| format!("清理临时目录失败({:?})，原因：{:?}", temp_dir, e))?;
         }
 
         // 文件基本上更新完了，到这里就要进行收尾工作了
         ui_cmd.set_label("正在进行收尾工作".to_owned()).await;
 
         // 1.更新客户端版本号
-        tokio::fs::write(&version_file, latest_version.as_bytes()).await.be(|e| format!("更新客户端版本号文件为 {} 时失败({:?})，原因：{}", latest_version, version_file, e))?;
+        tokio::fs::write(&version_file, latest_version.as_bytes()).await.be(|e| format!("更新客户端版本号文件为 {} 时失败({:?})，原因：{:?}", latest_version, version_file, e))?;
 
         // 2.弹出更新记录
         let mut changelogs = "".to_owned();
@@ -628,7 +628,7 @@ async fn get_base_dir(params: &StartupParameter, global_config: &GlobalConfig) -
     }
 
     let base_dir = working_dir.join(&global_config.base_path);
-    tokio::fs::create_dir_all(&base_dir).await.be(|e| format!("创建更新起始目录失败({:?})，原因：{}", base_dir, e))?;
+    tokio::fs::create_dir_all(&base_dir).await.be(|e| format!("创建更新起始目录失败({:?})，原因：{:?}", base_dir, e))?;
     Ok(base_dir)
 }
 
@@ -637,20 +637,20 @@ async fn get_executable_dir(params: &StartupParameter) -> BusinessResult<PathBuf
     if is_running_under_cargo() {
         get_working_dir(params).await
     } else {
-        Ok(std::env::current_exe().be(|e| format!("获取exe文件路径失败，原因：{}", e))?.parent().unwrap().to_owned())
+        Ok(std::env::current_exe().be(|e| format!("获取exe文件路径失败，原因：{:?}", e))?.parent().unwrap().to_owned())
     }
 }
 
 /// 获取工作目录
 async fn get_working_dir(_params: &StartupParameter) -> BusinessResult<PathBuf> {
-    let mut working_dir = std::env::current_dir().be(|e| format!("获取工作目录失败，原因：{}", e))?;
+    let mut working_dir = std::env::current_dir().be(|e| format!("获取工作目录失败，原因：{:?}", e))?;
         
     if is_running_under_cargo() {
         working_dir = working_dir.join("test").join("client");
     }
 
     tokio::fs::create_dir_all(&working_dir).await
-        .be(|e| format!("创建工作目录失败，原因：{}", e))?;
+        .be(|e| format!("创建工作目录失败，原因：{:?}", e))?;
 
     Ok(working_dir)
 }

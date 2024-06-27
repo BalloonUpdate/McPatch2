@@ -58,7 +58,7 @@ impl<'a> Network<'a> {
                 let (len, mut data) = ok;
                         
                 let mut text = String::with_capacity(len as usize);
-                data.read_to_string(&mut text).await.be(|e| format!("网络数据无法解码为utf8字符串({})，原因：{}", desc.as_ref(), e))?;
+                data.read_to_string(&mut text).await.be(|e| format!("网络数据无法解码为utf8字符串({})，原因：{:?}", desc.as_ref(), e))?;
                 Ok(text)
             },
             Err(err) => return Err(err),
