@@ -37,7 +37,7 @@ pub fn do_revert(ctx: &AppContext) -> i32 {
     println!("正在扫描文件更改");
 
     let disk_file = DiskFile::new(ctx.workspace_dir.clone(), Weak::new());
-    let diff = Diff::diff(&history, &disk_file, Some(&ctx.config.filter_rules));
+    let diff = Diff::diff(&history, &disk_file, Some(&ctx.config.exclude_rules));
     drop(disk_file);
 
     // 输出文件差异

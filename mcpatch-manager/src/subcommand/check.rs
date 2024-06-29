@@ -32,7 +32,7 @@ pub fn do_check(ctx: &AppContext) -> i32 {
     println!("正在扫描文件更改");
 
     let disk_file = DiskFile::new(ctx.workspace_dir.clone(), Weak::new());
-    let diff = Diff::diff(&disk_file, &history, Some(&ctx.config.filter_rules));
+    let diff = Diff::diff(&disk_file, &history, Some(&ctx.config.exclude_rules));
 
     // 输出文件差异
     println!("{:#?}", diff);

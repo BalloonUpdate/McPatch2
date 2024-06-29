@@ -64,7 +64,7 @@ enum Commands {
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
 pub struct AppConfig {
-   pub filter_rules: Vec<String>,
+   pub exclude_rules: Vec<String>,
    pub upload_script_template: String,
    pub upload_script_output: String,
 }

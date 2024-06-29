@@ -53,7 +53,7 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     println!("正在扫描文件更改");
 
     let disk_file = DiskFile::new(ctx.workspace_dir.clone(), Weak::new());
-    let diff = Diff::diff(&disk_file, &history, Some(&ctx.config.filter_rules));
+    let diff = Diff::diff(&disk_file, &history, Some(&ctx.config.exclude_rules));
 
     if !diff.has_diff() {
         println!("目前工作目录还没有任何文件修改");

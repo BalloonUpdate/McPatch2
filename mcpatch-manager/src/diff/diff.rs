@@ -31,7 +31,7 @@ pub struct Diff<N: AbstractFile, O: AbstractFile> {
     pub deleted_folders: Vec<O>,
     pub deleted_files: Vec<O>,
     pub renamed_files: Vec<(O, N)>,
-    filter: RuleFilter,
+    excluding_filter: RuleFilter,
 }
 
 impl<N: AbstractFile, O: AbstractFile> Diff<N, O> {
@@ -43,7 +43,7 @@ impl<N: AbstractFile, O: AbstractFile> Diff<N, O> {
             deleted_folders: Vec::new(),
             deleted_files: Vec::new(),
             renamed_files: Vec::new(),
-            filter: match filter_rules {
+            excluding_filter: match filter_rules {
                 Some(filter_rules) => RuleFilter::from_rules(filter_rules.iter()),
                 None => RuleFilter::new(),
             },
@@ -72,7 +72,7 @@ impl<N: AbstractFile, O: AbstractFile> Diff<N, O> {
 
         for o in older.files().iter() {
             let found = match newer.find(&o.name()) {
-                Some(o) => if self.filter(o.path().deref()) { Some(o) } else { None },
+                Some(o) => if self.is_visible(o.path().deref()) { Some(o) } else { None },
                 None => None,
             };
 
@@ -99,7 +99,7 @@ impl<N: AbstractFile, O: AbstractFile> Diff<N, O> {
         assert!(older.is_dir());
 
         for n in newer.files().iter() {
-            if !self.filter(n.path().deref()) {
+            if !self.is_visible(n.path().deref()) {
                 continue;
             }
 
@@ -149,8 +149,8 @@ impl<N: AbstractFile, O: AbstractFile> Diff<N, O> {
     }
 
     /// 检查一个文件要不要被忽略
-    fn filter(&self, path: &str) -> bool {
-        self.filter.test_all(path, true)
+    fn is_visible(&self, path: &str) -> bool {
+        !self.excluding_filter.test_any(path, false)
     }
     
     /// 检测文件移动操作

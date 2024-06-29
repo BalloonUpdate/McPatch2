@@ -9,9 +9,6 @@ pub struct Rule {
     
     /// 编译后的规则对象
     pub pattern: Regex, 
-
-    /// 是否翻转条件
-    pub reversed: bool,
 }
 
 /// 代表一组过滤规则
@@ -31,15 +28,10 @@ impl RuleFilter {
 
         for pattern in rules {
             let raw_pattern = pattern.as_ref();
-            let mut pattern = raw_pattern;
-            let reversed = pattern.starts_with("!");
-            if reversed {
-                pattern = &pattern[1..];
-            }
+            let pattern = raw_pattern;
             regexes_compiled.push(Rule {
                 raw: raw_pattern.to_owned(),
                 pattern: Regex::new(&pattern).unwrap(), 
-                reversed,
             });
         }
 
@@ -52,7 +44,7 @@ impl RuleFilter {
             return default;
         }
 
-        self.filters.iter().any(|filter| filter.pattern.is_match(text) != filter.reversed)
+        self.filters.iter().any(|filter| filter.pattern.is_match(text))
     }
     
     /// 测试一段字符串能否通过所有的规则测试，如果不能通过或者规则列表为空，返回`default`。
@@ -61,6 +53,6 @@ impl RuleFilter {
             return default;
         }
 
-        self.filters.iter().all(|filter| filter.pattern.is_match(text) != filter.reversed)
+        self.filters.iter().all(|filter| filter.pattern.is_match(text))
     }
 }
