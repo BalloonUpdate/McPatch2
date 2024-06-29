@@ -6,6 +6,7 @@
 //! 2. 将所有“覆盖的文件”的数据和元数据写入到更新包中，同时更新元数据中每个文件的偏移值
 //! 3. 更新索引文件
 
+use std::io::ErrorKind;
 use std::ops::Deref;
 use std::rc::Weak;
 
@@ -87,7 +88,16 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     // 写入元数据
     println!("写入元数据");
 
-    let logs = match std::fs::read_to_string(ctx.working_dir.join("logs.txt")) {
+    // 读取写好的更新记录
+
+    // 创建空的logs.txt文件，以提醒用户可以在这里写更新记录
+    let logs_file = ctx.working_dir.join("logs.txt");
+    if let Err(e) = std::fs::metadata(&logs_file) {
+        if e.kind() == ErrorKind::NotFound {
+            std::fs::write(&logs_file, &[]).unwrap();
+        }
+    }
+    let logs = match std::fs::read_to_string(&logs_file) {
         Ok(text) => text,
         Err(_) => "没有更新记录".to_owned(),
     };
