@@ -128,11 +128,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
     let mut network = Network::new(&config).be(|e| format!("服务器地址加载失败，原因：{:?}", e))?;
 
     let version_file = exe_dir.join(&config.version_file_path);
-    let mut current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or(":empty:".to_owned());
-
-    if current_version.trim().is_empty() {
-        current_version = ":empty:".to_owned();
-    }
+    let current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or("".to_owned()).trim().to_owned();
     
     ui_cmd.set_label("正在检查更新".to_owned()).await;
 
@@ -153,12 +149,14 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
     }
 
     // 检查版本是否有效
-    if !server_versions.contains(&current_version) && current_version != ":empty:" {
-        return Err(format!("目前无法更新，因为客户端版本号 {} 不在服务端版本号列表里，无法确定版本新旧关系", current_version).into());
+    if !server_versions.contains(&current_version) && current_version != "" {
+        return Err(format!("目前无法更新，因为客户端版本号 {} 不在服务端版本号列表里，无法确定版本新旧关系", current_version).into())
     }
-
+    
     // 不是最新版才更新
     let latest_version = &server_versions[server_versions.len() - 1].label;
+    
+    println!("latest: {}, current: {}", latest_version, current_version);
 
     if latest_version != &current_version {
         if config.silent_mode {
@@ -166,9 +164,15 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         }
 
         // 收集落后的版本
-        let missing_versions = (&server_versions).into_iter()
-            .skip_while(|v| v.label == current_version)
-            .collect::<Vec<_>>();
+        let missing_versions = match (&server_versions).into_iter().position(|e| e.label == current_version) {
+            Some(index) => {
+                (&server_versions).into_iter().skip(index + 1).collect::<Vec<_>>()
+            },
+            // 搜索不到的话，current_version就是空字符串的情况
+            None => {
+                (&server_versions).into_iter().collect::<Vec<_>>()
+            }, 
+        };
 
         log_debug("missing versions:");
         for i in 0..missing_versions.len() {
@@ -503,19 +507,18 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         ui_cmd.set_label("正在处理新目录".to_owned()).await;
 
         for path in create_folders {
+            log_debug(&format!("create directory: {}", path));
+
             let path = base_dir.join(&path);
 
             tokio::fs::create_dir_all(&path).await.be(|e| format!("创建新目录失败({:?})，原因：{:?}", path, e))?;
         }
-
-        // 6.合并临时文件
-        ui_cmd.set_label("正在合并临时文件，请不要关闭程序，避免数据损坏".to_owned()).await;
         
         // 2.处理要移动的文件
-        ui_cmd.set_label("正在处理文件移动".to_owned()).await;
+        ui_cmd.set_label("正在处理文件移动，请不要关闭程序".to_owned()).await;
 
         for MoveFile { from, to } in move_files {
-            // println!("mvoe {} to {}", from, to);
+            log_debug(&format!("move file {} => {}", from, to));
 
             let from = base_dir.join(&from);
             let to = base_dir.join(&to);
@@ -529,6 +532,8 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         ui_cmd.set_label("正在处理旧文件和旧目录".to_owned()).await;
 
         for path in delete_files {
+            log_debug(&format!("delete file {}", path));
+
             let path = base_dir.join(&path);
 
             tokio::fs::remove_file(&path).await.be(|e| format!("删除旧文件失败({:?})，原因：{:?}", path, e))?;
@@ -536,13 +541,18 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
         // 4.处理要删除的目录
         for path in delete_folders {
+            log_debug(&format!("delete directory {}", path));
+
             let path = base_dir.join(&path);
 
             // 删除失败了不用管
             let _ = tokio::fs::remove_dir(path).await;
         }
 
+        ui_cmd.set_label("正在移动临时文件，请不要关闭程序".to_owned()).await;
         for u in &update_files {
+            log_debug(&format!("apply temporary file {} => {}", &format!("{}.temp", &u.path), u.path));
+
             let target_path = base_dir.join(&u.path);
             let temp_path = temp_dir.join(&format!("{}.temp", &u.path));
 
@@ -555,7 +565,6 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         ui_cmd.set_label("正在清理临时文件夹".to_owned()).await;
 
         if temp_dir.exists() {
-            // println!("removing: {:?}", &temp_dir);
             tokio::fs::remove_dir_all(&temp_dir).await.be(|e| format!("清理临时目录失败({:?})，原因：{:?}", temp_dir, e))?;
         }
 
