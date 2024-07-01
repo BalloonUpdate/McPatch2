@@ -536,7 +536,9 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
             let path = base_dir.join(&path);
 
-            tokio::fs::remove_file(&path).await.be(|e| format!("删除旧文件失败({:?})，原因：{:?}", path, e))?;
+            if tokio::fs::try_exists(&path).await.unwrap_or(false) {
+                tokio::fs::remove_file(&path).await.be(|e| format!("删除旧文件失败({:?})，原因：{:?}", path, e))?;
+            }
         }
 
         // 4.处理要删除的目录
