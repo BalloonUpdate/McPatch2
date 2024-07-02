@@ -1,3 +1,4 @@
+use std::fmt::format;
 use std::future::Future;
 use std::ops::Range;
 use std::pin::Pin;
@@ -15,6 +16,7 @@ use tokio::pin;
 
 use crate::error::BusinessError;
 use crate::global_config::GlobalConfig;
+use crate::log::log_debug;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
 
@@ -73,8 +75,15 @@ impl UpdatingSource for HttpProtocol {
 
         let code = rsp.status().as_u16();
 
-        if partial_file && code != 206 {
-            return Ok(Err(BusinessError::new(format!("服务器({})返回了{}而不是206: {} ({})", self.index, code, path, desc))));
+        if (!partial_file && (code < 200 || code >= 300)) || (partial_file && code != 206) {
+            // 输出响应体
+            let mut body = rsp.text().await.map_or_else(|e| format!("{:?}", e), |v| v);
+
+            log_debug(format!("------------\n{}\n------------", body));
+
+            body.truncate(300);
+
+            return Ok(Err(BusinessError::new(format!("服务器({})返回了{}而不是206: {} ({})\n{}", self.index, code, path, desc, body))));
         }
 
         let len = match rsp.content_length() {
