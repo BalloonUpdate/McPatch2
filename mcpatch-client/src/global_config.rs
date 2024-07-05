@@ -81,7 +81,7 @@ pub struct GlobalConfig {
     #[default_value("5000")]
     pub http_timeout: u32,
 
-    /// http/webdav协议的重试次数，最大值不能超过255
+    /// http/webdav协议的重试次数，最大值为254
     /// 当超过http_timeout服务器还是没有响应数据时，会消耗1次重试次数，然后进行重新连接
     /// 当所有的重试次数消耗完后，程序才会真正判定为超时，并弹出网络错误对话框
     /// 建议 http_timeout * http_retries 在20秒以内，避免玩家等的太久
