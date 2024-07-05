@@ -41,7 +41,8 @@ impl HttpProtocol {
 
         let client = ClientBuilder::new()
             .default_headers(def_headers)
-            .timeout(Duration::from_millis(config.http_timeout as u64))
+            .connect_timeout(Duration::from_millis(config.http_timeout as u64))
+            .read_timeout(Duration::from_millis(config.http_timeout as u64))
             .danger_accept_invalid_certs(config.http_ignore_certificate)
             .build()
             .unwrap();
