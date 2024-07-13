@@ -53,7 +53,7 @@ pub fn do_revert(ctx: &AppContext) -> i32 {
         let dir = ctx.workspace_dir.join(mk.path().deref());
 
         if let Err(e) = std::fs::create_dir_all(dir) {
-            panic!("{}: {}", mk.path().deref(), e.to_string());
+            panic!("{}: {:?}", mk.path().deref(), e);
         }
     }
 
@@ -62,7 +62,7 @@ pub fn do_revert(ctx: &AppContext) -> i32 {
         let dst = ctx.workspace_dir.join(mv.1.path().deref());
 
         if let Err(e) = std::fs::rename(src, dst) {
-            panic!("{} => {}: {}", mv.0.path().deref(), mv.1.path().deref(), e.to_string());
+            panic!("{} => {}: {:?}", mv.0.path().deref(), mv.1.path().deref(), e);
         }
     }
 
@@ -70,7 +70,7 @@ pub fn do_revert(ctx: &AppContext) -> i32 {
         let file = rm.disk_file();
 
         if let Err(e) = std::fs::remove_file(file) {
-            panic!("{}({}): {}", rm.path().deref(), file.to_str().unwrap(), e.to_string());
+            panic!("{}({}): {:?}", rm.path().deref(), file.to_str().unwrap(), e);
         }
     }
 
@@ -78,7 +78,7 @@ pub fn do_revert(ctx: &AppContext) -> i32 {
         let dir = rm.disk_file();
         
         if let Err(e) = std::fs::remove_dir(dir) {
-            panic!("{}: {}", rm.path().deref(), e.to_string());
+            panic!("{}: {:?}", rm.path().deref(), e);
         }
     }
 

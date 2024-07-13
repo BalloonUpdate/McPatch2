@@ -19,6 +19,7 @@ use crate::network::UpdatingSource;
 pub struct PrivateProtocol {
     pub addr: String,
     pub tcp_stream: Arc<Mutex<Option<TcpStream>>>,
+    mask_keyword: String,
     index: u32,
 }
 
@@ -27,6 +28,7 @@ impl PrivateProtocol {
         Self { 
             addr: addr.to_owned(),
             tcp_stream: Arc::new(Mutex::new(None)),
+            mask_keyword: addr.to_owned(),
             index,
         }
     }
@@ -67,6 +69,10 @@ impl UpdatingSource for PrivateProtocol {
         let data = receive_partial_data(stream_lock, len as u64).await?;
 
         Ok(Ok((data.count(), Box::pin(data))))
+    }
+
+    fn mask_keyword(&self) -> &str {
+        &self.mask_keyword
     }
 }
 

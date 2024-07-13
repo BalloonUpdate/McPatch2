@@ -18,6 +18,7 @@ use crate::network::UpdatingSource;
 
 pub struct Webdav {
     client: Client,
+    mask_keyword: String,
     index: u32,
 }
 
@@ -56,7 +57,12 @@ impl Webdav {
             .build()
             .unwrap();
 
-        Self { client, index }
+        let mask_keyword = match reqwest::Url::parse(url) {
+            Ok(parsed) => parsed.host_str().unwrap_or("").to_owned(),
+            Err(_) => "".to_owned(),
+        };
+
+        Self { client, index, mask_keyword }
     }
 }
 
@@ -107,6 +113,10 @@ impl UpdatingSource for Webdav {
         }
         
         Ok(Ok((len, Box::pin(AsyncStreamBody(rsp, None)))))
+    }
+    
+    fn mask_keyword(&self) -> &str {
+        &self.mask_keyword
     }
 }
 

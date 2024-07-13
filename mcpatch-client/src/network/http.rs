@@ -22,7 +22,7 @@ use crate::network::UpdatingSource;
 pub struct HttpProtocol {
     pub url: String,
     pub client: Client,
-    pub range_bytes_supported: bool,
+    mask_keyword: String,
     index: u32,
 }
 
@@ -47,7 +47,12 @@ impl HttpProtocol {
             .build()
             .unwrap();
 
-        Self { url: url.to_owned(), client, range_bytes_supported: false, index }
+        let mask_keyword = match reqwest::Url::parse(url) {
+            Ok(parsed) => parsed.host_str().unwrap_or("").to_owned(),
+            Err(_) => "".to_owned(),
+        };
+
+        Self { url: url.to_owned(), client, mask_keyword, index }
     }
 }
 
@@ -96,6 +101,10 @@ impl UpdatingSource for HttpProtocol {
         }
 
         Ok(Ok((len, Box::pin(AsyncStreamBody(rsp, None)))))
+    }
+
+    fn mask_keyword(&self) -> &str {
+        &self.mask_keyword
     }
 }
 
