@@ -48,7 +48,9 @@ impl Webdav {
             .connect_timeout(Duration::from_millis(config.http_timeout as u64))
             .read_timeout(Duration::from_millis(config.http_timeout as u64))
             .danger_accept_invalid_certs(config.http_ignore_certificate)
-            .build().unwrap();
+            .use_rustls_tls() // https://github.com/seanmonstar/reqwest/issues/2004#issuecomment-2180557375
+            .build()
+            .unwrap();
 
         let client = ClientBuilder::new()
             .set_agent(reqwest_client)
