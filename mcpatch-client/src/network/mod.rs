@@ -49,6 +49,10 @@ impl<'a> Network<'a> {
 
         log_debug(format!("loaded {} urls", sources.len()));
 
+        if sources.len() == 0 {
+            return Err(BusinessError::new("没有有效的服务器地址可以使用"));
+        }
+
         Ok(Network { sources, skip_sources: 0, config })
     }
 
