@@ -764,6 +764,7 @@ name = "mcpatch-client"
 version = "0.0.1"
 dependencies = [
  "async-trait",
+ "base64",
  "bytes",
  "chrono",
  "config_template_derive",

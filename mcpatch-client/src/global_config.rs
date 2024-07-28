@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use base64::Engine;
 use config_template_derive::ConfigTemplate;
 
 use crate::error::BusinessResult;
@@ -127,9 +128,18 @@ impl GlobalConfig {
 
         let config = yaml_rust::Yaml::Hash(config);
 
-        let urls = config["urls"].as_vec().be(|| "配置文件中找不到 urls")?.iter()
+        let mut urls = config["urls"].as_vec().be(|| "配置文件中找不到 urls")?.iter()
                 .map(|e| e.as_str().expect("配置文件 urls 中只能包含纯字符串元素").to_owned())
-                .collect();
+                .collect::<Vec<String>>();
+        
+        // 尝试解码base64编码后的服务器地址
+        for line in urls.iter_mut() {
+            if let Ok(decoded) = base64::engine::general_purpose::STANDARD_NO_PAD.decode(line.as_bytes()) {
+                line.clear();
+                line.push_str(&String::from_utf8(decoded).unwrap());
+            }
+        }
+
         let version_file_path = config["version-file-path"].as_str().be(|| "配置文件中找不到 version-file-path")?.to_owned();
         let allow_error = config["allow-error"].as_bool().be(|| "配置文件中找不到 allow-error")?.to_owned();
         let show_finish_message = config["show-finish-message"].as_bool().be(|| "配置文件中找不到 show-finish-message")?.to_owned();
