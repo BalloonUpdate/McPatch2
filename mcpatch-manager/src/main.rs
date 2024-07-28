@@ -136,7 +136,7 @@ fn interactive_workmode() -> i32 {
         stdout.flush().unwrap();
         
         buf.clear();
-        buf += &format!("{} ", std::env::args().next().unwrap());
+        buf += &format!("\"{}\" ", std::env::args().next().unwrap());
         let _len = match stdin.read_line(&mut buf) {
             Ok(len) => len,
             Err(_) => break,
