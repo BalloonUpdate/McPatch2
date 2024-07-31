@@ -547,8 +547,9 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
             let path = base_dir.join(&path);
 
-            // 删除失败了不用管
-            let _ = tokio::fs::remove_dir(path).await;
+            if let Err(e) = tokio::fs::remove_dir_all(path).await {
+                log_error(format!("目录删除失败：{}", e));
+            }
         }
 
         ui_cmd.set_label("正在移动临时文件，请不要关闭程序".to_owned()).await;
