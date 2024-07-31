@@ -265,8 +265,15 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
                     FileChange::UpdateFile { path, hash, len, modified, offset } => {
                         // assert!(update_files.iter().find(|e| e.path == path).is_none());
 
+                        // 删除已有的东西，避免下面重复添加报错
                         match update_files.iter().position(|e| e.path == path) {
                             Some(index) => { update_files.remove(index); },
+                            None => { },
+                        }
+
+                        // 将文件从删除列表里移除
+                        match delete_files.iter().position(|e| e == &path) {
+                            Some(index) => { delete_files.remove(index); },
                             None => { },
                         }
 
@@ -286,11 +293,13 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
                         }
                     },
                     FileChange::DeleteFile { path } => {
-                        // 处理哪些刚下载又马上要被删的文件
+                        // 处理哪些刚下载又马上要被删的文件，这些文件不用重复下载
                         match update_files.iter().position(|e| e.path == path) {
                             Some(index) => { update_files.remove(index); },
-                            None => { delete_files.push(path); },
+                            None => { },
                         }
+
+                        delete_files.push(path);
                     },
                     FileChange::MoveFile { from, to } => {
                         // 单独处理还没有下载的文件
