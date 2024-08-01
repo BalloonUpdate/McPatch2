@@ -1,7 +1,7 @@
 [package]
 name = "config_template_derive"
 version = "0.0.1"
-edition = "2021"
+edition.workspace = true
 description = "the generator of the config file template for client"
 
 [lib]

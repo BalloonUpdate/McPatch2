@@ -1,4 +1,4 @@
-name: Client build and release
+name: Release Client
 
 on:
   push:
@@ -14,32 +14,39 @@ env:
 
 jobs:
   build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            rustc-target: x86_64-pc-windows-msvc
+          # - os: ubuntu-latest
+          #   rustc-target: x86_64-unknown-linux-gnu
     runs-on: windows-latest
+    env:
+      rust-version: '1.80'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Cargo build
+        env:
+          MP_RUSTC_TARGET: ${{ matrix.rustc-target }}
         run: |-
-          cargo build --bin mcpatch-client --release
+          rustup update ${{ env.rust-version }} && rustup default ${{ env.rust-version }}
+          cargo ci client
       
-      - name: Append version label
-        shell: python
-        run: |-
-          import os
-          import re
-          import sys
-          import platform
-
-          os.mkdir('target/release/upload')
-          GIT_TAG = os.environ.get('GITHUB_REF_NAME', ' 0.0.0')[1:]
-          suffix = f'{sys.platform}-{platform.machine().lower()}-{GIT_TAG}'
-
-          os.rename('target/release/mcpatch-client.exe', f'target/release/upload/mcpatch-client-{suffix}.exe')
-          os.rename('target/release/mcpatch_client.pdb', f'target/release/upload/mcpatch-client-{suffix}.pdb')
-
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/release/upload/*
+          files: target/dist/*
 
+      - name: Distribute
+        uses: bxb100/action-upload@main
+        with:
+          provider: webdav
+          provider_options: |
+            endpoint=${{ secrets.webdav_endpoint }}
+            username=${{ secrets.webdav_username }}
+            password=${{ secrets.webdav_password }}
+            root=${{ secrets.webdav_root_client }}
+          include: 'target/dist/**'

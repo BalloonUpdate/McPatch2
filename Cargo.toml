@@ -4,8 +4,12 @@ members = [
     "config_template_derive",
     "mcpatch-shared",
     "mcpatch-manager", 
-    "mcpatch-client"
+    "mcpatch-client", 
+    "xtask"
 ]
+
+[workspace.package]
+edition = "2021"
 
 [workspace.dependencies]
 crc = "3.0.1"

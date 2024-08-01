@@ -1,4 +1,4 @@
-name: Manager build and release
+name: Release Manager
 
 on:
   push:
@@ -16,43 +16,37 @@ jobs:
   build:
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: windows-latest
+            rustc-target: x86_64-pc-windows-msvc
+          - os: ubuntu-latest
+            rustc-target: x86_64-unknown-linux-gnu
     runs-on: ${{ matrix.os }}
+    env:
+      rust-version: '1.80'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
       - name: Cargo build
+        env:
+          MP_RUSTC_TARGET: ${{ matrix.rustc-target }}
         run: |-
-          cargo build --bin mcpatch-manager --release
+          rustup update ${{ env.rust-version }} && rustup default ${{ env.rust-version }}
+          cargo ci manager
       
-      - name: Append version label
-        shell: python
-        run: |-
-          import os
-          import re
-          import sys
-          import platform
-
-          def get_platform():
-              pt = sys.platform
-              return pt if pt != 'win32' else 'windows'
-          def get_architecture():
-              return platform.machine().lower()
-
-          os.mkdir('target/release/upload')
-          GIT_TAG = os.environ.get('GITHUB_REF_NAME', ' 0.0.0')[1:]
-          suffix = f'{get_platform()}-{get_architecture()}-{GIT_TAG}'
-
-          if sys.platform.startswith('win'):
-              os.rename('target/release/mcpatch-manager.exe', f'target/release/upload/mcpatch-manager-{suffix}.exe')
-              os.rename('target/release/mcpatch_manager.pdb', f'target/release/upload/mcpatch-manager-{suffix}.pdb')
-          elif sys.platform.startswith('linux'):
-            os.rename('target/release/mcpatch-manager', f'target/release/upload/mcpatch-manager-{suffix}')
-            os.rename('target/release/mcpatch-manager.dwp', f'target/release/upload/mcpatch-manager-{suffix}.dwp')
-
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: target/release/upload/*
-
+          files: target/dist/*
+      
+      - name: Distribute
+        uses: bxb100/action-upload@main
+        with:
+          provider: webdav
+          provider_options: |
+            endpoint=${{ secrets.webdav_endpoint }}
+            username=${{ secrets.webdav_username }}
+            password=${{ secrets.webdav_password }}
+            root=${{ secrets.webdav_root_manager }}
+          include: 'target/dist/**'
