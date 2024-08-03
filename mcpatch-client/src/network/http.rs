@@ -138,9 +138,9 @@ impl AsyncRead for AsyncStreamBody {
         }
 
         let holding = self.1.as_mut().unwrap();
-        let amount = buf.remaining().min(holding.len());
+        let count = buf.remaining().min(holding.len());
 
-        buf.put_slice(&holding.split_to(amount));
+        buf.put_slice(&holding.split_to(count));
 
         if holding.len() == 0 {
             self.1 = None;

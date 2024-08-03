@@ -6,6 +6,7 @@ use std::ops::Range;
 use std::pin::Pin;
 
 use async_trait::async_trait;
+use mcpatch_shared::utility::is_running_under_cargo;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncReadExt;
 
@@ -32,6 +33,12 @@ impl<'a> Network<'a> {
     pub fn new(config: &'a GlobalConfig) -> BusinessResult<Self> {
         let mut sources = Vec::<Box<dyn UpdatingSource + Sync + Send>>::new();
         let mut index = 0u32;
+
+        if is_running_under_cargo() {
+            for (index, url) in config.urls.iter().enumerate() {
+                log_debug(format!("{}: {}", index, url));
+            }
+        }
 
         for url in &config.urls {
             if url.starts_with("http://") || url.starts_with("https://") {

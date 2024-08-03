@@ -416,6 +416,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
         // 下载到临时文件
         for UpdateFile { package, label, path, hash, len, modified: _, offset } in &update_files {
+            let filename = Path::new(path).filename();
             let temp_path = temp_dir.join(&format!("{}.temp", &path));
             
             // println!("download to {:?}", temp_path);
@@ -429,7 +430,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
                 ui_timer = now;
                 // ui_cmd.set_label(format!("下载版本 {} 的更新数据 ({}/{})", label, file_counter, update_files.len())).await;
                 ui_cmd.set_progress(((total_downloaded as f32 / total_bytes as f32) * 1000f32) as u32).await;
-                ui_cmd.set_label_secondary(format!("{}", temp_path.filename())).await; // {:.1}% percent
+                ui_cmd.set_label_secondary(format!("{}", filename)).await; // {:.1}% percent
                 ui_cmd.set_label(format!("正在下载 {} 版本：{}/{} （{}/s）", label, convert_bytes(total_downloaded), convert_bytes(total_bytes), speed.sample_speed2())).await;
             }
 
