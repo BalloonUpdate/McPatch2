@@ -57,7 +57,15 @@ enum Commands {
     /// 运行内置服务端
     Serve {
         /// 端口
-        port: u16
+        port: u16,
+
+        /// 单链接限速参数之令牌桶容量。默认不开启限速
+        #[arg(default_value_t = 0)]
+        capacity: u64,
+
+        /// 单链接限速参数之令牌回复速率（单位每秒多少个）。默认不开启限速
+        #[arg(default_value_t = 0)]
+        regain: u64,
     },
 }
 
@@ -164,6 +172,6 @@ fn handle_command(cmd: CommandLineInterface) -> i32 {
         Commands::Combine => do_combine(&context),
         Commands::Test => do_test(&context),
         Commands::Revert => do_revert(&context),
-        Commands::Serve { port } => do_serve(port, &context),
+        Commands::Serve { port, capacity, regain } => do_serve(port, capacity, regain, &context),
     }
 }

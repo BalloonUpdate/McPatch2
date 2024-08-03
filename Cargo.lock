@@ -788,6 +788,7 @@ dependencies = [
  "clap",
  "embed-resource",
  "mcpatch-shared",
+ "once_cell",
  "regex",
  "serde",
  "tar",
