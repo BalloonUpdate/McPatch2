@@ -45,7 +45,7 @@ impl<'a> Network<'a> {
                 sources.push(Box::new(HttpProtocol::new(url, &config, index)))
             } else if url.starts_with("mcpatch://") {
                 sources.push(Box::new(PrivateProtocol::new(&url["mcpatch://".len()..], &config, index)))
-            } else if url.starts_with("webdav://") {
+            } else if url.starts_with("webdav://") || url.starts_with("webdavs://") {
                 sources.push(Box::new(Webdav::new(&url, &config, index)))
             } else {
                 log_info(format!("unknown url: {}", url));
