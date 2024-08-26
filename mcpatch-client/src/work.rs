@@ -598,16 +598,16 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
         ui_cmd.popup_dialog(DialogContent {
             title: "更新成功".to_owned(),
-            content: changelogs.trim().to_owned(),
+            content: format!("已经更新到 {}", latest_version),
             yesno: false,
         }).await;
     } else {
         ui_cmd.set_label("没有更新".to_owned()).await;
 
-        if config.show_finish_message {
+        if config.show_finish_message || !config.silent_mode {
             ui_cmd.popup_dialog(DialogContent {
                 title: "".to_owned(),
-                content: "资源文件暂无更新".to_owned(),
+                content: format!("文件版本已是最新 {}", current_version),
                 yesno: false,
             }).await;
         }
