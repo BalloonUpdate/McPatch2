@@ -21,6 +21,8 @@ jobs:
             rustc-target: x86_64-pc-windows-msvc
           - os: ubuntu-latest
             rustc-target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            rustc-target: x86_64-unknown-linux-musl
     runs-on: ${{ matrix.os }}
     env:
       rust-version: '1.80'
@@ -33,6 +35,7 @@ jobs:
           MP_RUSTC_TARGET: ${{ matrix.rustc-target }}
         run: |-
           rustup update ${{ env.rust-version }} && rustup default ${{ env.rust-version }}
+          rustup target add ${{ matrix.rustc-target }}
           cargo ci manager
       
       - name: Release

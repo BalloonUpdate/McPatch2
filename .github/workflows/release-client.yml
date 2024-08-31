@@ -33,6 +33,7 @@ jobs:
           MP_RUSTC_TARGET: ${{ matrix.rustc-target }}
         run: |-
           rustup update ${{ env.rust-version }} && rustup default ${{ env.rust-version }}
+          rustup target add ${{ matrix.rustc-target }}
           cargo ci client
       
       - name: Release
