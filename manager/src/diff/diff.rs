@@ -129,6 +129,10 @@ impl<N: AbstractFile, O: AbstractFile> Diff<N, O> {
 
     /// 将一个文件标记为新增或者修改过的文件
     fn mark_as_updated(&mut self, file: &N) {
+        if !self.is_visible(&file.path()) {
+            return;
+        }
+
         if file.is_dir() {
             self.created_folders.push(file.clone());
 
