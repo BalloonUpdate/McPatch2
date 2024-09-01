@@ -7,7 +7,7 @@ use std::str::FromStr;
 
 use clap::Parser;
 use clap::Subcommand;
-use mcpatch_shared::utility::is_running_under_cargo;
+use shared::utility::is_running_under_cargo;
 use serde::Deserialize;
 
 use crate::subcommand::check::do_check;

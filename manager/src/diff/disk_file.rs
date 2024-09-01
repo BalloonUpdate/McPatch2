@@ -10,8 +10,8 @@ use std::rc::Rc;
 use std::rc::Weak;
 use std::time::SystemTime;
 
-use mcpatch_shared::common::file_hash::calculate_hash;
-use mcpatch_shared::utility::filename_ext::GetFileNamePart;
+use shared::common::file_hash::calculate_hash;
+use shared::utility::filename_ext::GetFileNamePart;
 
 use crate::diff::abstract_file::calculate_path_helper;
 use crate::diff::abstract_file::find_file_helper;

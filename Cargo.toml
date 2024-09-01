@@ -2,9 +2,9 @@
 resolver = "2"
 members = [
     "config_template_derive",
-    "mcpatch-shared",
-    "mcpatch-manager", 
-    "mcpatch-client", 
+    "shared",
+    "manager", 
+    "client", 
     "xtask"
 ]
 

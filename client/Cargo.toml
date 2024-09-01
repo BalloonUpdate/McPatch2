@@ -1,11 +1,11 @@
 [package]
-name = "mcpatch-client"
+name = "client"
 version = "0.0.1"
 edition.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-mcpatch-shared = { path = "../mcpatch-shared" }
+shared = { path = "../shared" }
 config_template_derive = { path = "../config_template_derive" }
 chrono = { workspace = true }
 json = { workspace = true }

@@ -6,8 +6,8 @@ use std::fs::FileTimes;
 use std::ops::Deref;
 use std::rc::Weak;
 
-use mcpatch_shared::data::index_file::IndexFile;
-use mcpatch_shared::utility::is_running_under_cargo;
+use shared::data::index_file::IndexFile;
+use shared::utility::is_running_under_cargo;
 
 use crate::common::tar_reader::TarReader;
 use crate::diff::abstract_file::AbstractFile;

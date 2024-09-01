@@ -1,6 +1,6 @@
 //! 测试所有更新包
 
-use mcpatch_shared::data::index_file::IndexFile;
+use shared::data::index_file::IndexFile;
 
 use crate::common::archive_tester::ArchiveTester;
 use crate::AppContext;

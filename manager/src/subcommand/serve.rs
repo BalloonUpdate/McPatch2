@@ -5,7 +5,7 @@ use std::net::TcpListener;
 use std::ops::Range;
 use std::time::SystemTime;
 
-use mcpatch_shared::utility::partial_read::PartialAsyncRead;
+use shared::utility::partial_read::PartialAsyncRead;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncSeekExt;
 use tokio::io::AsyncWriteExt;

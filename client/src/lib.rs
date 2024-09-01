@@ -11,7 +11,7 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::Mutex;
 
-use mcpatch_shared::utility::is_running_under_cargo;
+use shared::utility::is_running_under_cargo;
 
 use crate::global_config::GlobalConfig;
 use crate::log::log_error;

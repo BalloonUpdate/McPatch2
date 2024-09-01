@@ -6,7 +6,7 @@ use std::ops::Range;
 use std::pin::Pin;
 
 use async_trait::async_trait;
-use mcpatch_shared::utility::is_running_under_cargo;
+use shared::utility::is_running_under_cargo;
 use tokio::io::AsyncRead;
 use tokio::io::AsyncReadExt;
 

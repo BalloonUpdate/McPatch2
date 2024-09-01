@@ -5,8 +5,8 @@ use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 
-use mcpatch_shared::common::file_hash::calculate_hash;
-use mcpatch_shared::data::version_meta::FileChange;
+use shared::common::file_hash::calculate_hash;
+use shared::data::version_meta::FileChange;
 
 use crate::common::tar_reader::TarReader;
 use crate::diff::abstract_file::AbstractFile;

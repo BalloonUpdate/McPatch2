@@ -8,8 +8,8 @@ fn main() -> ProcessResult {
     let task = std::env::args().nth(1);
 
     match task.as_deref() {
-        Some("client") => dist_binary("mcpatch-client", "client"),
-        Some("manager") => dist_binary("mcpatch-manager", "manager"),
+        Some("client") => dist_binary("client", "c"),
+        Some("manager") => dist_binary("manager", "m"),
         _ => print_help(),
     }
 }

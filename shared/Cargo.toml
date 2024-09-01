@@ -1,5 +1,5 @@
 [package]
-name = "mcpatch-shared"
+name = "shared"
 version = "1.0.0"
 edition.workspace = true
 

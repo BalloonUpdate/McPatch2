@@ -2,7 +2,7 @@
 
 use std::rc::Weak;
 
-use mcpatch_shared::data::index_file::IndexFile;
+use shared::data::index_file::IndexFile;
 
 use crate::common::tar_reader::TarReader;
 use crate::diff::diff::Diff;

@@ -234,6 +234,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b82cf0babdbd58558212896d1a4272303a57bdb245c2bf1147185fb45640e70"
 
 [[package]]
+name = "client"
+version = "0.0.1"
+dependencies = [
+ "async-trait",
+ "base64",
+ "bytes",
+ "chrono",
+ "config_template_derive",
+ "embed-resource",
+ "json",
+ "native-windows-derive",
+ "native-windows-gui",
+ "once_cell",
+ "reqwest",
+ "reqwest_dav",
+ "shared",
+ "tokio",
+ "yaml-rust",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -760,50 +781,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
-name = "mcpatch-client"
-version = "0.0.1"
-dependencies = [
- "async-trait",
- "base64",
- "bytes",
- "chrono",
- "config_template_derive",
- "embed-resource",
- "json",
- "mcpatch-shared",
- "native-windows-derive",
- "native-windows-gui",
- "once_cell",
- "reqwest",
- "reqwest_dav",
- "tokio",
- "yaml-rust",
-]
-
-[[package]]
-name = "mcpatch-manager"
+name = "manager"
 version = "0.0.1"
 dependencies = [
  "chrono",
  "clap",
  "embed-resource",
- "mcpatch-shared",
  "once_cell",
  "regex",
  "serde",
+ "shared",
  "tar",
  "tinytemplate",
  "tokio",
  "toml 0.7.8",
-]
-
-[[package]]
-name = "mcpatch-shared"
-version = "1.0.0"
-dependencies = [
- "crc",
- "json",
- "tokio",
 ]
 
 [[package]]
@@ -1503,6 +1494,15 @@ dependencies = [
  "cfg-if",
  "cpufeatures",
  "digest",
+]
+
+[[package]]
+name = "shared"
+version = "1.0.0"
+dependencies = [
+ "crc",
+ "json",
+ "tokio",
 ]
 
 [[package]]

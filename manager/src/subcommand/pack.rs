@@ -10,10 +10,10 @@ use std::io::ErrorKind;
 use std::ops::Deref;
 use std::rc::Weak;
 
-use mcpatch_shared::data::index_file::IndexFile;
-use mcpatch_shared::data::index_file::VersionIndex;
-use mcpatch_shared::data::version_meta::VersionMeta;
-use mcpatch_shared::data::version_meta_group::VersionMetaGroup;
+use shared::data::index_file::IndexFile;
+use shared::data::index_file::VersionIndex;
+use shared::data::version_meta::VersionMeta;
+use shared::data::version_meta_group::VersionMetaGroup;
 
 use crate::common::archive_tester::ArchiveTester;
 use crate::common::tar_reader::TarReader;
