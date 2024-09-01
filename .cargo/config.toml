@@ -1,4 +1,4 @@
 [alias]
-mm = "run --bin mcpatch-manager"
-cc = "run --bin mcpatch-client"
+mm = "run --bin manager"
+cc = "run --bin client"
 ci = "run --package xtask --"
