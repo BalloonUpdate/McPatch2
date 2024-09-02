@@ -30,13 +30,20 @@ use crate::log::FileHandler;
 use crate::log::MessageLevel;
 use crate::network::Network;
 use crate::speed_sampler::SpeedCalculator;
-use crate::ui::AppWindowCommand;
-use crate::ui::DialogContent;
 use crate::utils::convert_bytes;
 use crate::McpatchExitCode;
 use crate::StartupParameter;
 
-pub async fn run(params: StartupParameter, ui_cmd: &AppWindowCommand) -> McpatchExitCode {
+#[cfg(target_os = "windows")]
+use crate::ui::DialogContent;
+
+#[cfg(target_os = "windows")]
+pub type UiCmd<'a> = &'a crate::ui::AppWindowCommand;
+
+#[cfg(not(target_os = "windows"))]
+pub type UiCmd<'a> = ();
+
+pub async fn run(params: StartupParameter, ui_cmd: UiCmd<'_>) -> McpatchExitCode {
     // 初始化终端日志记录器
     let console_log_level = match is_running_under_cargo() {
         true => match params.graphic_mode || params.disable_log_file {
@@ -60,13 +67,22 @@ pub async fn run(params: StartupParameter, ui_cmd: &AppWindowCommand) -> Mcpatch
             log_error(&e.reason);
 
             if params.graphic_mode {
-                let choice = ui_cmd.popup_dialog(DialogContent {
-                    title: "Error".to_owned(),
-                    content: format!("{}\n\n确定：忽略错误继续启动\n取消：终止启动过程并报错", e.reason),
-                    yesno: true,
-                }).await;
+                #[cfg(target_os = "windows")]
+                {
+                    let choice = ui_cmd.popup_dialog(DialogContent {
+                        title: "Error".to_owned(),
+                        content: format!("{}\n\n确定：忽略错误继续启动\n取消：终止启动过程并报错", e.reason),
+                        yesno: true,
+                    }).await;
 
-                match choice {
+                    match choice {
+                        true => McpatchExitCode(0),
+                        false => McpatchExitCode(1),
+                    }
+                }
+
+                #[cfg(not(target_os = "windows"))]
+                match allow_error {
                     true => McpatchExitCode(0),
                     false => McpatchExitCode(1),
                 }
@@ -80,7 +96,7 @@ pub async fn run(params: StartupParameter, ui_cmd: &AppWindowCommand) -> Mcpatch
     }
 }
 
-pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_error: &mut bool) -> Result<(), BusinessError> {
+pub async fn work(params: &StartupParameter, ui_cmd: UiCmd<'_>, allow_error: &mut bool) -> Result<(), BusinessError> {
     let working_dir = get_working_dir(params).await?;
     let exe_dir = get_executable_dir(params).await?;
     let config = GlobalConfig::load(&exe_dir.join("mcpatch.yml")).await?;
@@ -94,14 +110,18 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
     };
 
     // 显示窗口
+    #[cfg(target_os = "windows")]
     if !config.silent_mode {
         ui_cmd.set_visible(true).await;
     }
 
     // 初始化窗口内容
-    ui_cmd.set_title(config.window_title.to_owned()).await;
-    ui_cmd.set_label("".to_owned()).await;
-    ui_cmd.set_label_secondary("".to_owned()).await;    
+    #[cfg(target_os = "windows")]
+    {
+        ui_cmd.set_title(config.window_title.to_owned()).await;
+        ui_cmd.set_label("".to_owned()).await;
+        ui_cmd.set_label_secondary("".to_owned()).await;    
+    }
 
     // 初始化文件日志记录器
     if !params.disable_log_file {
@@ -130,11 +150,13 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
     let version_file = exe_dir.join(&config.version_file_path);
     let current_version = tokio::fs::read_to_string(&version_file).await.unwrap_or("".to_owned()).trim().to_owned();
     
+    #[cfg(target_os = "windows")]
     ui_cmd.set_label("正在检查更新".to_owned()).await;
 
     let server_versions = network.request_text("index.json", 0..0, "index file").await.be(|e| format!("检查更新失败，原因：{:?}", e))?;
     let server_versions = IndexFile::load_from_json(&server_versions);
 
+    #[cfg(target_os = "windows")]
     ui_cmd.set_label("正在看有没有更新".to_owned()).await;
 
     // 检查服务端版本数量
@@ -160,6 +182,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
 
     if latest_version != &current_version {
         if config.silent_mode {
+            #[cfg(target_os = "windows")]
             ui_cmd.set_visible(true).await;
         }
 
@@ -184,6 +207,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         let mut counter = 1;
 
         for ver in &missing_versions {
+            #[cfg(target_os = "windows")]
             ui_cmd.set_label(format!("正在下载元数据 {} ({}/{})", ver.label, counter, missing_versions.len())).await;
             counter += 1;
 
@@ -248,6 +272,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         let mut delete_files = Vec::<String>::new();
         let mut move_files = Vec::<MoveFile>::new();
 
+        #[cfg(target_os = "windows")]
         ui_cmd.set_label("正在收集要更新的文件".to_owned()).await;
 
         for meta in &version_metas {
@@ -400,6 +425,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             }
         }
 
+        #[cfg(target_os = "windows")]
         ui_cmd.set_label("下载更新数据".to_owned()).await;
         // tokio::time::sleep(std::time::Duration::from_millis(500000)).await;
 
@@ -429,9 +455,12 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             if now.duration_since(ui_timer).unwrap().as_millis() > 100 {
                 ui_timer = now;
                 // ui_cmd.set_label(format!("下载版本 {} 的更新数据 ({}/{})", label, file_counter, update_files.len())).await;
-                ui_cmd.set_progress(((total_downloaded as f32 / total_bytes as f32) * 1000f32) as u32).await;
-                ui_cmd.set_label_secondary(format!("{}", filename)).await; // {:.1}% percent
-                ui_cmd.set_label(format!("正在下载 {} 版本：{}/{} （{}/s）", label, convert_bytes(total_downloaded), convert_bytes(total_bytes), speed.sample_speed2())).await;
+                #[cfg(target_os = "windows")]
+                {
+                    ui_cmd.set_progress(((total_downloaded as f32 / total_bytes as f32) * 1000f32) as u32).await;
+                    ui_cmd.set_label_secondary(format!("{}", filename)).await; // {:.1}% percent
+                    ui_cmd.set_label(format!("正在下载 {} 版本：{}/{} （{}/s）", label, convert_bytes(total_downloaded), convert_bytes(total_bytes), speed.sample_speed2())).await;
+                }
             }
 
             let mut temp_file = tokio::fs::File::options().create(true).truncate(true).read(true).write(true).open(&temp_path).await
@@ -480,11 +509,15 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
                     let now = SystemTime::now();
                     if now.duration_since(ui_timer).unwrap().as_millis() > 500 {
                         ui_timer = now;
-                        // let percent = (bytes_counter as f32 / *len as f32) * 100f32;
-                        ui_cmd.set_label(format!("正在下载 {} 版本：{}/{} （{}/s）", label, convert_bytes(total_downloaded), convert_bytes(total_bytes), speed.sample_speed2())).await;
-                        // ui_cmd.set_label_secondary(format!("{}", temp_path.filename())).await; // {:.1}% percent
-                        ui_cmd.set_progress(((total_downloaded as f32 / total_bytes as f32) * 1000f32) as u32).await;
-                        // ui_cmd.set_title(format!("{} {}/s", config.window_title, spd)).await;
+
+                        #[cfg(target_os = "windows")]
+                        {
+                            // let percent = (bytes_counter as f32 / *len as f32) * 100f32;
+                            ui_cmd.set_label(format!("正在下载 {} 版本：{}/{} （{}/s）", label, convert_bytes(total_downloaded), convert_bytes(total_bytes), speed.sample_speed2())).await;
+                            // ui_cmd.set_label_secondary(format!("{}", temp_path.filename())).await; // {:.1}% percent
+                            ui_cmd.set_progress(((total_downloaded as f32 / total_bytes as f32) * 1000f32) as u32).await;
+                            // ui_cmd.set_title(format!("{} {}/s", config.window_title, spd)).await;
+                        }
                     }
                 }
 
@@ -514,6 +547,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         }
 
         // 2.处理要创建的空目录
+        #[cfg(target_os = "windows")]
         ui_cmd.set_label("正在处理新目录".to_owned()).await;
 
         for path in create_folders {
@@ -525,6 +559,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         }
         
         // 2.处理要移动的文件
+        #[cfg(target_os = "windows")]
         ui_cmd.set_label("正在处理文件移动，请不要关闭程序".to_owned()).await;
 
         for MoveFile { from, to } in move_files {
@@ -539,6 +574,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         }
 
         // 3.处理要删除的文件
+        #[cfg(target_os = "windows")]
         ui_cmd.set_label("正在处理旧文件和旧目录".to_owned()).await;
 
         for path in delete_files {
@@ -562,6 +598,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             }
         }
 
+        #[cfg(target_os = "windows")]
         ui_cmd.set_label("正在移动临时文件，请不要关闭程序".to_owned()).await;
         for u in &update_files {
             log_debug(&format!("apply temporary file {} => {}", &format!("{}.temp", &u.path), u.path));
@@ -575,6 +612,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         }
 
         // 清理临时文件夹
+        #[cfg(target_os = "windows")]
         ui_cmd.set_label("正在清理临时文件夹".to_owned()).await;
 
         if temp_dir.exists() {
@@ -582,6 +620,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
         }
 
         // 文件基本上更新完了，到这里就要进行收尾工作了
+        #[cfg(target_os = "windows")]
         ui_cmd.set_label("正在进行收尾工作".to_owned()).await;
 
         // 1.更新客户端版本号
@@ -594,16 +633,21 @@ pub async fn work(params: &StartupParameter, ui_cmd: &AppWindowCommand, allow_er
             changelogs += &format!("{}\n{}\n\n", meta.metadata.label, meta.metadata.logs);
         }
 
-        println!("更新成功: \n{}", changelogs.trim());
+        log_info(format!("更新成功: \n{}", changelogs.trim()));
 
+        #[cfg(target_os = "windows")]
         ui_cmd.popup_dialog(DialogContent {
             title: "更新成功".to_owned(),
             content: format!("已经更新到 {}", latest_version),
             yesno: false,
         }).await;
     } else {
+        log_info("没有更新");
+
+        #[cfg(target_os = "windows")]
         ui_cmd.set_label("没有更新".to_owned()).await;
 
+        #[cfg(target_os = "windows")]
         if config.show_finish_message || !config.silent_mode {
             ui_cmd.popup_dialog(DialogContent {
                 title: "".to_owned(),
