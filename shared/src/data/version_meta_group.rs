@@ -27,9 +27,10 @@
 use json::JsonValue;
 
 use crate::data::version_meta::VersionMeta;
+use crate::utility::vec_ext::VecRemoveIf;
 
 /// 代表一组版本元数据，每个更新包tar文件都能容纳多个版本的元数据，也叫一组
-pub struct VersionMetaGroup(Vec<VersionMeta>);
+pub struct VersionMetaGroup(pub Vec<VersionMeta>);
 
 impl VersionMetaGroup {
     /// 创建一个组空的元数据
@@ -60,16 +61,32 @@ impl VersionMetaGroup {
         obj.pretty(4)
     }
 
-    /// 添加一个元数据组
-    pub fn add_group(&mut self, group: VersionMetaGroup) {
-        for meta in group.0 {
-            self.add_meta(meta);
-        }
-    }
+    // /// 添加一个元数据组
+    // pub fn add_group(&mut self, group: VersionMetaGroup) {
+    //     for meta in group.0 {
+    //         if self.contains_meta(&meta.label) {
+    //             continue;
+    //         }
+
+    //         self.add_meta(meta);
+    //     }
+    // }
 
     /// 添加单个元数据
     pub fn add_meta(&mut self, meta: VersionMeta) {
+        assert!(!self.contains_meta(&meta.label));
+
         self.0.push(meta);
+    }
+
+    /// 删除一个元数据
+    pub fn remove_meta(&mut self, label: &str) -> bool {
+        self.0.remove_if(|e| e.label == label)
+    }
+
+    /// 检查是否包括一个元数据
+    pub fn contains_meta(&self, label: &str) -> bool {
+        self.0.iter().any(|e| e.label == label)
     }
 
     /// 查找一个元数据

@@ -68,14 +68,31 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
     // 保留所有元数据，最后会合并写入tar包里
     let mut meta_group = VersionMetaGroup::new();
 
+    // 记录所有读取的元数据，避免重复读取消耗时间
+    let mut meta_cache_keys = Vec::<String>::new();
+
     // 读取现有更新包，并复现在history上
     for v in &index_file {
+        // 跳过读取过的元数据
+        let cache_key = format!("{}|{}|{}", v.filename, v.offset, v.len);
+
+        if meta_cache_keys.contains(&cache_key) {
+            continue;
+        }
+
+        meta_cache_keys.push(cache_key);
+
+        // 开始正常读取
         let mut reader = TarReader::new(ctx.public_dir.join(&v.filename));
         let group = reader.read_metadata_group(v.offset, v.len);
-
-        for meta in &group {
+        
+        for meta in group.into_iter() {
+            if meta_group.contains_meta(&meta.label) {
+                continue;
+            }
+            
             history.replay_operations(&meta);
-
+            
             // 记录所有文件的数据和来源
             for change in &meta.changes {
                 match change {
@@ -98,9 +115,9 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
                     _ => (),
                 }
             }
-        }
 
-        meta_group.add_group(group);
+            meta_group.add_meta(meta);
+        }
     }
 
     println!("正在合并数据");
@@ -120,6 +137,7 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
     println!("正在更新元数据");
 
     // 写入元数据
+    let version_count = meta_group.0.len();
     let meta_loc = writer.finish(meta_group);
 
     // 更新索引文件
@@ -153,7 +171,7 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
         std::fs::remove_file(ctx.public_dir.join(&v.filename)).unwrap();
     }
 
-    println!("合并完成！");
+    println!("合并完成！一共合并了 {} 个版本", version_count);
 
     // 生成上传脚本
     let context = TemplateContext {
