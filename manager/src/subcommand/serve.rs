@@ -124,7 +124,7 @@ async fn serve_loop(stream: std::net::TcpStream, capacity: u64, regain: u64, ctx
                     ErrorKind::UnexpectedEof => {},
                     ErrorKind::ConnectionAborted => {},
                     ErrorKind::ConnectionReset => {},
-                    _ => Result::<(), _>::Err(e.kind()).unwrap(),
+                    _ => println!("{:?}", e.kind()),
                 }
 
                 break;
