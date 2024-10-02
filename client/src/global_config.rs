@@ -134,7 +134,7 @@ impl GlobalConfig {
         
         // 尝试解码base64编码后的服务器地址
         for line in urls.iter_mut() {
-            if let Ok(decoded) = base64::engine::general_purpose::STANDARD_NO_PAD.decode(line.as_bytes()) {
+            if let Ok(decoded) = base64::engine::general_purpose::STANDARD.decode(line.as_bytes()) {
                 line.clear();
                 line.push_str(&String::from_utf8(decoded).unwrap());
             }
