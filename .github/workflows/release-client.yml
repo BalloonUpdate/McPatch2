@@ -19,14 +19,19 @@ jobs:
         include:
           - os: windows-latest
             rustc-target: x86_64-pc-windows-msvc
-          # - os: ubuntu-latest
-          #   rustc-target: x86_64-unknown-linux-gnu
-    runs-on: windows-latest
+          - os: ubuntu-latest
+            rustc-target: x86_64-unknown-linux-gnu
+    runs-on: ${{ matrix.os }}
     env:
       rust-version: '1.80'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install dependencies on Linux
+        if: runner.os == 'Linux'
+        run: |-
+          sudo apt install libssl-dev
 
       - name: Cargo build
         env:
