@@ -1,6 +1,4 @@
 //! 运行内置服务端，使用私有协议
-
-use std::io::ErrorKind;
 use std::net::TcpListener;
 use std::ops::Range;
 use std::time::SystemTime;
@@ -31,6 +29,8 @@ pub fn do_serve(port: u16, capacity: u64, regain: u64, _ctx: &AppContext) -> i32
 
     for stream in listener.incoming() {
         let stream = stream.unwrap();
+        stream.set_read_timeout(Some(std::time::Duration::from_secs(30))).expect("设置连接 Read Timeout 参数失败");
+        stream.set_write_timeout(Some(std::time::Duration::from_secs(30))).expect("设置连接 Write Timeout 参数失败");
         let ctx = _ctx.clone();
         runtime.spawn(async move { serve_loop(stream, capacity, regain, ctx).await });
     }
@@ -113,23 +113,20 @@ async fn serve_loop(stream: std::net::TcpStream, capacity: u64, regain: u64, ctx
         let result = inner(&mut stream, capacity, regain, &ctx, &mut info).await;
         let time = SystemTime::now().duration_since(start).unwrap();
 
-        if let Some(info) = info {
-            println!("{} - {} {}+{} ({}ms)", stream.peer_addr().unwrap(), info.0, info.1.start, info.1.end - info.1.start, time.as_millis());
-        }
-        
-        match result {
-            Ok(_) => {},
-            Err(e) => {
-                match e.kind() {
-                    ErrorKind::UnexpectedEof => {},
-                    ErrorKind::ConnectionAborted => {},
-                    ErrorKind::ConnectionReset => {},
-                    _ => println!("{:?}", e.kind()),
-                }
+        match info {
+            Some(info) => {
+                let error_message = match result {
+                    Ok(_) => "".to_owned(),
+                    Err(e) => format!("{:?}", e.kind()),
+                };
 
-                break;
+                println!("{} - {} {}+{} ({}ms) {}", stream.peer_addr().unwrap(), info.0, info.1.start, info.1.end - info.1.start, time.as_millis(), error_message);
+            },
+            None => {
+                println!("{} - unknown ({}ms)", stream.peer_addr().unwrap(), time.as_millis());
             },
         }
+
     }
 }
 
