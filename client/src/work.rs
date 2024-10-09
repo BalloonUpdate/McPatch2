@@ -30,15 +30,16 @@ use crate::log::FileHandler;
 use crate::log::MessageLevel;
 use crate::network::Network;
 use crate::speed_sampler::SpeedCalculator;
+use crate::ui::message_box_ui::MessageBoxWindow;
 use crate::utils::convert_bytes;
 use crate::McpatchExitCode;
 use crate::StartupParameter;
 
 #[cfg(target_os = "windows")]
-use crate::ui::DialogContent;
+use crate::ui::main_ui::DialogContent;
 
 #[cfg(target_os = "windows")]
-pub type UiCmd<'a> = &'a crate::ui::AppWindowCommand;
+pub type UiCmd<'a> = &'a crate::ui::main_ui::MainUiCommand;
 
 #[cfg(not(target_os = "windows"))]
 pub type UiCmd<'a> = ();
@@ -624,23 +625,24 @@ pub async fn work(params: &StartupParameter, ui_cmd: UiCmd<'_>, allow_error: &mu
         ui_cmd.set_label("正在进行收尾工作".to_owned()).await;
 
         // 1.更新客户端版本号
-        tokio::fs::write(&version_file, latest_version.as_bytes()).await.be(|e| format!("更新客户端版本号文件为 {} 时失败({:?})，原因：{:?}", latest_version, version_file, e))?;
+        // tokio::fs::write(&version_file, latest_version.as_bytes()).await.be(|e| format!("更新客户端版本号文件为 {} 时失败({:?})，原因：{:?}", latest_version, version_file, e))?;
 
         // 2.弹出更新记录
         let mut changelogs = "".to_owned();
 
         for meta in &version_metas {
-            changelogs += &format!("{}\n{}\n\n", meta.metadata.label, meta.metadata.logs);
+            changelogs += &format!("++++++++++ {} ++++++++++\n{}\n\n", meta.metadata.label, meta.metadata.logs);
         }
 
         log_info(format!("更新成功: \n{}", changelogs.trim()));
 
+        // 弹出更新记录窗口
         #[cfg(target_os = "windows")]
-        ui_cmd.popup_dialog(DialogContent {
-            title: "更新成功".to_owned(),
-            content: format!("已经更新到 {}", latest_version),
-            yesno: false,
-        }).await;
+        {
+            let content = format!("已经从 {} 更新到 {}\r\n\r\n{}", current_version, latest_version, changelogs.trim().replace("\n", "\r\n"));
+
+            MessageBoxWindow::popup("更新完成", content).await;
+        }
     } else {
         log_info("没有更新");
 
@@ -651,7 +653,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: UiCmd<'_>, allow_error: &mu
         if config.show_finish_message || !config.silent_mode {
             ui_cmd.popup_dialog(DialogContent {
                 title: "".to_owned(),
-                content: format!("文件版本已是最新 {}", current_version),
+                content: format!("当前已是最新的版本 {}", current_version),
                 yesno: false,
             }).await;
         }

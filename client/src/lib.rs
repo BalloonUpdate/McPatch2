@@ -55,7 +55,7 @@ pub fn program() -> McpatchExitCode {
     let window_close_signal = tokio::sync::oneshot::channel::<()>();
     
     #[cfg(target_os = "windows")]
-    let (ui_cmd, _window) = crate::ui::AppWindow::new();
+    let (ui_cmd, _ui) = crate::ui::main_ui::MainWindow::new();
     let panic_info_captured = Arc::new(Mutex::new(Option::<String>::None));
 
     // 捕获异常
@@ -104,7 +104,6 @@ pub fn program() -> McpatchExitCode {
             match result {
                 Ok(code) => code,
                 Err(_) => McpatchExitCode(1),
-                // Err(_) => std::process::exit(1), // 强制退出
             }
         });
         
