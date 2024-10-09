@@ -625,7 +625,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: UiCmd<'_>, allow_error: &mu
         ui_cmd.set_label("正在进行收尾工作".to_owned()).await;
 
         // 1.更新客户端版本号
-        // tokio::fs::write(&version_file, latest_version.as_bytes()).await.be(|e| format!("更新客户端版本号文件为 {} 时失败({:?})，原因：{:?}", latest_version, version_file, e))?;
+        tokio::fs::write(&version_file, latest_version.as_bytes()).await.be(|e| format!("更新客户端版本号文件为 {} 时失败({:?})，原因：{:?}", latest_version, version_file, e))?;
 
         // 2.弹出更新记录
         let mut changelogs = "".to_owned();
