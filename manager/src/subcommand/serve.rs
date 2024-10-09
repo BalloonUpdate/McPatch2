@@ -1,4 +1,5 @@
 //! 运行内置服务端，使用私有协议
+use std::io::ErrorKind;
 use std::net::TcpListener;
 use std::ops::Range;
 use std::time::SystemTime;
@@ -113,20 +114,23 @@ async fn serve_loop(stream: std::net::TcpStream, capacity: u64, regain: u64, ctx
         let result = inner(&mut stream, capacity, regain, &ctx, &mut info).await;
         let time = SystemTime::now().duration_since(start).unwrap();
 
-        match info {
-            Some(info) => {
-                let error_message = match result {
-                    Ok(_) => "".to_owned(),
-                    Err(e) => format!("{:?}", e.kind()),
-                };
-
-                println!("{} - {} {}+{} ({}ms) {}", stream.peer_addr().unwrap(), info.0, info.1.start, info.1.end - info.1.start, time.as_millis(), error_message);
+        match result {
+            Ok(_) => {
+                // 既然result是ok，那么info一定不是none
+                let info = info.unwrap();
+                println!("{} - {} {}+{} ({}ms)", stream.peer_addr().unwrap(), info.0, info.1.start, info.1.end - info.1.start, time.as_millis());
             },
-            None => {
-                println!("{} - unknown ({}ms)", stream.peer_addr().unwrap(), time.as_millis());
+            Err(e) => {
+                match e.kind() {
+                    ErrorKind::UnexpectedEof => {},
+                    ErrorKind::ConnectionAborted => {},
+                    ErrorKind::ConnectionReset => {},
+                    _ => println!("{} - {:?}", stream.peer_addr().unwrap(), e.kind()),
+                }
+    
+                break;
             },
         }
-
     }
 }
 
