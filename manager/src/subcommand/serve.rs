@@ -4,6 +4,7 @@ use std::net::TcpListener;
 use std::ops::Range;
 use std::time::SystemTime;
 
+use chrono::Local;
 use shared::utility::partial_read::PartialAsyncRead;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncSeekExt;
@@ -118,7 +119,8 @@ async fn serve_loop(stream: std::net::TcpStream, capacity: u64, regain: u64, ctx
             Ok(_) => {
                 // 既然result是ok，那么info一定不是none
                 let info = info.unwrap();
-                println!("{} - {} {}+{} ({}ms)", stream.peer_addr().unwrap(), info.0, info.1.start, info.1.end - info.1.start, time.as_millis());
+                let ts = Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+                println!("[{}] {} - {} {}+{} ({}ms)", ts, stream.peer_addr().unwrap(), info.0, info.1.start, info.1.end - info.1.start, time.as_millis());
             },
             Err(e) => {
                 match e.kind() {
