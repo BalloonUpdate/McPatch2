@@ -55,18 +55,7 @@ enum Commands {
     Revert,
 
     /// 运行内置服务端
-    Serve {
-        /// 端口
-        port: u16,
-
-        /// 单链接限速参数之令牌桶容量。默认不开启限速
-        #[arg(default_value_t = 0)]
-        capacity: u64,
-
-        /// 单链接限速参数之令牌回复速率（单位每秒多少个）。默认不开启限速
-        #[arg(default_value_t = 0)]
-        regain: u64,
-    },
+    Serve,
 }
 
 #[derive(Deserialize, Clone)]
@@ -75,6 +64,10 @@ pub struct AppConfig {
    pub exclude_rules: Vec<String>,
    pub upload_script_template: String,
    pub upload_script_output: String,
+   pub serve_listen_port: u16,
+   pub serve_listen_addr: String,
+   pub serve_tbf_burst: u32,
+   pub serve_tbf_rate: u32,
 }
 
 #[derive(Clone)]
@@ -172,6 +165,6 @@ fn handle_command(cmd: CommandLineInterface) -> i32 {
         Commands::Combine => do_combine(&context),
         Commands::Test => do_test(&context),
         Commands::Revert => do_revert(&context),
-        Commands::Serve { port, capacity, regain } => do_serve(port, capacity, regain, &context),
+        Commands::Serve => do_serve(&context),
     }
 }

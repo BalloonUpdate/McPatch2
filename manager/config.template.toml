@@ -8,3 +8,17 @@ upload-script-template = "upload-template.txt"
 
 # 上传脚本的输出文件
 upload-script-output = "upload.txt"
+
+# 内置服务端的监听端口
+serve-listen-port = 6700
+
+# 内置服务端的监听地址，ipv4回环地址是0.0.0.0，ipv6回环地址是::1
+serve-listen-addr = "0.0.0.0"
+
+# 内置服务端之限速功能的并发容量，单位为字节，默认为0不开启限速
+# 如果需要开启可以填写建议值1048576（背后的限速算法为令牌桶）
+serve-tbf-burst = 0
+
+# 内置服务端之限速功能的每秒回复的令牌数，单位为字节，默认为0不开启限速
+# 如果需要开启，这里填写需要限制的最大速度即可，比如1048576代表单链接限速1mb/s（背后的限速算法为令牌桶）
+serve-tbf-rate = 0

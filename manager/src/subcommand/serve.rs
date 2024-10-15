@@ -14,17 +14,29 @@ use tokio::net::TcpStream;
 use crate::utility::traffic_control::AsyncTrafficControl;
 use crate::AppContext;
 
-pub fn do_serve(port: u16, capacity: u64, regain: u64, _ctx: &AppContext) -> i32 {
+pub fn do_serve(ctx: &AppContext) -> i32 {
+
+    println!("==============改动说明==============");
+    println!("自管理端0.0.14版本开始");
+    println!("serve命令的端口设置，已经移动到配置文件config.toml中");
+    println!("请备份现有的config.toml后，删除此文件重新生成");
+    println!("============================");
+
+    let capacity = ctx.config.serve_tbf_burst;
+    let regain = ctx.config.serve_tbf_rate;
+
     if capacity > 0 && regain > 0 {
         println!("启动内置服务端，限速参数：突发容量：{}, 限速速率：{}", capacity, regain);
     } else {
         println!("启动内置服务端");
     }
 
-    let host = "0.0.0.0";
-    let port = format!("{}", port);
+    let host = &ctx.config.serve_listen_addr;
+    let port = format!("{}", ctx.config.serve_listen_port);
 
-    let listener = TcpListener::bind(format!("{}:{}", host, port)).unwrap();
+    let listen_ip_port = format!("{}:{}", host, port);
+
+    let listener = TcpListener::bind(listen_ip_port).unwrap();
     println!("listening on {}:{}", host, port);
 
     let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
@@ -33,17 +45,17 @@ pub fn do_serve(port: u16, capacity: u64, regain: u64, _ctx: &AppContext) -> i32
         let stream = stream.unwrap();
         stream.set_read_timeout(Some(std::time::Duration::from_secs(30))).expect("设置连接 Read Timeout 参数失败");
         stream.set_write_timeout(Some(std::time::Duration::from_secs(30))).expect("设置连接 Write Timeout 参数失败");
-        let ctx = _ctx.clone();
-        runtime.spawn(async move { serve_loop(stream, capacity, regain, ctx).await });
+        let ctx = ctx.clone();
+        runtime.spawn(async move { serve_loop(stream, ctx).await });
     }
 
     0
 }
 
-async fn serve_loop(stream: std::net::TcpStream, capacity: u64, regain: u64, ctx: AppContext) {
+async fn serve_loop(stream: std::net::TcpStream, ctx: AppContext) {
     let mut stream = TcpStream::from_std(stream).unwrap();
 
-    async fn inner(mut stream: &mut TcpStream, capacity: u64, regain: u64, ctx: &AppContext, info: &mut Option<(String, Range<u64>)>) -> std::io::Result<()> {
+    async fn inner(mut stream: &mut TcpStream, ctx: &AppContext, info: &mut Option<(String, Range<u64>)>) -> std::io::Result<()> {
         // 接收文件路径
         let mut path = String::with_capacity(1024);
         receive_data(&mut stream).await?.read_to_string(&mut path).await?;
@@ -89,7 +101,7 @@ async fn serve_loop(stream: std::net::TcpStream, capacity: u64, regain: u64, ctx
         file.seek(std::io::SeekFrom::Start(start)).await?;
 
         // 增加限速效果
-        let mut file = AsyncTrafficControl::new(&mut file, capacity, regain);
+        let mut file = AsyncTrafficControl::new(&mut file, ctx.config.serve_tbf_burst as u64, ctx.config.serve_tbf_rate as u64);
 
         while remains > 0 {
             let mut buf = [0u8; 32 * 1024];
@@ -112,7 +124,7 @@ async fn serve_loop(stream: std::net::TcpStream, capacity: u64, regain: u64, ctx
         let mut info = Option::<(String, Range<u64>)>::None;
 
         let start = SystemTime::now();
-        let result = inner(&mut stream, capacity, regain, &ctx, &mut info).await;
+        let result = inner(&mut stream, &ctx, &mut info).await;
         let time = SystemTime::now().duration_since(start).unwrap();
 
         match result {
