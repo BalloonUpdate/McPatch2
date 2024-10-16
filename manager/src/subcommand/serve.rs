@@ -14,11 +14,10 @@ use tokio::net::TcpStream;
 use crate::utility::traffic_control::AsyncTrafficControl;
 use crate::AppContext;
 
-pub fn do_serve(ctx: &AppContext) -> i32 {
-
+pub fn do_serve(port: u16, ctx: &AppContext) -> i32 {
     println!("==============改动说明==============");
     println!("自管理端0.0.14版本开始");
-    println!("serve命令的端口设置，已经移动到配置文件config.toml中");
+    println!("serve命令的端口设置，已经从命令行参数，移动到配置文件config.toml中");
     println!("请备份现有的config.toml后，删除此文件重新生成");
     println!("============================");
 
@@ -32,7 +31,7 @@ pub fn do_serve(ctx: &AppContext) -> i32 {
     }
 
     let host = &ctx.config.serve_listen_addr;
-    let port = format!("{}", ctx.config.serve_listen_port);
+    let port = format!("{}", if port != 0 { port } else { ctx.config.serve_listen_port });
 
     let listen_ip_port = format!("{}:{}", host, port);
 

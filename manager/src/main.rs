@@ -55,7 +55,11 @@ enum Commands {
     Revert,
 
     /// 运行内置服务端
-    Serve,
+    Serve {
+        /// 端口
+        #[arg(default_value_t = 0)]
+        port: u16,
+    },
 }
 
 #[derive(Deserialize, Clone)]
@@ -64,10 +68,34 @@ pub struct AppConfig {
    pub exclude_rules: Vec<String>,
    pub upload_script_template: String,
    pub upload_script_output: String,
+
+   #[serde(default = "default_serve_listen_port")]
    pub serve_listen_port: u16,
+
+   #[serde(default = "default_serve_listen_addr")]
    pub serve_listen_addr: String,
+
+   #[serde(default = "default_serve_tbf_burst")]
    pub serve_tbf_burst: u32,
+
+   #[serde(default = "default_serve_tbf_rate")]
    pub serve_tbf_rate: u32,
+}
+
+fn default_serve_listen_port() -> u16 {
+    6700
+}
+
+fn default_serve_listen_addr() -> String {
+    "0.0.0.0".to_owned()
+}
+
+fn default_serve_tbf_burst() -> u32 {
+    0
+}
+
+fn default_serve_tbf_rate() -> u32 {
+    0
 }
 
 #[derive(Clone)]
@@ -165,6 +193,6 @@ fn handle_command(cmd: CommandLineInterface) -> i32 {
         Commands::Combine => do_combine(&context),
         Commands::Test => do_test(&context),
         Commands::Revert => do_revert(&context),
-        Commands::Serve => do_serve(&context),
+        Commands::Serve { port, .. } => do_serve(port, &context),
     }
 }
