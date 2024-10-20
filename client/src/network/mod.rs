@@ -80,15 +80,11 @@ impl<'a> Network<'a> {
         assert!(range.end >= range.start);
 
         let mut io_error = Option::<(std::io::Error, String)>::None;
-        let mut skip = 0;
         
-        for source in &mut self.sources {
-            if skip < self.skip_sources {
-                skip += 1;
-                continue;
-            }
+        for (index, source) in (&mut self.sources[self.skip_sources..]).iter_mut().enumerate() {
+            let url_index = self.skip_sources + index;
 
-            log_debug(format!("+ request {} {}+{} ({})", path, range.start, range.end - range.start, desc));
+            log_debug(format!("+ request {} {}+{} ({}) url: {}", path, range.start, range.end - range.start, desc, url_index));
 
             for i in 0..self.config.http_retries + 1 {
                 match source.request(path, &range, desc.as_ref(), self.config).await {
@@ -102,13 +98,11 @@ impl<'a> Network<'a> {
                         io_error = Some((err, source.mask_keyword().to_owned()));
                         
                         if i != self.config.http_retries {
-                            log_error("retrying")
+                            log_error(format!("url {} failed, retrying...", url_index));
                         }
                     },
                 }
             }
-
-            self.skip_sources += 1;
         }
         
         let (err, kw) = io_error.unwrap();
