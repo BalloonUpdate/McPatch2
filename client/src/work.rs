@@ -30,10 +30,12 @@ use crate::log::FileHandler;
 use crate::log::MessageLevel;
 use crate::network::Network;
 use crate::speed_sampler::SpeedCalculator;
-use crate::ui::message_box_ui::MessageBoxWindow;
 use crate::utils::convert_bytes;
 use crate::McpatchExitCode;
 use crate::StartupParameter;
+
+#[cfg(target_os = "windows")]
+use crate::ui::message_box_ui::MessageBoxWindow;
 
 #[cfg(target_os = "windows")]
 use crate::ui::main_ui::DialogContent;
