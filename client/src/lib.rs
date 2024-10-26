@@ -130,7 +130,7 @@ pub fn program() -> McpatchExitCode {
 
 /// 报错弹框
 #[cfg(target_os = "windows")]
-fn popup_error_dialog(info: &std::panic::PanicInfo, backtrace: std::backtrace::Backtrace) {
+fn popup_error_dialog(info: &std::panic::PanicHookInfo, backtrace: std::backtrace::Backtrace) {
     let mp = nwg::MessageParams {
         title: "Fatal error occurred",
         content: "程序出现错误，即将结束运行。点击确定直接退出，点击取消打印错误信息",
