@@ -12,7 +12,7 @@ use crate::ui::OneshotReceiver;
 /// 参考链接：https://github.com/gabdube/native-windows-gui/blob/master/native-windows-gui/examples/dialog_multithreading_d.rs
 #[derive(NwgUi)]
 pub struct MessageBoxWindow {
-    #[nwg_control(size: (480, 340), flags: "WINDOW|VISIBLE", center: true, topmost: false)]
+    #[nwg_control(size: (480, 340), flags: "WINDOW|VISIBLE", center: true, topmost: true)]
     #[nwg_events(OnWindowClose: [MessageBoxWindow::close])]
     window: nwg::Window,
 
