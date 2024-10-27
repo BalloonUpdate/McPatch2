@@ -5,8 +5,7 @@ members = [
     "shared",
     "manager", 
     "client", 
-    "xtask",
-    "client-dynlib"
+    "xtask"
 ]
 
 [workspace.package]

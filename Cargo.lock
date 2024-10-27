@@ -255,13 +255,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "client-dynlib"
-version = "0.0.1"
-dependencies = [
- "client",
-]
-
-[[package]]
 name = "colorchoice"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
