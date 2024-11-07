@@ -87,18 +87,32 @@ impl<'a> Network<'a> {
             log_debug(format!("+ request {} {}+{} ({}) url: {}", path, range.start, range.end - range.start, desc, url_index));
 
             for i in 0..self.config.http_retries + 1 {
-                match source.request(path, &range, desc.as_ref(), self.config).await {
+                let r = source.request(path, &range, desc.as_ref(), self.config).await;
+
+                match r {
+                    // io错误没有
                     Ok(ok) => {
                         match ok {
+                            // 业务错误也没有，就正常返回结果
                             Ok(ok) => return Ok(ok),
-                            Err(err) => return Err(err),
+
+                            // 如果遇到业务错误，也参与重试
+                            Err(err) => {
+                                io_error = Some((std::io::Error::new(std::io::ErrorKind::Other, err.reason), source.mask_keyword().to_owned()));
+                                
+                                if i != self.config.http_retries {
+                                    log_error(format!("url {} encountered an business error, retrying...", url_index));
+                                }
+                            },
                         }
                     },
+
+                    // 遇到io错误
                     Err(err) => {
                         io_error = Some((err, source.mask_keyword().to_owned()));
                         
                         if i != self.config.http_retries {
-                            log_error(format!("url {} failed, retrying...", url_index));
+                            log_error(format!("url {} encountered an io error, retrying...", url_index));
                         }
                     },
                 }
