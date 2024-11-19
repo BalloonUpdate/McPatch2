@@ -1,21 +1,29 @@
-//! 检查工作空间目录的文件修改情况
-
 use std::rc::Weak;
 
+use axum::extract::State;
+use axum::response::Response;
 use shared::data::index_file::IndexFile;
 
 use crate::common::tar_reader::TarReader;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
-use crate::AppContext;
+use crate::web::webstate::WebState;
 
 /// 检查工作空间目录的文件修改情况，类似于git status命令
-pub fn do_check(ctx: &AppContext) -> i32 {
-    let index_file = IndexFile::load_from_file(&ctx.index_file);
-    
+pub async fn api_check(State(state): State<WebState>) -> Response {
+    state.clone().te.lock().await
+        .try_schedule(move || do_check(state)).await
+}
+
+fn do_check(state: WebState) {
+    let ctx = state.app_context;
+    let mut console = state.console.blocking_lock();
+
     // 读取现有更新包，并复现在history上
-    println!("正在读取数据");
+    let index_file = IndexFile::load_from_file(&ctx.index_file);
+
+    console.log("正在读取数据");
 
     let mut history = HistoryFile::new_empty();
 
@@ -29,14 +37,12 @@ pub fn do_check(ctx: &AppContext) -> i32 {
     }
 
     // 对比文件
-    println!("正在扫描文件更改");
+    console.log("正在扫描文件更改");
 
     let disk_file = DiskFile::new(ctx.workspace_dir.clone(), Weak::new());
     let diff = Diff::diff(&disk_file, &history, Some(&ctx.config.exclude_rules));
 
     // 输出文件差异
-    println!("{:#?}", diff);
-    println!("{}", diff);
-
-    0
+    console.log(format!("{:#?}", diff));
+    console.log(format!("{}", diff));
 }

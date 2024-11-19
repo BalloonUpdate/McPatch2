@@ -1,15 +1,12 @@
-//! 打包新版本
-//! 
-//! 打包过程：
-//! 
-//! 1. 读取所有历史版本，并推演出上个版本的文件状态，用于和工作空间目录对比生成文件差异
-//! 2. 将所有“覆盖的文件”的数据和元数据写入到更新包中，同时更新元数据中每个文件的偏移值
-//! 3. 更新索引文件
-
+use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::ops::Deref;
 use std::rc::Weak;
 
+use axum::body::Body;
+use axum::extract::Query;
+use axum::extract::State;
+use axum::response::Response;
 use shared::data::index_file::IndexFile;
 use shared::data::index_file::VersionIndex;
 use shared::data::version_meta::VersionMeta;
@@ -22,21 +19,36 @@ use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
-use crate::upload::generate_upload_script;
-use crate::upload::TemplateContext;
-use crate::AppContext;
+use crate::web::webstate::WebState;
 
-/// 执行新版本打包
-pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
+/// 打包新版本
+pub async fn api_pack(Query(params): Query<HashMap<String, String>>, State(state): State<WebState>) -> Response {
+    let label = match params.get("label") {
+        Some(ok) => ok.to_owned(),
+        None => return Response::builder()
+            .status(500)
+            .body(Body::new("parameter 'label' is missing.".to_string()))
+            .unwrap(),
+    };
+
+    state.clone().te.lock().await
+        .try_schedule(move || do_check(label, state)).await
+}
+
+fn do_check(version_label: String, state: WebState) {
+    let ctx = state.app_context;
+    let mut console = state.console.blocking_lock();
+    
     let mut index_file = IndexFile::load_from_file(&ctx.index_file);
 
     if index_file.contains(&version_label) {
-        println!("版本号已经存在: {}", version_label);
-        return 2;
+        console.log(format!("版本号已经存在: {}", version_label));
+        return;
     }
 
+    // 1. 读取所有历史版本，并推演出上个版本的文件状态，用于和工作空间目录对比生成文件差异
     // 读取现有更新包，并复现在history上
-    println!("正在读取数据");
+    console.log("正在读取数据");
 
     let mut history = HistoryFile::new_dir("workspace_root", Weak::new());
 
@@ -50,18 +62,19 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     }
 
     // 对比文件
-    println!("正在扫描文件更改");
+    console.log("正在扫描文件更改");
 
     let disk_file = DiskFile::new(ctx.workspace_dir.clone(), Weak::new());
     let diff = Diff::diff(&disk_file, &history, Some(&ctx.config.exclude_rules));
 
     if !diff.has_diff() {
-        println!("目前工作目录还没有任何文件修改");
-        return 1;
+        console.log("目前工作目录还没有任何文件修改");
+        return;
     }
 
-    println!("{:#?}", diff);
+    console.log(format!("{:#?}", diff));
 
+    // 2. 将所有“覆盖的文件”的数据和元数据写入到更新包中，同时更新元数据中每个文件的偏移值
     // 创建新的更新包，将所有文件修改写进去
     std::fs::create_dir_all(&ctx.public_dir).unwrap();
     let version_filename = format!("{}.tar", version_label);
@@ -69,9 +82,19 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     let mut writer = TarWriter::new(&version_file);
 
     // 写入每个更新的文件数据
+    let mut vec = Vec::<&DiskFile>::new();
+    
+    for f in &diff.added_files {
+        vec.push(f);
+    }
+
+    for f in &diff.modified_files {
+        vec.push(f);
+    }
+
     let mut counter = 1;
-    for f in &diff.updated_files {
-        println!("打包({}/{}) {}", counter, diff.updated_files.len(), f.path().deref());
+    for f in &vec {
+        console.log(format!("打包({}/{}) {}", counter, vec.len(), f.path().deref()));
         counter += 1;
 
         let path = f.path().to_owned();
@@ -86,7 +109,7 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     }
 
     // 写入元数据
-    println!("写入元数据");
+    console.log("写入元数据");
 
     // 读取写好的更新记录
 
@@ -106,7 +129,7 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     let meta_group = VersionMetaGroup::with_one(meta);
     let meta_info = writer.finish(meta_group);
 
-    // 更新索引文件
+    // 3. 更新索引文件
     index_file.add(VersionIndex {
         label: version_label.to_owned(),
         filename: version_filename,
@@ -116,25 +139,23 @@ pub fn do_pack(version_label: String, ctx: &AppContext) -> i32 {
     });
 
     // 进行解压测试
-    println!("正在测试");
+    console.log("正在测试");
 
     let mut tester = ArchiveTester::new();
     for v in &index_file {
         tester.feed(ctx.public_dir.join(&v.filename), v.offset, v.len);
     }
-    tester.finish();
+    tester.finish(|e| console.log(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
 
-    println!("测试通过，打包完成！");
+    console.log("测试通过，打包完成！");
     
     index_file.save(&ctx.index_file);
 
-    // 生成上传脚本
-    let context = TemplateContext {
-        upload_files: vec![version_file.strip_prefix(&ctx.working_dir).unwrap().to_str().unwrap().to_owned()],
-        delete_files: Vec::new(),
-    };
+    // // 生成上传脚本
+    // let context = TemplateContext {
+    //     upload_files: vec![version_file.strip_prefix(&ctx.working_dir).unwrap().to_str().unwrap().to_owned()],
+    //     delete_files: Vec::new(),
+    // };
 
-    generate_upload_script(context, ctx, &version_label);
-
-    0
+    // generate_upload_script(context, ctx, &version_label);
 }

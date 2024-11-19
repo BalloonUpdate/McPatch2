@@ -1,6 +1,7 @@
 //! 更新包解压测试
 
 use std::collections::HashMap;
+use std::fmt::Debug;
 use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
@@ -61,20 +62,31 @@ impl ArchiveTester {
     }
 
     /// 开始测试
-    pub fn finish(mut self) {
+    pub fn finish<F: FnMut(Testing) -> ()>(mut self, mut f: F) -> Result<(), Failure> {
         self.finished = true;
 
         let empty = HistoryFile::new_empty();
         let diff = Diff::diff(&self.history, &empty, None);
 
-        let total = diff.updated_files.len();
+        let mut vec = Vec::<&HistoryFile>::new();
 
-        for (index, up) in diff.updated_files.iter().enumerate() {
+        for f in &diff.added_files {
+            vec.push(f);
+        }
+
+        for f in &diff.modified_files {
+            vec.push(f);
+        }
+
+        let total = vec.len();
+
+        for (index, up) in vec.iter().enumerate() {
             let path = up.path();
             let path = path.deref();
             let (archive, offset, len, label) = self.file_locations.get(path).unwrap();
 
-            println!("{index}/{total} 正在测试 {label} 的 {path} ({offset}+{len})");
+            // println!("{index}/{total} 正在测试 {label} 的 {path} ({offset}+{len})");
+            f(Testing { index, total, label, path, offset: *offset, len: *len });
 
             let mut reader = TarReader::new(&archive);
             let mut open = reader.open_file(*offset, *len);
@@ -82,12 +94,23 @@ impl ArchiveTester {
             let expected = up.hash();
             let expected = expected.deref();
 
-            assert!(
-                &actual == expected, 
-                "文件哈希不匹配！文件路径: {}, 版本: {} 实际: {}, 预期: {}, 偏移: 0x{offset:x}, 长度: {len}",
-                path, label, actual, expected
-            );
+            if &actual != expected {
+                return Err(Failure {
+                    path: path.to_owned(), 
+                    label: label.to_owned(), 
+                    actual, 
+                    expected: expected.to_owned(),
+                });
+            }
+
+            // assert!(
+            //     &actual == expected, 
+            //     "文件哈希不匹配！文件路径: {}, 版本: {} 实际: {}, 预期: {}, 偏移: 0x{offset:x}, 长度: {len}",
+            //     path, label, actual, expected
+            // );
         }
+
+        Ok(())
     }
 }
 
@@ -96,3 +119,43 @@ impl Drop for ArchiveTester {
         assert!(self.finished, "ArchiveTester is not finished yet!")
     }
 }
+
+/// 代表测试过程中的日志
+#[derive(Debug)]
+pub struct Testing<'a> {
+    /// 当前正在测试第几个文件
+    pub index: usize,
+
+    /// 一共有多少个文件
+    pub total: usize,
+
+    /// 正在测试的文件所属的版本标签
+    pub label: &'a str,
+
+    /// 正在测试的文件在更新包里的相对路径
+    pub path: &'a str,
+
+    /// 正在测试的文件在更新包里的偏移地址
+    pub offset: u64,
+
+    /// 正在测试的文件在更新包里的大小
+    pub len: u64,
+}
+
+/// 代表一个更新包测试的失败结果
+#[derive(Debug)]
+pub struct Failure {
+    /// 失败的文件的路径
+    pub path: String,
+
+    /// 失败的文件所属的版本标签
+    pub label: String,
+
+    /// 实际的校验值
+    pub actual: String,
+    
+    /// 预期的校验值
+    pub expected: String,
+}
+
+

@@ -1,66 +1,19 @@
 //! mcpatch2管理端第二版
-
-use std::ffi::OsString;
-use std::io::Write;
 use std::path::PathBuf;
-use std::str::FromStr;
 
-use clap::Parser;
-use clap::Subcommand;
 use shared::utility::is_running_under_cargo;
 use serde::Deserialize;
 
-use crate::subcommand::check::do_check;
-use crate::subcommand::combine::do_combine;
-use crate::subcommand::pack::do_pack;
-use crate::subcommand::revert::do_revert;
-use crate::subcommand::serve::do_serve;
-use crate::subcommand::test::do_test;
+use crate::web::serve_web;
 
 pub mod utility;
 pub mod subcommand;
 pub mod diff;
 pub mod common;
 pub mod upload;
+pub mod web;
 
 const CONFIG_TEMPLATE_STRING: &str = include_str!("../config.template.toml");
-
-#[derive(Parser)]
-struct CommandLineInterface {
-    // #[arg(long, action = clap::ArgAction::Count)]
-    // json_mode: u8,
-
-    #[command(subcommand)]
-    command: Commands
-}
-
-#[derive(Subcommand)]
-enum Commands {
-    /// 打包一个新的版本
-    Pack {
-        /// 指定新的版本号
-        version_label: String
-    },
-
-    /// 检查工作空间的文件修改情况
-    Check,
-
-    /// 合并更新包
-    Combine,
-    
-    /// 测试所有更新包是否能正常读取
-    Test,
-
-    /// 还原工作空间目录的修改
-    Revert,
-
-    /// 运行内置服务端
-    Serve {
-        /// 端口
-        #[arg(default_value_t = 0)]
-        port: u16,
-    },
-}
 
 #[derive(Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
@@ -139,60 +92,8 @@ impl AppContext {
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
 
-    // 如果不带启动参数，就进入交互式模式
-    // 如果带了启动参数，就进入命令行模式
-    let exit_code = match std::env::args().len() > 1 {
-        true => commandline_workmode(),
-        false => interactive_workmode(),
-    };
+    let ctx = AppContext::new();
 
-    std::process::exit(exit_code)
-}
-
-/// 命令行模式，每次只运行一个命令
-fn commandline_workmode() -> i32 {
-    handle_command(CommandLineInterface::parse())
-}
-
-/// 交互式模式，可以重复运行命令
-fn interactive_workmode() -> i32 {
-    let stdin = std::io::stdin();
-    let mut stdout = std::io::stdout();
-    let mut buf = String::with_capacity(1024);
-
-    loop {
-        print!("> ");
-        stdout.flush().unwrap();
-        
-        buf.clear();
-        buf += &format!("\"{}\" ", std::env::args().next().unwrap());
-        let _len = match stdin.read_line(&mut buf) {
-            Ok(len) => len,
-            Err(_) => break,
-        };
-
-        let args = buf.trim().split(" ").map(|e| OsString::from_str(e).unwrap()).collect::<Vec<_>>();
-
-        match CommandLineInterface::try_parse_from(args) {
-            Ok(cmd) => { handle_command(cmd); },
-            Err(err) => { println!("\n\n {}", err); },
-        };
-    }
-
-    0
-}
-
-fn handle_command(cmd: CommandLineInterface) -> i32 {
-    let context = AppContext::new();
-
-    std::fs::create_dir_all(&context.workspace_dir).unwrap();
-    
-    match cmd.command {
-        Commands::Pack { version_label } => do_pack(version_label, &context),
-        Commands::Check => do_check(&context),
-        Commands::Combine => do_combine(&context),
-        Commands::Test => do_test(&context),
-        Commands::Revert => do_revert(&context),
-        Commands::Serve { port, .. } => do_serve(port, &context),
-    }
+    // 启动web服务器
+    serve_web(ctx);
 }
