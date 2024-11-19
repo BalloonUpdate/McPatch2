@@ -1,26 +1,34 @@
-//! 恢复工作空间目录到未修改的时候
-//! 
-//! 有时可能修改了工作空间目录下的文件，但是觉得不满意，想要退回未修改之前，那么可以使用revert命令
-
 use std::fs::FileTimes;
 use std::ops::Deref;
 use std::rc::Weak;
 
+use axum::extract::State;
+use axum::response::Response;
 use shared::data::index_file::IndexFile;
-use shared::utility::is_running_under_cargo;
 
 use crate::common::tar_reader::TarReader;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
-use crate::AppContext;
+use crate::web::webstate::WebState;
 
-pub fn do_revert(ctx: &AppContext) -> i32 {
+/// 恢复工作空间目录到未修改的时候
+/// 
+/// 有时可能修改了工作空间目录下的文件，但是觉得不满意，想要退回未修改之前，那么可以使用revert命令
+pub async fn api_revert(State(state): State<WebState>) -> Response {
+    state.clone().te.lock().await
+        .try_schedule(move || do_revert(state)).await
+}
+
+pub fn do_revert(state: WebState) {
+    let ctx = state.app_context;
+    let mut console = state.console.blocking_lock();
+
     let index_file = IndexFile::load_from_file(&ctx.index_file);
 
     // 读取现有更新包，并复现在history上
-    println!("正在读取数据");
+    console.log("正在读取数据");
 
     let mut history = HistoryFile::new_empty();
 
@@ -34,22 +42,22 @@ pub fn do_revert(ctx: &AppContext) -> i32 {
     }
 
     // 对比文件
-    println!("正在扫描文件更改");
+    console.log("正在扫描文件更改");
 
     let disk_file = DiskFile::new(ctx.workspace_dir.clone(), Weak::new());
     let diff = Diff::diff(&history, &disk_file, Some(&ctx.config.exclude_rules));
     drop(disk_file);
 
     // 输出文件差异
-    if is_running_under_cargo() {
-        // println!("{:#?}", diff);
-        // println!("{}", diff);
-    }
+    // if is_running_under_cargo() {
+    //     // console.log("{:#?}", diff);
+    //     // console.log("{}", diff);
+    // }
 
     // 退回
-    println!("正在退回文件修改");
+    console.log("正在退回文件修改");
 
-    for mk in diff.created_folders {
+    for mk in diff.added_folders {
         let dir = ctx.workspace_dir.join(mk.path().deref());
 
         if let Err(e) = std::fs::create_dir_all(dir) {
@@ -66,7 +74,7 @@ pub fn do_revert(ctx: &AppContext) -> i32 {
         }
     }
 
-    for rm in diff.deleted_files {
+    for rm in diff.missing_files {
         let file = rm.disk_file();
 
         if let Err(e) = std::fs::remove_file(file) {
@@ -74,7 +82,7 @@ pub fn do_revert(ctx: &AppContext) -> i32 {
         }
     }
 
-    for rm in diff.deleted_folders {
+    for rm in diff.missing_folders {
         let dir = rm.disk_file();
         
         if let Err(e) = std::fs::remove_dir(dir) {
@@ -82,7 +90,17 @@ pub fn do_revert(ctx: &AppContext) -> i32 {
         }
     }
 
-    for up in diff.updated_files {
+    let mut vec = Vec::<&HistoryFile>::new();
+
+    for f in &diff.added_files {
+        vec.push(&f);
+    }
+
+    for f in &diff.modified_files {
+        vec.push(&f);
+    }
+
+    for up in vec {
         let file = ctx.workspace_dir.join(up.path().deref());
 
         let loc = up.file_location();
@@ -108,7 +126,5 @@ pub fn do_revert(ctx: &AppContext) -> i32 {
         open.set_times(FileTimes::new().set_modified(up.modified())).unwrap();
     }
 
-    println!("工作空间目录已经退回到未修改之前");
-
-    0
+    console.log("工作空间目录已经退回到未修改之前");
 }

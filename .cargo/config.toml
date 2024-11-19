@@ -1,4 +1,6 @@
 [alias]
 mm = "run --bin manager"
 cc = "run --bin client"
+dd = "doc --no-deps"
 ci = "run --package xtask --"
+web = "run --bin manager web"
