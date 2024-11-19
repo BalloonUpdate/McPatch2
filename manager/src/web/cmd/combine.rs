@@ -1,9 +1,9 @@
-//! 合并更新包
-
 use std::collections::HashMap;
 use std::collections::LinkedList;
 use std::rc::Weak;
 
+use axum::extract::State;
+use axum::response::Response;
 use shared::data::index_file::IndexFile;
 use shared::data::index_file::VersionIndex;
 use shared::data::version_meta::FileChange;
@@ -13,9 +13,7 @@ use crate::common::archive_tester::ArchiveTester;
 use crate::common::tar_reader::TarReader;
 use crate::common::tar_writer::TarWriter;
 use crate::diff::history_file::HistoryFile;
-use crate::upload::generate_upload_script;
-use crate::upload::TemplateContext;
-use crate::AppContext;
+use crate::web::webstate::WebState;
 
 pub const COMBINED_FILENAME: &str = "combined.tar";
 
@@ -38,17 +36,25 @@ struct Location {
 }
 
 // 执行更新包合并操作
-pub fn do_combine(ctx: &AppContext) -> i32 {
+pub async fn api_combine(State(state): State<WebState>) -> Response {
+    state.clone().te.lock().await
+        .try_schedule(move || do_combine(state)).await
+}
+
+fn do_combine(state: WebState) {
+    let ctx = state.app_context;
+    let mut console = state.console.blocking_lock();
+    
     let index_file = IndexFile::load_from_file(&ctx.index_file);
 
     // 执行合并前需要先测试一遍
-    println!("正在执行合并前的解压测试");
+    console.log("正在执行合并前的解压测试");
     let mut tester = ArchiveTester::new();
     for v in &index_file {
         tester.feed(ctx.public_dir.join(&v.filename), v.offset, v.len);
     }
-    tester.finish();
-    println!("测试通过，开始更新包合并流程");
+    tester.finish(|e| console.log(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
+    console.log("测试通过，开始更新包合并流程");
 
     // 开始合并流程
     let versions_to_be_combined = (&index_file).into_iter()
@@ -56,11 +62,11 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
         .collect::<LinkedList<_>>();
 
     if versions_to_be_combined.is_empty() {
-        println!("没有更新包可以合并");
-        return 0;
+        console.log("没有更新包可以合并");
+        return;
     }
 
-    println!("正在读取数据");
+    console.log("正在读取数据");
     
     let mut history = HistoryFile::new_dir("workspace_root", Weak::new());
     let mut data_locations = HashMap::<String, Location>::new();
@@ -120,7 +126,7 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
         }
     }
 
-    println!("正在合并数据");
+    console.log("正在合并数据");
 
     // 生成新的合并包
     let new_tar_file = ctx.public_dir.join("_combined.temp.tar");
@@ -134,7 +140,7 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
         writer.add_file(read, loc.len, &loc.path, &loc.label);
     }
 
-    println!("正在更新元数据");
+    console.log("正在更新元数据");
 
     // 写入元数据
     let version_count = meta_group.0.len();
@@ -157,7 +163,7 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
     // 测试合并包
     let mut tester = ArchiveTester::new();
     tester.feed(&new_tar_file, meta_loc.offset, meta_loc.length);
-    tester.finish();
+    tester.finish(|e| console.log(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
     
     // 合并回原包
     std::fs::copy(&new_index_filepath, &ctx.index_file).unwrap();
@@ -171,24 +177,18 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
         std::fs::remove_file(ctx.public_dir.join(&v.filename)).unwrap();
     }
 
-    println!("合并完成！一共合并了 {} 个版本", version_count);
+    console.log(format!("合并完成！一共合并了 {} 个版本", version_count));
 
-    // 生成上传脚本
-    let context = TemplateContext {
-        upload_files: vec![
-            combine_file.strip_prefix(&ctx.working_dir).unwrap().to_str().unwrap().replace("\\", "/").to_owned(),
-            ctx.index_file.strip_prefix(&ctx.working_dir).unwrap().to_str().unwrap().replace("\\", "/").to_owned(),
-        ],
-        delete_files: versions_to_be_combined.iter().map(|e| {
-            ctx.public_dir.join(&e.filename)
-                .strip_prefix(&ctx.working_dir).unwrap()
-                .to_str().unwrap()
-                .replace("\\", "/")
-                .to_owned()
-        }).collect(),
-    };
+    // // 生成上传脚本
+    // let context = TemplateContext {
+    //     upload_files: vec![combine_file.strip_prefix(&ctx.working_dir).unwrap().to_str().unwrap().to_owned()],
+    //     delete_files: versions_to_be_combined.iter().map(|e| {
+    //         ctx.public_dir.join(&e.filename)
+    //             .strip_prefix(&ctx.working_dir).unwrap()
+    //             .to_str().unwrap()
+    //             .to_owned()
+    //     }).collect(),
+    // };
 
-    generate_upload_script(context, ctx, "combined");
-
-    0
+    // generate_upload_script(context, ctx, "combined");
 }
