@@ -1,10 +1,21 @@
 use core::fmt;
 
+use axum::http::Request;
+use axum::response::Response;
 use tower_layer::Layer;
 use tower_service::Service;
 
-pub struct AuthLayer {
+use crate::web::webstate::WebState;
 
+#[derive(Clone)]
+pub struct AuthLayer {
+    webstate: WebState
+}
+
+impl AuthLayer {
+    pub fn new(webstate: WebState) -> Self {
+        Self { webstate }
+    }
 }
 
 impl<S> Layer<S> for AuthLayer {
@@ -17,13 +28,14 @@ impl<S> Layer<S> for AuthLayer {
     }
 }
 
+#[derive(Clone)]
 pub struct AuthService<S> {
     service: S,
 }
 
-impl<S, R> Service<R> for AuthService<S> where 
-    S: Service<R>,
-    R: fmt::Debug
+impl<S, ReqBody, RspBody> Service<Request<ReqBody>> for AuthService<S> where 
+    S: Service<Request<ReqBody>, Response = Response<RspBody>>,
+    RspBody: Default
 {
     type Response = S::Response;
     type Error = S::Error;
@@ -33,8 +45,14 @@ impl<S, R> Service<R> for AuthService<S> where
         self.service.poll_ready(cx)
     }
 
-    fn call(&mut self, req: R) -> Self::Future {
+    fn call(&mut self, req: Request<ReqBody>) -> Self::Future {
         // self.service.call()
+
+        
+        
+        let uri = req.uri().to_string();
+        println!("url = {:?}", uri);
+
         self.service.call(req)
     }
 }
