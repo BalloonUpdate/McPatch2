@@ -24,6 +24,7 @@ use axum::Router;
 use serde::Serialize;
 use tower_http::cors::CorsLayer;
 
+use crate::web::auth_layer::AuthLayer;
 use crate::web::cmd::check::api_check;
 use crate::web::cmd::combine::api_combine;
 use crate::web::cmd::pack::api_pack;
@@ -51,8 +52,9 @@ pub fn serve_web(ctx: AppContext) {
     let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
     
     runtime.block_on(async move {
-        let app = Router::new()
+        let webstate = WebState::new(ctx.to_owned());
 
+        let app = Router::new()
             .route("/api/terminal/full", post(api_console_full))
             .route("/api/terminal/more", post(api_console_more))
 
@@ -70,7 +72,8 @@ pub fn serve_web(ctx: AppContext) {
             .route("/api/fs/delete", post(api_delete))
             
             .layer(CorsLayer::permissive())
-            .with_state(WebState::new(ctx.to_owned()))
+            .layer(AuthLayer::new(webstate.clone()))
+            .with_state(webstate.clone())
             ;
 
         let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
