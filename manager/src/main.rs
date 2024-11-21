@@ -73,6 +73,9 @@ impl AppContext {
         let version_file = working_dir.join("public/index.json");
         let config_file = working_dir.join("config.toml");
 
+        std::fs::create_dir_all(&workspace_dir).unwrap();
+        std::fs::create_dir_all(&public_dir).unwrap();
+
         if !config_file.exists() {
             std::fs::write(&config_file, CONFIG_TEMPLATE_STRING).unwrap();
         }
