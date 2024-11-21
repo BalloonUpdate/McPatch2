@@ -1,14 +1,20 @@
-use std::collections::HashMap;
 use std::time::SystemTime;
 
 use axum::body::Body;
-use axum::extract::Query;
 use axum::extract::State;
 use axum::response::Response;
+use axum::Json;
+use serde::Deserialize;
 use serde::Serialize;
 
 use crate::web::file_status::SingleFileStatus;
 use crate::web::webstate::WebState;
+
+#[derive(Deserialize)]
+pub struct ListCommand {
+    /// 要列目录的路径
+    path: String,
+}
 
 #[derive(Serialize)]
 pub struct File {
@@ -20,14 +26,8 @@ pub struct File {
     pub state: String,
 }
 
-pub async fn api_list(Query(params): Query<HashMap<String, String>>, State(state): State<WebState>) -> Response {
-    let path = match params.get("path") {
-        Some(ok) => ok.trim().to_owned(),
-        None => return Response::builder()
-            .status(500)
-            .body(Body::new("parameter 'path' is missing.".to_string()))
-            .unwrap(),
-    };
+pub async fn api_list(State(state): State<WebState>, Json(payload): Json<ListCommand>) -> Response {
+    let path = payload.path;
 
     // // 路径不能为空
     // if path.is_empty() {
@@ -71,12 +71,12 @@ pub async fn api_list(Query(params): Query<HashMap<String, String>>, State(state
             ctime: metadata.created().unwrap().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
             mtime: metadata.modified().unwrap().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
             state: match st {
-                SingleFileStatus::Keep => "Keep".to_owned(),
-                SingleFileStatus::Added => "Added".to_owned(),
-                SingleFileStatus::Modified => "Modified".to_owned(),
-                SingleFileStatus::Missing => "Missing".to_owned(),
-                SingleFileStatus::Gone => "Gone".to_owned(),
-                SingleFileStatus::Come => "Come".to_owned(),
+                SingleFileStatus::Keep => "keep".to_owned(),
+                SingleFileStatus::Added => "added".to_owned(),
+                SingleFileStatus::Modified => "modified".to_owned(),
+                SingleFileStatus::Missing => "missing".to_owned(),
+                SingleFileStatus::Gone => "gone".to_owned(),
+                SingleFileStatus::Come => "come".to_owned(),
             },
         });
     }

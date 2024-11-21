@@ -1,12 +1,10 @@
-use std::collections::HashMap;
-use std::io::ErrorKind;
 use std::ops::Deref;
 use std::rc::Weak;
 
-use axum::body::Body;
-use axum::extract::Query;
 use axum::extract::State;
 use axum::response::Response;
+use axum::Json;
+use serde::Deserialize;
 use shared::data::index_file::IndexFile;
 use shared::data::index_file::VersionIndex;
 use shared::data::version_meta::VersionMeta;
@@ -21,21 +19,25 @@ use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
 use crate::web::webstate::WebState;
 
-/// 打包新版本
-pub async fn api_pack(Query(params): Query<HashMap<String, String>>, State(state): State<WebState>) -> Response {
-    let label = match params.get("label") {
-        Some(ok) => ok.to_owned(),
-        None => return Response::builder()
-            .status(500)
-            .body(Body::new("parameter 'label' is missing.".to_string()))
-            .unwrap(),
-    };
+#[derive(Deserialize)]
+pub struct PackCommand {
+    /// 新包的版本号
+    label: String,
 
-    state.clone().te.lock().await
-        .try_schedule(move || do_check(label, state)).await
+    /// 新包的更新记录
+    change_logs: String,
 }
 
-fn do_check(version_label: String, state: WebState) {
+/// 打包新版本
+pub async fn api_pack(State(state): State<WebState>, Json(payload): Json<PackCommand>) -> Response {
+    state.clone().te.lock().await
+        .try_schedule(move || do_check(payload, state)).await
+}
+
+fn do_check(payload: PackCommand, state: WebState) {
+    let version_label = payload.label;
+    let change_logs = payload.change_logs;
+
     let ctx = state.app_context;
     let mut console = state.console.blocking_lock();
     
@@ -112,20 +114,7 @@ fn do_check(version_label: String, state: WebState) {
     console.log("写入元数据");
 
     // 读取写好的更新记录
-
-    // 创建空的logs.txt文件，以提醒用户可以在这里写更新记录
-    let logs_file = ctx.working_dir.join("logs.txt");
-    if let Err(e) = std::fs::metadata(&logs_file) {
-        if e.kind() == ErrorKind::NotFound {
-            std::fs::write(&logs_file, &[]).unwrap();
-        }
-    }
-    let logs = match std::fs::read_to_string(&logs_file) {
-        Ok(text) => text,
-        Err(_) => "没有更新记录".to_owned(),
-    };
-
-    let meta = VersionMeta::new(version_label.clone(), logs, diff.to_file_changes());
+    let meta = VersionMeta::new(version_label.clone(), change_logs, diff.to_file_changes());
     let meta_group = VersionMetaGroup::with_one(meta);
     let meta_info = writer.finish(meta_group);
 

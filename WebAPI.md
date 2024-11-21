@@ -10,7 +10,7 @@
     "code": 1,
     
     // 附带的消息，通常在失败的时候用来说明原因
-    "message": "", 
+    "msg": "", 
     
     // 返回的数据，仅当请求成功时有值，失败则为null
     // 部分接口可能没有data部分，但是code仍要进行检查和弹出toast提示
@@ -20,7 +20,9 @@
 
 ## 身份验证
 
-使用账号密码登录成功后，后端会返回一个Token。后续所有的API进行调用时，都需要携带此Token
+使用账号密码登录成功后，后端会返回一个Token。后续所有的API进行调用时，都需要携带此Token。
+
+返回的Token在后续API调用时，需要放到请求头里，大概是这样：`Token: xxxxxx`。
 
 ### 登录
 
@@ -65,8 +67,8 @@ Post：`/api/user/change-username`
 
 ```json
 {
-    "old-password": "xxx", // 旧密码
-    "new-username": "xxx" // 新密码
+    "old_password": "xxx", // 旧密码
+    "new_username": "xxx" // 新密码
 }
 ```
 
@@ -82,8 +84,8 @@ Post：`/api/user/change-password`
 
 ```json
 {
-    "old-password": "xxx", // 旧密码
-    "new-password": "xxx" // 新密码
+    "old_password": "xxx", // 旧密码
+    "new_password": "xxx" // 新密码
 }
 ```
 
@@ -144,7 +146,7 @@ Post：`/api/task/pack`
 ```json
 {
     "label": "1.0.0", // 新包的版本号
-    "change-logs": "xxxx", // 新包的更新记录，使用UTF8编码
+    "change_logs": "xxxx", // 新包的更新记录，使用UTF8编码
 }
 ```
 
@@ -221,7 +223,7 @@ Get：`/api/fs/list`
 [
     {
         "name": "abc", // 文件名
-        "is-directory": true, // 是文件还是目录
+        "is_directory": true, // 是文件还是目录
         "size": 4096, // 文件的大小
         "ctime": 1731209924, // 文件的创建时间
         "mtime": 1731209924, // 文件的修改时间
@@ -245,12 +247,12 @@ Post：`/api/fs/upload`
 
 用途：将一个本地文件上传到后端
 
-请求体：（此请求的请求体是一个表单数据）
+请求体：（此请求的请求体是一个表单数据，并且path字段在前，file在后）
 
-| 字段 | 内容               |
-| ---- | ------------------ |
-| path | 上传之后的落盘路径 |
-| file | 文件的二进制数据   |
+| 字段 | 内容               | 顺序 |
+| ---- | ------------------ | ---- |
+| path | 上传之后的落盘路径 | 在前 |
+| file | 文件的二进制数据   | 在后 |
 
 响应体（data字段）：无data字段
 
