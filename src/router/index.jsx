@@ -1,13 +1,13 @@
 import {createBrowserRouter} from "react-router-dom";
-import Home from "@/pages/Home/index.jsx";
+import Home from "@/pages/Hom/index.jsx";
 import NotFound from "@/pages/NotFound/index.jsx";
-import Dashboard from "@/pages/Dashboard/index.jsx";
-import Overview from "@/pages/Dashboard/Overview/index.jsx";
-import Folder from "@/pages/Dashboard/Folder/index.jsx";
-import Log from "@/pages/Dashboard/Log/index.jsx";
-import Help from "@/pages/Dashboard/Help/index.jsx";
-import Settings from "@/pages/Dashboard/Settings/index.jsx";
-import Login from "@/pages/Login/index.jsx";
+import Dashboard from "@/pages/Dashboar/index.jsx";
+import Overview from "@/pages/Dashboar/Overvie/index.jsx";
+import Folder from "@/pages/Dashboar/Folde/index.jsx";
+import Log from "@/pages/Dashboar/Lo/index.jsx";
+import Help from "@/pages/Dashboar/Hel/index.jsx";
+import Settings from "@/pages/Dashboar/Setting/index.jsx";
+import Login from "@/pages/Logi/index.jsx";
 
 const router = createBrowserRouter([
   {
