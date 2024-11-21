@@ -1,22 +1,48 @@
-use std::collections::HashMap;
-
 use axum::body::Body;
-use axum::extract::Query;
+use axum::body::Bytes;
+use axum::extract::Multipart;
 use axum::extract::State;
 use axum::response::Response;
 use tokio::io::AsyncWriteExt;
-use tokio_stream::StreamExt;
 
 use crate::web::webstate::WebState;
 
-pub async fn api_upload(Query(params): Query<HashMap<String, String>>, State(state): State<WebState>, body: Body) -> Response {
-    let path = match params.get("path") {
-        Some(ok) => ok.trim().to_owned(),
-        None => return Response::builder()
+pub async fn api_upload(State(state): State<WebState>, mut multipart: Multipart) -> Response {
+    let mut path = Option::<String>::None;
+    let mut data = Option::<Bytes>::None;
+
+    while let Some(field) = multipart.next_field().await.unwrap() {
+        let name: &str = &field.name().unwrap().to_string();
+        
+        match name {
+            "path" => {
+                let text = field.text().await.unwrap();
+                path = Some(text);
+            },
+            "file" =>  {
+                let bytes = field.bytes().await.unwrap();
+                data = Some(bytes);
+            }
+            _ => (),
+        }
+    }
+    
+    if path.is_none() {
+        return Response::builder()
             .status(500)
-            .body(Body::new("parameter 'path' is missing.".to_string()))
-            .unwrap(),
-    };
+            .body(Body::new("the filed 'path' is missing.".to_string()))
+            .unwrap();
+    }
+
+    if data.is_none() {
+        return Response::builder()
+            .status(500)
+            .body(Body::new("the filed 'file' is missing.".to_string()))
+            .unwrap();
+    }
+
+    let path = path.unwrap();
+    let data = data.unwrap();
 
     // 路径不能为空
     if path.is_empty() {
@@ -45,19 +71,8 @@ pub async fn api_upload(Query(params): Query<HashMap<String, String>>, State(sta
         .await
         .unwrap();
 
-    let mut body = body.into_data_stream();
+    f.write_all(&data).await.unwrap();    
 
-    while let Some(chunk) = body.next().await {
-        match chunk {
-            Ok(ok) => {
-                f.write_all(&ok).await.unwrap();
-            },
-            Err(err) => {
-                println!("failed to receive data: {:?}", err);
-            },
-        }
-    }
-    
     Response::builder()
         .status(200)
         .body(Body::empty())

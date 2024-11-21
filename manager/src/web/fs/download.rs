@@ -1,21 +1,20 @@
-use std::collections::HashMap;
-
 use axum::body::Body;
-use axum::extract::Query;
 use axum::extract::State;
 use axum::response::Response;
+use axum::Json;
+use serde::Deserialize;
 use tokio_util::io::ReaderStream;
 
 use crate::web::webstate::WebState;
 
-pub async fn api_download(Query(params): Query<HashMap<String, String>>, State(state): State<WebState>) -> Response {
-    let path = match params.get("path") {
-        Some(ok) => ok.trim().to_owned(),
-        None => return Response::builder()
-            .status(500)
-            .body(Body::new("parameter 'path' is missing.".to_string()))
-            .unwrap(),
-    };
+#[derive(Deserialize)]
+pub struct DownloadCommand {
+    /// 要列目录的路径
+    path: String,
+}
+
+pub async fn api_download(State(state): State<WebState>, Json(payload): Json<DownloadCommand>) -> Response {
+    let path = payload.path;
 
     // 路径不能为空
     if path.is_empty() {
