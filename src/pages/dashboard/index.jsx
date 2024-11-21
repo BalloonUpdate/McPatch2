@@ -1,6 +1,5 @@
 import {Outlet, useLocation, useNavigate} from "react-router-dom";
 import {AppWindow, CircleHelp, CircleUserRound, Folder, LogOut, ScrollText, Settings} from "lucide-react";
-// import dashboardLogo from '';
 
 const Index = () => {
 

@@ -2,7 +2,6 @@ import {ArrowBigLeftDash} from "lucide-react";
 import {useNavigate} from "react-router-dom";
 
 const Index = () => {
-
   const navigate = useNavigate();
 
   return (
