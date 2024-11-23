@@ -38,10 +38,10 @@ fn do_check(payload: PackCommand, state: WebState) {
     let version_label = payload.label;
     let change_logs = payload.change_logs;
 
-    let ctx = state.app_context;
+    let config = state.config;
     let mut console = state.console.blocking_lock();
     
-    let mut index_file = IndexFile::load_from_file(&ctx.index_file);
+    let mut index_file = IndexFile::load_from_file(&config.index_file);
 
     if index_file.contains(&version_label) {
         console.log(format!("版本号已经存在: {}", version_label));
@@ -55,7 +55,7 @@ fn do_check(payload: PackCommand, state: WebState) {
     let mut history = HistoryFile::new_dir("workspace_root", Weak::new());
 
     for v in &index_file {
-        let mut reader = TarReader::new(ctx.public_dir.join(&v.filename));
+        let mut reader = TarReader::new(config.public_dir.join(&v.filename));
         let meta_group = reader.read_metadata_group(v.offset, v.len);
 
         for meta in &meta_group {
@@ -66,8 +66,9 @@ fn do_check(payload: PackCommand, state: WebState) {
     // 对比文件
     console.log("正在扫描文件更改");
 
-    let disk_file = DiskFile::new(ctx.workspace_dir.clone(), Weak::new());
-    let diff = Diff::diff(&disk_file, &history, Some(&ctx.config.exclude_rules));
+    let exclude_rules = &config.config.blocking_lock().core.exclude_rules;
+    let disk_file = DiskFile::new(config.workspace_dir.clone(), Weak::new());
+    let diff = Diff::diff(&disk_file, &history, Some(exclude_rules));
 
     if !diff.has_diff() {
         console.log("目前工作目录还没有任何文件修改");
@@ -78,9 +79,9 @@ fn do_check(payload: PackCommand, state: WebState) {
 
     // 2. 将所有“覆盖的文件”的数据和元数据写入到更新包中，同时更新元数据中每个文件的偏移值
     // 创建新的更新包，将所有文件修改写进去
-    std::fs::create_dir_all(&ctx.public_dir).unwrap();
+    std::fs::create_dir_all(&config.public_dir).unwrap();
     let version_filename = format!("{}.tar", version_label);
-    let version_file = ctx.public_dir.join(&version_filename);
+    let version_file = config.public_dir.join(&version_filename);
     let mut writer = TarWriter::new(&version_file);
 
     // 写入每个更新的文件数据
@@ -100,7 +101,7 @@ fn do_check(payload: PackCommand, state: WebState) {
         counter += 1;
 
         let path = f.path().to_owned();
-        let disk_file = ctx.workspace_dir.join(&path);
+        let disk_file = config.workspace_dir.join(&path);
         let open = std::fs::File::options().read(true).open(disk_file).unwrap();
 
         // 提供的len必须和读取到的长度严格相等
@@ -132,13 +133,13 @@ fn do_check(payload: PackCommand, state: WebState) {
 
     let mut tester = ArchiveTester::new();
     for v in &index_file {
-        tester.feed(ctx.public_dir.join(&v.filename), v.offset, v.len);
+        tester.feed(config.public_dir.join(&v.filename), v.offset, v.len);
     }
     tester.finish(|e| console.log(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
 
     console.log("测试通过，打包完成！");
     
-    index_file.save(&ctx.index_file);
+    index_file.save(&config.index_file);
 
     // // 生成上传脚本
     // let context = TemplateContext {
