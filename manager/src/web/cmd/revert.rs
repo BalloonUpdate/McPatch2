@@ -22,10 +22,10 @@ pub async fn api_revert(State(state): State<WebState>) -> Response {
 }
 
 pub fn do_revert(state: WebState) {
-    let ctx = state.app_context;
+    let config = state.config;
     let mut console = state.console.blocking_lock();
 
-    let index_file = IndexFile::load_from_file(&ctx.index_file);
+    let index_file = IndexFile::load_from_file(&config.index_file);
 
     // 读取现有更新包，并复现在history上
     console.log("正在读取数据");
@@ -33,7 +33,7 @@ pub fn do_revert(state: WebState) {
     let mut history = HistoryFile::new_empty();
 
     for v in &index_file {
-        let mut reader = TarReader::new(ctx.public_dir.join(&v.filename));
+        let mut reader = TarReader::new(config.public_dir.join(&v.filename));
         let meta_group = reader.read_metadata_group(v.offset, v.len);
 
         for meta in meta_group {
@@ -44,8 +44,9 @@ pub fn do_revert(state: WebState) {
     // 对比文件
     console.log("正在扫描文件更改");
 
-    let disk_file = DiskFile::new(ctx.workspace_dir.clone(), Weak::new());
-    let diff = Diff::diff(&history, &disk_file, Some(&ctx.config.exclude_rules));
+    let exclude_rules = &config.config.blocking_lock().core.exclude_rules;
+    let disk_file = DiskFile::new(config.workspace_dir.clone(), Weak::new());
+    let diff = Diff::diff(&history, &disk_file, Some(exclude_rules));
     drop(disk_file);
 
     // 输出文件差异
@@ -58,7 +59,7 @@ pub fn do_revert(state: WebState) {
     console.log("正在退回文件修改");
 
     for mk in diff.added_folders {
-        let dir = ctx.workspace_dir.join(mk.path().deref());
+        let dir = config.workspace_dir.join(mk.path().deref());
 
         if let Err(e) = std::fs::create_dir_all(dir) {
             panic!("{}: {:?}", mk.path().deref(), e);
@@ -67,7 +68,7 @@ pub fn do_revert(state: WebState) {
 
     for mv in diff.renamed_files {
         let src = mv.0.disk_file();
-        let dst = ctx.workspace_dir.join(mv.1.path().deref());
+        let dst = config.workspace_dir.join(mv.1.path().deref());
 
         if let Err(e) = std::fs::rename(src, dst) {
             panic!("{} => {}: {:?}", mv.0.path().deref(), mv.1.path().deref(), e);
@@ -101,12 +102,12 @@ pub fn do_revert(state: WebState) {
     }
 
     for up in vec {
-        let file = ctx.workspace_dir.join(up.path().deref());
+        let file = config.workspace_dir.join(up.path().deref());
 
         let loc = up.file_location();
         let meta = index_file.find(&loc.version).unwrap();
         
-        let mut reader = TarReader::new(ctx.public_dir.join(&meta.filename));
+        let mut reader = TarReader::new(config.public_dir.join(&meta.filename));
 
         let open = std::fs::File::options()
             .write(true)

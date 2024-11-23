@@ -52,7 +52,7 @@ pub async fn api_upload(State(state): State<WebState>, mut multipart: Multipart)
             .unwrap();
     }
 
-    let file = state.app_context.workspace_dir.join(path);
+    let file = state.config.workspace_dir.join(path);
 
     println!("list: {:?}", file);
 

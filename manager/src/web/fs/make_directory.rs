@@ -23,7 +23,7 @@ pub async fn api_make_directory(State(state): State<WebState>, Json(payload): Js
             .unwrap();
     }
 
-    let file = state.app_context.workspace_dir.join(path);
+    let file = state.config.workspace_dir.join(path);
 
     println!("make_directory: {:?}", file);
 

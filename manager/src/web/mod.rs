@@ -24,6 +24,7 @@ use axum::Router;
 use serde::Serialize;
 use tower_http::cors::CorsLayer;
 
+use crate::config::config::Config;
 use crate::web::auth_layer::AuthLayer;
 use crate::web::cmd::check::api_check;
 use crate::web::cmd::combine::api_combine;
@@ -39,7 +40,6 @@ use crate::web::fs::upload::api_upload;
 use crate::web::io::console_full::api_console_full;
 use crate::web::io::console_more::api_console_more;
 use crate::web::webstate::WebState;
-use crate::AppContext;
 
 #[derive(Serialize)]
 pub struct PublicResponseBody<T> where T : Serialize {
@@ -48,11 +48,12 @@ pub struct PublicResponseBody<T> where T : Serialize {
     pub data: Option<T>,
 }
 
-pub fn serve_web(ctx: AppContext) {
+pub fn serve_web() {
     let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
     
     runtime.block_on(async move {
-        let webstate = WebState::new(ctx.to_owned());
+        let data = Config::load();
+        let webstate = WebState::new(data);
 
         let app = Router::new()
             .route("/api/terminal/full", post(api_console_full))
