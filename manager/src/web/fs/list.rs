@@ -39,7 +39,7 @@ pub async fn api_list(State(state): State<WebState>, Json(payload): Json<ListCom
 
     let mut status = state.status.lock().await;
 
-    let file = state.app_context.workspace_dir.join(&path);
+    let file = state.config.workspace_dir.join(&path);
 
     println!("list: {:?}", file);
 
@@ -58,7 +58,7 @@ pub async fn api_list(State(state): State<WebState>, Json(payload): Json<ListCom
         let is_directory = entry.file_type().await.unwrap().is_dir();
         let metadata = entry.metadata().await.unwrap();
 
-        let relative_path = entry.path().strip_prefix(&state.app_context.workspace_dir).unwrap().to_str().unwrap().replace("\\", "/");
+        let relative_path = entry.path().strip_prefix(&state.config.workspace_dir).unwrap().to_str().unwrap().replace("\\", "/");
 
         // println!("relative: {:?}", relative_path);
 

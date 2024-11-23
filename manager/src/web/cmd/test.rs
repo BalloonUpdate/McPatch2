@@ -12,18 +12,18 @@ pub async fn api_test(State(state): State<WebState>) -> Response {
 }
 
 fn do_test(state: WebState) {
-    let ctx = state.app_context;
+    let config = state.config;
     let mut console = state.console.blocking_lock();
 
     console.log("正在执行更新包的解压测试");
 
-    let index_file = IndexFile::load_from_file(&ctx.index_file);
+    let index_file = IndexFile::load_from_file(&config.index_file);
 
     let mut tester = ArchiveTester::new();
 
     // 读取现有更新包
     for v in &index_file {
-        tester.feed(ctx.public_dir.join(&v.filename), v.offset, v.len);
+        tester.feed(config.public_dir.join(&v.filename), v.offset, v.len);
     }
 
     // 执行测试
