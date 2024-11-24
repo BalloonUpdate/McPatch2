@@ -41,8 +41,8 @@ pub struct Status {
 }
 
 pub struct FileStatus {
-    config: Config,
-    status: Option<Status>,
+    pub config: Config,
+    pub status: Option<Status>,
 }
 
 impl FileStatus {

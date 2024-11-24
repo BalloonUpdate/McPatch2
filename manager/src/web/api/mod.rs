@@ -6,6 +6,7 @@ pub mod user;
 pub mod task;
 pub mod fs;
 pub mod terminal;
+pub mod public;
 
 #[derive(Serialize)]
 pub struct PublicResponseBody<T> where T : Serialize {
