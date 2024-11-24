@@ -322,8 +322,6 @@ Post：`/api/fs/delete?path=abc.txt`
 
 ### 请求文件签名
 
-备注：此请求还在计划中，并没有实现
-
 Post：`/api/fs/sign-file`
 
 用途：获取一个后端文件的下载签名（签名有效期是2小时）
@@ -346,9 +344,7 @@ Post：`/api/fs/sign-file`
 
 ### 下载签名文件
 
-备注：此请求还在计划中，并没有实现
-
-Get：`/api/fs/download-singed?sign=xxxxx`
+Get：`/api/fs/extract-file?sign=xxxxx`
 
 用途：从一个签名下载对应的原文件。获取到签名后，需要前端使用`window.open()`引导浏览器打开新的页面以下载该原始文件
 
@@ -360,8 +356,12 @@ Get：`/api/fs/download-singed?sign=xxxxx`
 
 ## 文件分发
 
-备注：此请求还在计划中，并没有实现
+Get：`/api/public/*`
 
-Get：`/public/*`
+用途：向所有人提供文件分发服务，根目录是public而非workspace
 
-用途：向所有人提供文件分发服务（待定，还没做）
+`*星号`：具体要下载的文件路径。
+
+请求体：无
+
+响应体：文件的原始二进制数据
