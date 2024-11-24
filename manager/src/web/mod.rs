@@ -6,11 +6,15 @@ pub mod task_executor;
 pub mod auth_layer;
 pub mod token;
 
+use axum::routing::get;
 use axum::routing::post;
 use axum::Router;
 use tower_http::cors::CorsLayer;
 
 use crate::config::config::Config;
+use crate::web::api::fs::extract_file::api_extract_file;
+use crate::web::api::fs::sign_file::api_sign_file;
+use crate::web::api::public::api_public;
 use crate::web::api::task::check::api_check;
 use crate::web::api::task::combine::api_combine;
 use crate::web::api::task::pack::api_pack;
@@ -80,10 +84,15 @@ pub fn serve_web() {
             .route("/api/fs/download", post(api_download))
             .route("/api/fs/make-directory", post(api_make_directory))
             .route("/api/fs/delete", post(api_delete))
+            .route("/api/fs/sign-file", post(api_sign_file))
             .route_layer(AuthLayer::new(webstate.clone()))
 
             // 这部分不参与请求验证
             .route("/api/user/login", post(api_login))
+
+            .route("/api/fs/extract-file", get(api_extract_file))
+
+            .route("/public/*path", get(api_public))
             
             // 其它的中间件
             .layer(CorsLayer::permissive())
