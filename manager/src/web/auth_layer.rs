@@ -1,10 +1,14 @@
-use core::fmt;
+use std::future::Future;
+use std::pin::Pin;
+use std::task::Poll;
 
+use axum::body::Body;
 use axum::http::Request;
-use axum::response::Response;
+use axum::http::Response;
 use tower_layer::Layer;
 use tower_service::Service;
 
+use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
 #[derive(Clone)]
@@ -23,6 +27,7 @@ impl<S> Layer<S> for AuthLayer {
 
     fn layer(&self, service: S) -> Self::Service {
         AuthService {
+            webstate: self.webstate.clone(),
             service
         }
     }
@@ -30,29 +35,51 @@ impl<S> Layer<S> for AuthLayer {
 
 #[derive(Clone)]
 pub struct AuthService<S> {
+    webstate: WebState,
     service: S,
 }
 
-impl<S, ReqBody, RspBody> Service<Request<ReqBody>> for AuthService<S> where 
-    S: Service<Request<ReqBody>, Response = Response<RspBody>>,
-    RspBody: Default
+impl<S, Req> Service<Request<Req>> for AuthService<S> where 
+    S: Service<Request<Req>, Response = Response<Body>>,
+    S::Future: Send + 'static,
+    // Req: Send + 'static,
+    // Rsp: Send + 'static,
 {
     type Response = S::Response;
     type Error = S::Error;
-    type Future = S::Future;
+    type Future = Pin<Box<dyn Future<Output = Result<Self::Response, S::Error>> + Send>>;
 
-    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+    fn poll_ready(&mut self, cx: &mut std::task::Context<'_>) -> Poll<Result<(), S::Error>> {
         self.service.poll_ready(cx)
     }
 
-    fn call(&mut self, req: Request<ReqBody>) -> Self::Future {
-        // self.service.call()
-
-        
-        
+    fn call(&mut self, req: Request<Req>) -> Self::Future {
         let uri = req.uri().to_string();
         println!("url = {:?}", uri);
 
-        self.service.call(req)
+        // let need_token = !req.uri().path().ends_with(API_PATH_LOGIN);
+
+        let webstate = self.webstate.clone();
+
+        let token_header = match req.headers().get("token") {
+            Some(ok) => ok.to_str().unwrap().to_owned(),
+            None => "".to_owned(),
+        };
+
+        let fut = self.service.call(req);
+        
+        Box::pin(async move {
+            let token = webstate.token.lock().await;
+
+            // if need_token {
+                // 验证token
+                if let Err(reason) = token.validate(&token_header) {
+                    return Ok(PublicResponseBody::<()>::err(reason));
+                }
+            // }
+            
+            // 请求继续往后走
+            fut.await
+        })
     }
 }

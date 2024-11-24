@@ -1,10 +1,10 @@
-use axum::body::Body;
 use axum::body::Bytes;
 use axum::extract::Multipart;
 use axum::extract::State;
 use axum::response::Response;
 use tokio::io::AsyncWriteExt;
 
+use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
 pub async fn api_upload(State(state): State<WebState>, mut multipart: Multipart) -> Response {
@@ -28,17 +28,11 @@ pub async fn api_upload(State(state): State<WebState>, mut multipart: Multipart)
     }
     
     if path.is_none() {
-        return Response::builder()
-            .status(500)
-            .body(Body::new("the filed 'path' is missing.".to_string()))
-            .unwrap();
+        return PublicResponseBody::<()>::err("the filed 'path' is missing.");
     }
 
     if data.is_none() {
-        return Response::builder()
-            .status(500)
-            .body(Body::new("the filed 'file' is missing.".to_string()))
-            .unwrap();
+        return PublicResponseBody::<()>::err("the filed 'file' is missing.");
     }
 
     let path = path.unwrap();
@@ -46,10 +40,7 @@ pub async fn api_upload(State(state): State<WebState>, mut multipart: Multipart)
 
     // 路径不能为空
     if path.is_empty() {
-        return Response::builder()
-            .status(500)
-            .body(Body::new("parameter 'path' is empty, and it is not allowed.".to_string()))
-            .unwrap();
+        return PublicResponseBody::<()>::err("parameter 'path' is empty, and it is not allowed.");
     }
 
     let file = state.config.workspace_dir.join(path);
@@ -57,10 +48,7 @@ pub async fn api_upload(State(state): State<WebState>, mut multipart: Multipart)
     println!("list: {:?}", file);
 
     if file.is_dir() {
-        return Response::builder()
-            .status(500)
-            .body(Body::new("file is not writable.".to_string()))
-            .unwrap();
+        return PublicResponseBody::<()>::err("file is not writable.");
     }
     
     let mut f = tokio::fs::File::options()
@@ -73,8 +61,5 @@ pub async fn api_upload(State(state): State<WebState>, mut multipart: Multipart)
 
     f.write_all(&data).await.unwrap();    
 
-    Response::builder()
-        .status(200)
-        .body(Body::empty())
-        .unwrap()
+    PublicResponseBody::<()>::ok_no_data()
 }
