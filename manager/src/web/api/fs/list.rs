@@ -1,19 +1,24 @@
 use std::time::SystemTime;
 
-use axum::body::Body;
 use axum::extract::State;
 use axum::response::Response;
 use axum::Json;
 use serde::Deserialize;
 use serde::Serialize;
 
+use crate::web::api::PublicResponseBody;
 use crate::web::file_status::SingleFileStatus;
 use crate::web::webstate::WebState;
 
 #[derive(Deserialize)]
-pub struct ListCommand {
+pub struct RequestBody {
     /// 要列目录的路径
     path: String,
+}
+
+#[derive(Serialize)]
+pub struct ResponseData {
+    pub files: Vec<File>,
 }
 
 #[derive(Serialize)]
@@ -26,33 +31,20 @@ pub struct File {
     pub state: String,
 }
 
-pub async fn api_list(State(state): State<WebState>, Json(payload): Json<ListCommand>) -> Response {
-    let path = payload.path;
-
-    // // 路径不能为空
-    // if path.is_empty() {
-    //     return Response::builder()
-    //         .status(500)
-    //         .body(Body::new("parameter 'path' is empty, and it is not allowed.".to_string()))
-    //         .unwrap();
-    // }
-
+pub async fn api_list(State(state): State<WebState>, Json(payload): Json<RequestBody>) -> Response {
     let mut status = state.status.lock().await;
 
-    let file = state.config.workspace_dir.join(&path);
+    let dir = state.config.workspace_dir.join(&payload.path);
 
-    println!("list: {:?}", file);
+    // println!("list: {:?}", dir);
 
-    if !file.exists() || !file.is_dir() {
-        return Response::builder()
-            .status(500)
-            .body(Body::new("file not exists.".to_string()))
-            .unwrap();
+    if !dir.exists() || !dir.is_dir() {
+        return PublicResponseBody::<ResponseData>::err("directory not exists.");
     }
 
-    let mut response = Vec::<File>::new();
+    let mut files = Vec::<File>::new();
 
-    let mut read_dir = tokio::fs::read_dir(&file).await.unwrap();
+    let mut read_dir = tokio::fs::read_dir(&dir).await.unwrap();
 
     while let Some(entry) = read_dir.next_entry().await.unwrap() {
         let is_directory = entry.file_type().await.unwrap().is_dir();
@@ -64,7 +56,7 @@ pub async fn api_list(State(state): State<WebState>, Json(payload): Json<ListCom
 
         let st = status.get_file_status(&relative_path);
 
-        response.push(File {
+        files.push(File {
             name: entry.file_name().to_str().unwrap().to_string(),
             is_directory,
             size: if is_directory { 0 } else { metadata.len() },
@@ -81,10 +73,5 @@ pub async fn api_list(State(state): State<WebState>, Json(payload): Json<ListCom
         });
     }
 
-    let content = serde_json::to_string(&response).unwrap();
-
-    Response::builder()
-        .status(200)
-        .body(Body::new(content))
-        .unwrap()
+    PublicResponseBody::<ResponseData>::ok(ResponseData { files })
 }

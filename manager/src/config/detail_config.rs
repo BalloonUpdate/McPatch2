@@ -36,12 +36,16 @@ pub struct WebConfig {
 
     /// 密码的哈希值，计算方法：sha256(password)
     #[serde(default)]
-    pub password_hash: String,
+    pub password: String,
 }
 
 impl WebConfig {
     pub fn set_password(&mut self, password: &impl AsRef<str>) {
-        self.password_hash = hash(password);
+        self.password = hash(password);
+    }
+
+    pub fn test_password(&self, password: &impl AsRef<str>) -> bool {
+        self.password == hash(password)
     }
 }
 
@@ -50,8 +54,8 @@ impl Default for WebConfig {
         Self {
             serve_listen_addr: "0.0.0.0".to_owned(), 
             serve_listen_port: 6710, 
-            username: "".to_owned(), 
-            password_hash: hash(&random_password()),
+            username: "admin".to_owned(), 
+            password: random_password(),
         }
     }
 }

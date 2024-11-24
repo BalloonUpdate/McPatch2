@@ -3,12 +3,15 @@ use axum::response::Response;
 use shared::data::index_file::IndexFile;
 
 use crate::common::archive_tester::ArchiveTester;
+use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
 /// 执行更新包解压测试
 pub async fn api_test(State(state): State<WebState>) -> Response {
     state.clone().te.lock().await
-        .try_schedule(move || do_test(state)).await
+        .try_schedule(move || do_test(state)).await;
+
+    PublicResponseBody::<()>::ok_no_data()
 }
 
 fn do_test(state: WebState) {

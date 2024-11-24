@@ -19,7 +19,7 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn load() -> Self {
+    pub fn load() -> (Self, bool) {
         let mut working_dir = std::env::current_dir().unwrap();
         
         if is_running_under_cargo() {
@@ -34,7 +34,9 @@ impl Config {
         std::fs::create_dir_all(&workspace_dir).unwrap();
         std::fs::create_dir_all(&public_dir).unwrap();
 
-        if !config_file.exists() {
+        let first_run = !config_file.exists();
+
+        if first_run {
             let default_content = toml::to_string_pretty(&GlobalConfig::default()).unwrap();
 
             std::fs::write(&config_file, default_content).unwrap();
@@ -43,19 +45,31 @@ impl Config {
         let config_content = std::fs::read_to_string(&config_file).unwrap();
         let config = toml::from_str::<GlobalConfig>(&config_content).unwrap();
 
-        Config {
+        let config = Config {
             working_dir,
             workspace_dir,
             public_dir,
             index_file,
             config_file,
             config: Arc::new(Mutex::new(config)),
-        }
+        };
+
+        (config, first_run)
     }
 
     pub fn save(&self) {
-        let config = self.config.blocking_lock();
+        let mut config = self.config.blocking_lock();
 
+        self.do_save(&mut config);
+    }
+
+    pub async fn save_async(&self) {
+        let mut config = self.config.lock().await;
+
+        self.do_save(&mut config);
+    }
+
+    fn do_save(&self, config: &mut GlobalConfig) {
         let default_content = toml::to_string_pretty(&config.deref()).unwrap();
 
         std::fs::write(&self.config_file, default_content).unwrap();
