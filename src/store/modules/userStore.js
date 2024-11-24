@@ -7,30 +7,30 @@ const userStore = createSlice({
     token: localStorage.getItem('token') || ''
   },
   reducers: {
-    setUser(state, action) {
+    setToken(state, action) {
       state.token = action.payload.token;
       localStorage.setItem('token', action.payload.token);
     },
-    clearUser(state) {
+    clearToken(state) {
       state.token = '';
       localStorage.removeItem('token');
     }
   }
 })
 
-const {setUser, clearUser} = userStore.actions;
-const userLogin = (loginForm) => {
+const {setToken, clearToken} = userStore.actions;
+const userLogin = (username, password) => {
   return async (dispatch) => {
-    const {code, msg, data} = await userLoginRequest(loginForm.username, loginForm.password);
-    if (code === 1) {
-      dispatch(setUser(data));
-      return true
-    } else {
-      return msg
+    const {code, msg, data} = await userLoginRequest(username, password);
+    const flag = code === 0
+    if (flag) {
+      dispatch(setToken(data))
     }
+
+    return {flag, msg}
   }
 }
-export {userLogin, clearUser}
+export {userLogin, clearToken}
 
 const reducer = userStore.reducer
 export default reducer

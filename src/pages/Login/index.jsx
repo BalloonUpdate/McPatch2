@@ -1,22 +1,37 @@
+import {useNavigate} from "react-router-dom";
+import {useDispatch} from "react-redux";
+import {userLogin} from "@/store/modules/userStore.js";
+import {message} from "antd";
+
 const Index = () => {
 
-  const login = (e) => {
+  const navigate = useNavigate()
+  const dispatch = useDispatch()
+  const [messageApi, contextHolder] = message.useMessage();
+
+  const login = async (e) => {
     e.preventDefault()
     const username = e.target[0].value
     const password = e.target[1].value
     const remember = e.target[2].checked
 
-    console.log(username)
-    console.log(password)
-    console.log(remember)
+    const {flag, msg} = await dispatch(userLogin(username, password));
+
+    if (flag) {
+      messageApi.success('登陆成功');
+      navigate('/dashboard');
+    } else {
+      messageApi.error(msg);
+    }
   }
 
   return (
     <>
+      {contextHolder}
       <div className="w-full h-screen flex flex-col items-center justify-center px-4">
         <div className="max-w-sm w-full text-gray-600 space-y-5">
           <div className="text-center pb-8">
-            <div className="text-4xl text-indigo-600">McPatch</div>
+            <div className="text-4xl font-bold text-indigo-600">McPatch</div>
           </div>
           <form
             onSubmit={login}
@@ -55,7 +70,7 @@ const Index = () => {
                 </label>
                 <span>记住密码</span>
               </div>
-              <a href="javascript:void(0)" className="text-center text-indigo-600 hover:text-indigo-500">忘记密码?</a>
+              <a href="#" className="text-center text-indigo-600 hover:text-indigo-500">忘记密码?</a>
             </div>
             <button
               className="w-full px-4 py-2 text-white font-medium bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-600 rounded-lg duration-150"

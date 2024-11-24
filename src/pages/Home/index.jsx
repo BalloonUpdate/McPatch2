@@ -1,4 +1,19 @@
+import {useNavigate} from "react-router-dom";
+import {useSelector} from "react-redux";
+
 const Index = () => {
+
+  const user = useSelector(state => state.user)
+  const navigate = useNavigate();
+
+  const checkStatus = () => {
+    if (user.token) {
+      navigate("/dashboard")
+    } else {
+      navigate("/login")
+    }
+  }
+
   return (
     <>
       <div className="w-screen h-screen flex flex-col justify-center items-center mt-[-100px] space-y-4">
@@ -10,6 +25,7 @@ const Index = () => {
           McPatch 是一个给 Minecraft 客户端做文件更新的独立应用程序.只要你想,你可以通过这个程序向你服务器的玩家提供一切内容.
         </p>
         <button
+          onClick={() => checkStatus()}
           className="px-6 py-3.5 text-white bg-indigo-600 rounded-full duration-150 hover:bg-indigo-500 active:bg-indigo-700">
           即刻开始!
         </button>
