@@ -17,10 +17,11 @@ use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
+use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
 #[derive(Deserialize)]
-pub struct PackCommand {
+pub struct RequestBody {
     /// 新包的版本号
     label: String,
 
@@ -29,12 +30,14 @@ pub struct PackCommand {
 }
 
 /// 打包新版本
-pub async fn api_pack(State(state): State<WebState>, Json(payload): Json<PackCommand>) -> Response {
+pub async fn api_pack(State(state): State<WebState>, Json(payload): Json<RequestBody>) -> Response {
     state.clone().te.lock().await
-        .try_schedule(move || do_check(payload, state)).await
+        .try_schedule(move || do_check(payload, state)).await;
+    
+    PublicResponseBody::<()>::ok_no_data()
 }
 
-fn do_check(payload: PackCommand, state: WebState) {
+fn do_check(payload: RequestBody, state: WebState) {
     let version_label = payload.label;
     let change_logs = payload.change_logs;
 

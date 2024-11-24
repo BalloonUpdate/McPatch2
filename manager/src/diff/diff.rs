@@ -15,7 +15,7 @@ use crate::common::rule_filter::RuleFilter;
 
 const OP_FULL_ADDED_FOLDER: &str = "创建目录: ";
 const OP_FULL_ADDED_FILE: &str   = "更新文件: ";
-const OP_FULL_MODIFIED_FILE: &str   = "更新文件: ";
+const OP_FULL_MODIFIED_FILE: &str   = "修改文件: ";
 const OP_FULL_MISSING_FOLDER: &str = "删除目录: ";
 const OP_FULL_MISSING_FILE: &str   = "删除文件: ";
 const OP_FULL_MOVE_FILE: &str     = "移动文件: ";
