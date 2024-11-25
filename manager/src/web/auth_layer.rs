@@ -77,6 +77,8 @@ impl<S, Req> Service<Request<Req>> for AuthService<S> where
                     return Ok(PublicResponseBody::<()>::err(reason));
                 }
             // }
+
+            drop(token);
             
             // 请求继续往后走
             fut.await
