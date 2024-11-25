@@ -1,4 +1,4 @@
-import {useNavigate} from "react-router-dom";
+import {useNavigate, useSearchParams} from "react-router-dom";
 import {useDispatch, useSelector} from "react-redux";
 import {userLogin} from "@/store/modules/userStore.js";
 import {message} from "antd";
@@ -8,14 +8,27 @@ const Index = () => {
 
   const [username, setUsername] = useState('')
   const navigate = useNavigate()
+  const [params] = useSearchParams();
   const dispatch = useDispatch()
   const [messageApi, contextHolder] = message.useMessage();
   const user = useSelector(state => state.user)
 
   useEffect(() => {
-    console.log(user)
     if (user.username) {
       setUsername(user.username);
+    }
+
+    const type = params.get('type');
+    switch (type) {
+      case 'signOut':
+        messageApi.success('退出成功!');
+        break;
+      case 'changeUsername':
+        messageApi.success('修改用户名成功!');
+        break;
+      case 'changePassword':
+        messageApi.success('修改密码成功!');
+        break;
     }
   }, []);
 
@@ -27,7 +40,6 @@ const Index = () => {
 
     const {flag, msg} = await dispatch(userLogin(username, password));
     if (flag) {
-      messageApi.success('登陆成功');
       navigate('/dashboard');
     } else {
       messageApi.error(msg);

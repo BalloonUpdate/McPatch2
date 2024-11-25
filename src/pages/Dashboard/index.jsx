@@ -10,8 +10,8 @@ const Index = () => {
 
   const navigate = useNavigate();
   const location = useLocation();
-  const dispatch = useDispatch();
   const user = useSelector((state) => state.user);
+  const dispatch = useDispatch();
   const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
@@ -24,10 +24,7 @@ const Index = () => {
     const {code, msg, data} = await userSignOutRequest()
     if (code === 1) {
       dispatch(clearToken())
-      messageApi.success('退出成功!')
-      setTimeout(() => {
-        navigate('/login')
-      }, 1000)
+      navigate('/login?type=signOut');
     } else {
       messageApi.error(msg)
     }
