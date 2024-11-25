@@ -31,6 +31,7 @@ pub struct File {
     pub state: String,
 }
 
+#[axum::debug_handler]
 pub async fn api_list(State(state): State<WebState>, Json(payload): Json<RequestBody>) -> Response {
     let mut status = state.status.lock().await;
 
@@ -54,7 +55,7 @@ pub async fn api_list(State(state): State<WebState>, Json(payload): Json<Request
 
         // println!("relative: {:?}", relative_path);
 
-        let st = status.get_file_status(&relative_path);
+        let st = status.get_file_status(&relative_path).await;
 
         files.push(File {
             name: entry.file_name().to_str().unwrap().to_string(),
