@@ -24,7 +24,7 @@ pub async fn api_change_password(State(state): State<WebState>, Json(payload): J
     }
 
     // 修改密码
-    config.web.password = payload.new_password;
+    config.web.set_password(&payload.new_password);
     drop(config);
     state.config.save_async().await;
 
