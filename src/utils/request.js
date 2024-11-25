@@ -2,7 +2,7 @@ import axios from "axios"
 import store from "@/store/index.js";
 
 const instance = axios.create({
-  baseURL: window.location.origin + '/api',
+  baseURL: import.meta.env.VITE_API_URL,
   timeout: 10000
 })
 
