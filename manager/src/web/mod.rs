@@ -31,6 +31,7 @@ use crate::web::api::terminal::more::api_more;
 use crate::web::api::user::change_password::api_change_password;
 use crate::web::api::user::change_username::api_change_username;
 use crate::web::api::user::login::api_login;
+use crate::web::api::user::logout::api_logout;
 use crate::web::auth_layer::AuthLayer;
 use crate::web::webstate::WebState;
 
@@ -65,7 +66,7 @@ pub fn serve_web() {
 
         let app = Router::new()
             // 这部分参与请求验证
-            .route("/api/user/logout", post(api_login))
+            .route("/api/user/logout", post(api_logout))
             .route("/api/user/change-username", post(api_change_username))
             .route("/api/user/change-password", post(api_change_password))
 
