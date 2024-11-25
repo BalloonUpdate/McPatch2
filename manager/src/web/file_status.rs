@@ -54,8 +54,8 @@ impl FileStatus {
         self.status = None;
     }
 
-    pub fn get_file_status(&mut self, path: &str) -> SingleFileStatus {
-        let status = self.refresh();
+    pub async fn get_file_status(&mut self, path: &str) -> SingleFileStatus {
+        let status = self.refresh().await;
 
         let path = &path.to_string();
 
@@ -130,9 +130,10 @@ impl FileStatus {
         return SingleFileStatus::Keep;
     }
 
-    fn refresh(&mut self) -> &Status {
+    async fn refresh(&mut self) -> &Status {
         if self.status.is_none() {
             let config = &self.config;
+            let cfg = config.config.lock().await;
 
             // 读取现有更新包，并复现在history上
             let index_file = IndexFile::load_from_file(&config.index_file);
@@ -149,7 +150,7 @@ impl FileStatus {
             }
 
             // 对比文件
-            let exclude_rules = &config.config.blocking_lock().core.exclude_rules;
+            let exclude_rules = &cfg.core.exclude_rules;
             let disk_file = DiskFile::new(config.workspace_dir.clone(), Weak::new());
             let diff = Diff::diff(&disk_file, &history, Some(&exclude_rules));
 

@@ -24,7 +24,7 @@ pub struct PublicResponseBody<T> where T : Serialize {
 impl<T> PublicResponseBody<T> where T : Serialize {
     pub fn ok(data: T) -> Response {
         Self {
-            code: 0,
+            code: 1,
             msg: "ok".to_owned(),
             data: Some(data),
         }.to_response()
