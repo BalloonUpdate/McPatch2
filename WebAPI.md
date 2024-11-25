@@ -67,7 +67,6 @@ Post：`/api/user/change-username`
 
 ```json
 {
-    "current_password": "xxx", // 当前密码
     "new_username": "xxx" // 新用户名
 }
 ```

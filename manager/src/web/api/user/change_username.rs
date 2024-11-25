@@ -8,9 +8,6 @@ use crate::web::webstate::WebState;
 
 #[derive(Deserialize)]
 pub struct RequestBody {
-    /// 当前密码
-    current_password: String,
-
     /// 新用户名
     new_username: String,
 }
@@ -18,10 +15,6 @@ pub struct RequestBody {
 pub async fn api_change_username(State(state): State<WebState>, Json(payload): Json<RequestBody>) -> Response {
     let mut config = state.config.config.lock().await;
     let mut token = state.token.lock().await;
-
-    if !config.web.test_password(&payload.current_password) {
-        return PublicResponseBody::<()>::err("incorrect current password");
-    }
 
     // 修改用户名
     config.web.username = payload.new_username;
