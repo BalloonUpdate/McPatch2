@@ -32,7 +32,7 @@ impl<T> PublicResponseBody<T> where T : Serialize {
 
     pub fn ok_no_data() -> Response {
         Self {
-            code: 0,
+            code: 1,
             msg: "ok".to_owned(),
             data: None,
         }.to_response()
