@@ -45,7 +45,7 @@ pub async fn api_upload(State(state): State<WebState>, mut multipart: Multipart)
 
     let file = state.config.workspace_dir.join(path);
 
-    println!("list: {:?}", file);
+    println!("upload: {:?}", file);
 
     if file.is_dir() {
         return PublicResponseBody::<()>::err("file is not writable.");
