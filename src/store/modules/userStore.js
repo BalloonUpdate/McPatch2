@@ -22,7 +22,7 @@ const {setToken, clearToken} = userStore.actions;
 const userLogin = (username, password) => {
   return async (dispatch) => {
     const {code, msg, data} = await userLoginRequest(username, password);
-    const flag = code === 0
+    const flag = code === 1
     if (flag) {
       dispatch(setToken(data))
     }
