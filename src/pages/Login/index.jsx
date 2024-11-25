@@ -1,18 +1,27 @@
 import {useNavigate} from "react-router-dom";
-import {useDispatch} from "react-redux";
+import {useDispatch, useSelector} from "react-redux";
 import {userLogin} from "@/store/modules/userStore.js";
 import {message} from "antd";
+import {useEffect, useState} from "react";
 
 const Index = () => {
 
+  const [username, setUsername] = useState('')
   const navigate = useNavigate()
   const dispatch = useDispatch()
   const [messageApi, contextHolder] = message.useMessage();
+  const user = useSelector(state => state.user)
+
+  useEffect(() => {
+    console.log(user)
+    if (user.username) {
+      setUsername(user.username);
+    }
+  }, []);
 
   const login = async (e) => {
     e.preventDefault()
 
-    const username = e.target[0].value
     const password = e.target[1].value
     const remember = e.target[2].checked
 
@@ -42,6 +51,8 @@ const Index = () => {
                 用户名
               </label>
               <input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 name="username"
                 type="text"
                 required
