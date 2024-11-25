@@ -11,12 +11,12 @@ const Index = () => {
 
   const login = async (e) => {
     e.preventDefault()
+
     const username = e.target[0].value
     const password = e.target[1].value
     const remember = e.target[2].checked
 
     const {flag, msg} = await dispatch(userLogin(username, password));
-
     if (flag) {
       messageApi.success('登陆成功');
       navigate('/dashboard');

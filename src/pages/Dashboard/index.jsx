@@ -1,10 +1,37 @@
 import {Outlet, useLocation, useNavigate} from "react-router-dom";
 import {AppWindow, CircleHelp, CircleUserRound, Folder, LogOut, ScrollText, Settings} from "lucide-react";
+import {userSignOutRequest} from "@/api/user.js";
+import {message} from "antd";
+import {useDispatch, useSelector} from "react-redux";
+import {clearToken} from "@/store/modules/userStore.js";
+import {useEffect} from "react";
 
 const Index = () => {
 
-  const location = useLocation();
   const navigate = useNavigate();
+  const location = useLocation();
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.user);
+  const [messageApi, contextHolder] = message.useMessage();
+
+  useEffect(() => {
+    if (!user.token) {
+      location.href = "/login";
+    }
+  }, []);
+
+  const signOut = async () => {
+    const {code, msg, data} = await userSignOutRequest()
+    if (code === 1) {
+      dispatch(clearToken())
+      messageApi.success('退出成功!')
+      setTimeout(() => {
+        navigate('/login')
+      }, 1000)
+    } else {
+      messageApi.error(msg)
+    }
+  }
 
   const navs = [
     {
@@ -39,13 +66,14 @@ const Index = () => {
 
   return (
     <>
+      {contextHolder}
       <div className="flex">
         <div
           className="fixed top-0 left-0 w-full h-full border-r bg-white space-y-8 sm:w-60">
           <div className="flex flex-col h-full">
             <div className='h-20 flex justify-center items-center px-8'>
               <div className='flex-none cursor-pointer' onClick={() => navigate('/')}>
-                <div className="text-3xl text-indigo-600">McPatch</div>
+                <div className="text-3xl font-bold text-indigo-600">McPatch</div>
               </div>
             </div>
             <div className="flex-1 flex flex-col h-full overflow-auto">
@@ -83,6 +111,7 @@ const Index = () => {
                   }
                   <li>
                     <div
+                      onClick={() => signOut()}
                       className={`flex items-center gap-x-2 text-gray-600 p-2 rounded-lg cursor-pointer hover:bg-gray-50 active:bg-gray-100 duration-150}`}>
                       <div className="text-gray-500"><LogOut size={16} strokeWidth={1.5}/></div>
                       退出登录
