@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import {Button, Input, message, Modal, Upload} from "antd";
-import {fsUploadRequest, makeDirectoryRequest} from "@/api/fs.js";
+import {fsUploadRequest, fsMakeDirectoryRequest} from "@/api/fs.js";
 
 const Index = ({path, getFileList}) => {
 
@@ -13,7 +13,7 @@ const Index = ({path, getFileList}) => {
   const makeDirectory = async () => {
     let key = path.join('/');
     key = key.length === 0 ? directory : `${key}/${directory}`
-    const {code, msg, data} = await makeDirectoryRequest(key);
+    const {code, msg, data} = await fsMakeDirectoryRequest(key);
     if (code === 1) {
       setMakeDirectoryShow(false)
       messageApi.success('文件夹创建成功.')

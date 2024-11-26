@@ -5,7 +5,7 @@ export const fsDiskInfoRequest = () => instance.post('/fs/disk-info', {})
 
 export const fsListRequest = (path = '') => instance.post('/fs/list', {path})
 
-export const makeDirectoryRequest = (path = '') => instance.post('/fs/make-directory', {path})
+export const fsMakeDirectoryRequest = (path = '') => instance.post('/fs/make-directory', {path})
 
 export const fsUploadRequest = (path = '', file, onProgress) => {
   const formData = new FormData();
