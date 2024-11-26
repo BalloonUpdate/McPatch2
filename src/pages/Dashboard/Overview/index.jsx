@@ -1,4 +1,4 @@
-import {getDiskInfoRequest} from "@/api/fileManager.js";
+import {getDiskInfoRequest} from "@/api/fs.js";
 import {useEffect, useState} from "react";
 
 const Index = () => {
