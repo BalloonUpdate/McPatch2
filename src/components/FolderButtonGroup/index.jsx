@@ -25,6 +25,8 @@ const Index = ({path, getFileList}) => {
 
   const props = {
     showUploadList: false,
+    multiple: false,
+    maxCount: 1,
     customRequest: async (options) => {
       const {file, onSuccess, onError, onProgress} = options;
       let key = path.join('/');
