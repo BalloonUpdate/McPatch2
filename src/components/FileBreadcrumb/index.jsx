@@ -2,10 +2,10 @@ import React from 'react';
 
 const Index = ({path, handlerBreadcrumb}) => {
 
-  const items = ['首页', ...path]
+  const items = ['root', ...path]
   return (
     <>
-      <div className="h-16 pr-4 pl-4 border rounded-lg border-light shadow-1">
+      <div className="h-16 pr-4 pl-4 border-l-2 border-indigo-600">
         <div className="h-8 flex items-center text-indigo-600 font-bold text-base">工作目录</div>
         <ul className="h-8 flex items-center">
           {
