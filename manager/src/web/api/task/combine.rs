@@ -38,7 +38,9 @@ struct Location {
 // 执行更新包合并操作
 pub async fn api_combine(State(state): State<WebState>) -> Response {
     state.clone().te.lock().await
-        .try_schedule(move || do_combine(state)).await
+        .try_schedule(move || do_combine(state)).await;
+
+    PublicResponseBody::<()>::ok_no_data()
 }
 
 fn do_combine(state: WebState) {
