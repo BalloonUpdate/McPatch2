@@ -47,13 +47,13 @@ fn do_check(payload: RequestBody, state: WebState) {
     let mut index_file = IndexFile::load_from_file(&config.index_file);
 
     if index_file.contains(&version_label) {
-        console.log(format!("版本号已经存在: {}", version_label));
+        console.log_error(format!("版本号已经存在: {}", version_label));
         return;
     }
 
     // 1. 读取所有历史版本，并推演出上个版本的文件状态，用于和工作空间目录对比生成文件差异
     // 读取现有更新包，并复现在history上
-    console.log("正在读取数据");
+    console.log_debug("正在读取数据");
 
     let mut history = HistoryFile::new_dir("workspace_root", Weak::new());
 
@@ -67,18 +67,18 @@ fn do_check(payload: RequestBody, state: WebState) {
     }
 
     // 对比文件
-    console.log("正在扫描文件更改");
+    console.log_debug("正在扫描文件更改");
 
     let exclude_rules = &config.config.blocking_lock().core.exclude_rules;
     let disk_file = DiskFile::new(config.workspace_dir.clone(), Weak::new());
     let diff = Diff::diff(&disk_file, &history, Some(exclude_rules));
 
     if !diff.has_diff() {
-        console.log("目前工作目录还没有任何文件修改");
+        console.log_error("目前工作目录还没有任何文件修改");
         return;
     }
 
-    console.log(format!("{:#?}", diff));
+    console.log_info(format!("{:#?}", diff));
 
     // 2. 将所有“覆盖的文件”的数据和元数据写入到更新包中，同时更新元数据中每个文件的偏移值
     // 创建新的更新包，将所有文件修改写进去
@@ -100,7 +100,7 @@ fn do_check(payload: RequestBody, state: WebState) {
 
     let mut counter = 1;
     for f in &vec {
-        console.log(format!("打包({}/{}) {}", counter, vec.len(), f.path().deref()));
+        console.log_debug(format!("打包({}/{}) {}", counter, vec.len(), f.path().deref()));
         counter += 1;
 
         let path = f.path().to_owned();
@@ -115,7 +115,7 @@ fn do_check(payload: RequestBody, state: WebState) {
     }
 
     // 写入元数据
-    console.log("写入元数据");
+    console.log_debug("写入元数据");
 
     // 读取写好的更新记录
     let meta = VersionMeta::new(version_label.clone(), change_logs, diff.to_file_changes());
@@ -132,15 +132,15 @@ fn do_check(payload: RequestBody, state: WebState) {
     });
 
     // 进行解压测试
-    console.log("正在测试");
+    console.log_debug("正在测试");
 
     let mut tester = ArchiveTester::new();
     for v in &index_file {
         tester.feed(config.public_dir.join(&v.filename), v.offset, v.len);
     }
-    tester.finish(|e| console.log(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
+    tester.finish(|e| console.log_debug(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
 
-    console.log("测试通过，打包完成！");
+    console.log_info("测试通过，打包完成！");
     
     index_file.save(&config.index_file);
 
