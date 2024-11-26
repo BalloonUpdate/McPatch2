@@ -94,6 +94,16 @@ Post：`/api/user/change-password`
 
 说明：如果密码修改成功，后端会将当前token销毁并要求重新登录。此时前端也需要同步丢弃token，并跳转到登录界面。（此过程后端无需重启，也不会中断正在运行的打包任务（如果有））
 
+### 验证令牌
+
+Post：`/api/user/check-token`
+
+用途：单纯用来验证token的有效性，除此之外没有任何额外的功能和作用
+
+请求体：无
+
+响应体（data字段）：无data字段
+
 ## 终端日志
 
 此接口用来获取后端任务终端里的日志文本。
@@ -316,7 +326,7 @@ Post：`/api/fs/download`
 
 ### 创建目录
 
-Post：`/api/fs/makedirectory?path=abc`
+Post：`/api/fs/make-directory`
 
 用途：创建一个新的目录
 
@@ -332,7 +342,7 @@ Post：`/api/fs/makedirectory?path=abc`
 
 ### 删除文件
 
-Post：`/api/fs/delete?path=abc.txt`
+Post：`/api/fs/delete`
 
 用途：删除一个后端文件或者目录
 
