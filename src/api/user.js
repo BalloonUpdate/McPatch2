@@ -12,3 +12,5 @@ export const userChangePasswordRequest = (oldPassword, newPassword) => instance.
   old_password: oldPassword,
   new_password: newPassword
 })
+
+export const userCheckTokenRequest = () => instance.post('/user/check-token', {})

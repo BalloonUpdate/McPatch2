@@ -1,6 +1,6 @@
 import {Outlet, useLocation, useNavigate} from "react-router-dom";
 import {AppWindow, CircleHelp, CircleUserRound, Folder, LogOut, ScrollText, Settings} from "lucide-react";
-import {userSignOutRequest} from "@/api/user.js";
+import {userCheckTokenRequest, userSignOutRequest} from "@/api/user.js";
 import {message} from "antd";
 import {useDispatch, useSelector} from "react-redux";
 import {clearToken} from "@/store/modules/userStore.js";
@@ -15,10 +15,20 @@ const Index = () => {
   const [messageApi, contextHolder] = message.useMessage();
 
   useEffect(() => {
-    if (!user.token) {
-      location.href = "/login";
-    }
+    checkToken()
   }, []);
+
+  const checkToken = async () => {
+    if (!user.token) {
+      navigate("/login?type=notLogin");
+    }
+
+    const {code, msg, data} = await userCheckTokenRequest();
+    if (code !== 1) {
+      dispatch(clearToken())
+      navigate('/login?type=checkToken');
+    }
+  }
 
   const signOut = async () => {
     const {code, msg, data} = await userSignOutRequest()

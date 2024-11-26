@@ -29,6 +29,12 @@ const Index = () => {
       case 'changePassword':
         messageApi.success('修改密码成功!');
         break;
+      case 'notLogin':
+        messageApi.success('请先登录!');
+        break;
+      case 'checkToken':
+        messageApi.success('Token无效!');
+        break;
     }
   }, []);
 
