@@ -35,7 +35,7 @@ const Index = () => {
     <>
       {contextHolder}
       <div>
-        <Card title="修改用户名" className="w-80 shadow-lg">
+        <Card title="修改用户名" className="w-80 shadow-[0_4px_6px_rgba(0,0,0,0.1)]">
           <Form
             layout="vertical"
             initialValues={{layout: 'vertical'}}
@@ -48,7 +48,7 @@ const Index = () => {
             </Form.Item>
           </Form>
         </Card>
-        <Card title="修改密码" className="w-80 shadow-lg mt-5">
+        <Card title="修改密码" className="w-80 shadow-[0_4px_6px_rgba(0,0,0,0.1)] mt-5">
           <Form
             layout="vertical"
             initialValues={{layout: 'vertical'}}
