@@ -13,6 +13,7 @@ use crate::common::archive_tester::ArchiveTester;
 use crate::common::tar_reader::TarReader;
 use crate::common::tar_writer::TarWriter;
 use crate::diff::history_file::HistoryFile;
+use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
 pub const COMBINED_FILENAME: &str = "combined.tar";
