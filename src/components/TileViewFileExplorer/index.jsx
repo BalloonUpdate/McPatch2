@@ -54,7 +54,7 @@ const Index = ({items, handlerNextPath}) => {
   }
 
   const showTime = (timestamp) => {
-    return new Date(timestamp).toLocaleString('zh-CN', {
+    return new Date(timestamp * 1000).toLocaleString('zh-CN', {
       year: 'numeric',
       month: '2-digit',
       day: '2-digit',
