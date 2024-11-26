@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import FileBreadcrumb from "@/components/FileBreadcrumb/index.jsx";
 import {fsListRequest} from "@/api/fs.js";
 import TileViewFileExplorer from "@/components/TileViewFileExplorer/index.jsx";
+import FolderButtonGroup from "@/components/FolderButtonGroup/index.jsx";
 
 const Index = () => {
   const [path, setPath] = useState([]);
@@ -32,7 +33,10 @@ const Index = () => {
         <div>
           <FileBreadcrumb path={path} handlerBreadcrumb={handlerBreadcrumb}/>
         </div>
-        <div className="flex-1 mt-2 h-full bg-gray-50">
+        <div className="mt-2 pt-4 pb-2">
+          <FolderButtonGroup path={path} getFileList={getFileList}/>
+        </div>
+        <div className="flex-1 mt-2 h-full bg-gray-100">
           <TileViewFileExplorer items={fileList} handlerNextPath={handlerNextPath}/>
         </div>
       </div>

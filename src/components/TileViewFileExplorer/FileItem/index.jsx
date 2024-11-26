@@ -8,7 +8,7 @@ const Index = ({item}) => {
     if (item.state === 'missing') return 'hover:bg-red-100';
     if (item.state === 'gone') return 'hover:bg-cyan-100';
     if (item.state === 'come') return 'hover:bg-violet-100';
-    return 'hover:bg-gray-100';
+    return 'hover:bg-gray-200';
   };
 
   const getTextColor = (item) => {
