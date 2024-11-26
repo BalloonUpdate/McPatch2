@@ -37,7 +37,11 @@ const Index = () => {
           <FolderButtonGroup path={path} getFileList={getFileList}/>
         </div>
         <div className="flex-1 mt-2 h-full bg-gray-100">
-          <TileViewFileExplorer items={fileList} handlerNextPath={handlerNextPath}/>
+          <TileViewFileExplorer
+            path={path}
+            getFileList={getFileList}
+            items={fileList}
+            handlerNextPath={handlerNextPath}/>
         </div>
       </div>
     </>

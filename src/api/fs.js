@@ -7,6 +7,8 @@ export const fsListRequest = (path = '') => instance.post('/fs/list', {path})
 
 export const fsMakeDirectoryRequest = (path = '') => instance.post('/fs/make-directory', {path})
 
+export const fsDeleteRequest = (path = '') => instance.post('/fs/delete', {path})
+
 export const fsUploadRequest = (path = '', file, onProgress) => {
   const formData = new FormData();
   formData.append('path', path);

@@ -1,14 +1,17 @@
 import React, {useEffect, useRef, useState} from 'react';
 import FileItem from "@/components/TileViewFileExplorer/FileItem/index.jsx";
 import './index.css'
+import {fsDeleteRequest} from "@/api/fs.js";
+import {message} from "antd";
 
-const Index = ({items, handlerNextPath}) => {
+const Index = ({path, getFileList, items, handlerNextPath}) => {
 
   const [isOpen, setIsOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({x: 0, y: 0});
-  const menuRef = useRef(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [selectedItem, setSelectedItem] = useState({})
+  const menuRef = useRef(null);
+  const [messageApi, contextHolder] = message.useMessage();
 
   const handleContextMenu = (e, index) => {
     e.preventDefault();
@@ -38,9 +41,23 @@ const Index = ({items, handlerNextPath}) => {
 
   const open = (item) => {
     if (item.is_directory) {
-      setIsOpen(false)
+      closeMenu()
       handlerNextPath(item)
     }
+  }
+
+  const fsDelete = async (item) => {
+    let key = path.join('/');
+    key = key.length === 0 ? item.name : `${key}/${item.name}`
+
+    const {code, msg, data} = await fsDeleteRequest(key);
+    if (code === 1) {
+      messageApi.success('删除成功')
+      getFileList()
+    } else {
+      messageApi.error(msg);
+    }
+    closeMenu()
   }
 
   const showFileSize = (size) => {
@@ -67,6 +84,7 @@ const Index = ({items, handlerNextPath}) => {
 
   return (
     <>
+      {contextHolder}
       <div className="flex flex-wrap">
         {
           items.map((item, index) => (
@@ -124,6 +142,7 @@ const Index = ({items, handlerNextPath}) => {
               }
               {
                 <button
+                  onClick={() => fsDelete(selectedItem)}
                   className="flex items-center rounded-md w-full p-2 text-sm text-red-500 hover:bg-red-100 duration-200">
                   删除
                 </button>
