@@ -35,29 +35,29 @@ const Index = () => {
     <>
       {contextHolder}
       <div>
-        <Card title="修改用户名" className="w-80">
+        <Card title="修改用户名" className="w-80 shadow-lg">
           <Form
             layout="vertical"
             initialValues={{layout: 'vertical'}}
             onFinish={submitChangeUsername}>
             <Form.Item label="新用户名" name="newUsername" rules={[{required: true, message: '请输入新用户名!'}]}>
-              <Input placeholder="请输入想要设置的新用户名"/>
+              <Input placeholder="请输入想要设置的新用户名."/>
             </Form.Item>
             <Form.Item>
               <Button type="primary" htmlType="submit" className="w-full">保存</Button>
             </Form.Item>
           </Form>
         </Card>
-        <Card title="修改密码" className="w-80 mt-5">
+        <Card title="修改密码" className="w-80 shadow-lg mt-5">
           <Form
             layout="vertical"
             initialValues={{layout: 'vertical'}}
             onFinish={submitChangePassword}>
             <Form.Item label="旧密码" name="oldPassword" rules={[{required: true, message: '请输入旧密码!'}]}>
-              <Input placeholder="请输入旧密码"/>
+              <Input placeholder="请输入旧密码."/>
             </Form.Item>
             <Form.Item label="新密码" name="newPassword" rules={[{required: true, message: '请输入新密码!'}]}>
-              <Input placeholder="请输入想要设置的新密码"/>
+              <Input placeholder="请输入想要设置的新密码."/>
             </Form.Item>
             <Form.Item>
               <Button type="primary" htmlType="submit" className="w-full">保存</Button>
