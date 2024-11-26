@@ -50,6 +50,7 @@ impl<T> PublicResponseBody<T> where T : Serialize {
         let json = serde_json::to_string_pretty(&self).unwrap();
 
         Response::builder()
+            .header(axum::http::header::CONTENT_TYPE, "application/json;charset=UTF-8")
             .body(Body::new(json))
             .unwrap()
     }
