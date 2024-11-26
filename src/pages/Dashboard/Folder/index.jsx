@@ -1,6 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import FileBreadcrumb from "@/components/FileBreadcrumb/index.jsx";
-import {getFileListRequest} from "@/api/fs.js";
+import {fsListRequest} from "@/api/fs.js";
 import TileViewFileExplorer from "@/components/TileViewFileExplorer/index.jsx";
 
 const Index = () => {
@@ -8,7 +8,7 @@ const Index = () => {
   const [fileList, setFileList] = useState([])
 
   const getFileList = async () => {
-    const {code, msg, data} = await getFileListRequest(path.join('/'));
+    const {code, msg, data} = await fsListRequest(path.join('/'));
     if (code === 1) {
       setFileList(data.files)
     }

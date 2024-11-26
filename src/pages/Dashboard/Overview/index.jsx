@@ -1,11 +1,11 @@
-import {getDiskInfoRequest} from "@/api/fs.js";
+import {fsDiskInfoRequest} from "@/api/fs.js";
 import {useEffect, useState} from "react";
 
 const Index = () => {
   const [diskInfo, setDiskInfo] = useState({total: 0, used: 0});
 
   const getDiskInfo = async () => {
-    const {code, msg, data} = await getDiskInfoRequest();
+    const {code, msg, data} = await fsDiskInfoRequest();
     if (code === 1) {
       setDiskInfo(data)
     }
