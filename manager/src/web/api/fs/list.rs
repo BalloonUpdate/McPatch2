@@ -73,6 +73,6 @@ pub async fn api_list(State(state): State<WebState>, Json(payload): Json<Request
             },
         });
     }
-
+    
     PublicResponseBody::<ResponseData>::ok(ResponseData { files })
 }
