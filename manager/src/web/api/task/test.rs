@@ -18,7 +18,7 @@ fn do_test(state: WebState) {
     let config = state.config;
     let mut console = state.console.blocking_lock();
 
-    console.log("正在执行更新包的解压测试");
+    console.log_debug("正在执行更新包的解压测试");
 
     let index_file = IndexFile::load_from_file(&config.index_file);
 
@@ -30,7 +30,7 @@ fn do_test(state: WebState) {
     }
 
     // 执行测试
-    tester.finish(|e| console.log(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
+    tester.finish(|e| console.log_debug(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
 
-    console.log("测试通过！");
+    console.log_info("测试通过！");
 }

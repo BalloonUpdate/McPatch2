@@ -48,13 +48,13 @@ fn do_combine(state: WebState) {
     let index_file = IndexFile::load_from_file(&config.index_file);
 
     // 执行合并前需要先测试一遍
-    console.log("正在执行合并前的解压测试");
+    console.log_debug("正在执行合并前的解压测试");
     let mut tester = ArchiveTester::new();
     for v in &index_file {
         tester.feed(config.public_dir.join(&v.filename), v.offset, v.len);
     }
-    tester.finish(|e| console.log(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
-    console.log("测试通过，开始更新包合并流程");
+    tester.finish(|e| console.log_debug(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
+    console.log_debug("测试通过，开始更新包合并流程");
 
     // 开始合并流程
     let versions_to_be_combined = (&index_file).into_iter()
@@ -62,11 +62,11 @@ fn do_combine(state: WebState) {
         .collect::<LinkedList<_>>();
 
     if versions_to_be_combined.is_empty() {
-        console.log("没有更新包可以合并");
+        console.log_info("没有更新包可以合并");
         return;
     }
 
-    console.log("正在读取数据");
+    console.log_debug("正在读取数据");
     
     let mut history = HistoryFile::new_dir("workspace_root", Weak::new());
     let mut data_locations = HashMap::<String, Location>::new();
@@ -126,7 +126,7 @@ fn do_combine(state: WebState) {
         }
     }
 
-    console.log("正在合并数据");
+    console.log_debug("正在合并数据");
 
     // 生成新的合并包
     let new_tar_file = config.public_dir.join("_combined.temp.tar");
@@ -140,7 +140,7 @@ fn do_combine(state: WebState) {
         writer.add_file(read, loc.len, &loc.path, &loc.label);
     }
 
-    console.log("正在更新元数据");
+    console.log_debug("正在更新元数据");
 
     // 写入元数据
     let version_count = meta_group.0.len();
@@ -163,7 +163,7 @@ fn do_combine(state: WebState) {
     // 测试合并包
     let mut tester = ArchiveTester::new();
     tester.feed(&new_tar_file, meta_loc.offset, meta_loc.length);
-    tester.finish(|e| console.log(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
+    tester.finish(|e| console.log_debug(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
     
     // 合并回原包
     std::fs::copy(&new_index_filepath, &config.index_file).unwrap();
@@ -177,7 +177,7 @@ fn do_combine(state: WebState) {
         std::fs::remove_file(config.public_dir.join(&v.filename)).unwrap();
     }
 
-    console.log(format!("合并完成！一共合并了 {} 个版本", version_count));
+    console.log_info(format!("合并完成！一共合并了 {} 个版本", version_count));
 
     // // 生成上传脚本
     // let context = TemplateContext {

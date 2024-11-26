@@ -31,7 +31,7 @@ pub fn do_revert(state: WebState) {
     let index_file = IndexFile::load_from_file(&config.index_file);
 
     // 读取现有更新包，并复现在history上
-    console.log("正在读取数据");
+    console.log_debug("正在读取数据");
 
     let mut history = HistoryFile::new_empty();
 
@@ -45,7 +45,7 @@ pub fn do_revert(state: WebState) {
     }
 
     // 对比文件
-    console.log("正在扫描文件更改");
+    console.log_debug("正在扫描文件更改");
 
     let exclude_rules = &config.config.blocking_lock().core.exclude_rules;
     let disk_file = DiskFile::new(config.workspace_dir.clone(), Weak::new());
@@ -59,7 +59,7 @@ pub fn do_revert(state: WebState) {
     // }
 
     // 退回
-    console.log("正在退回文件修改");
+    console.log_debug("正在退回文件修改");
 
     for mk in diff.added_folders {
         let dir = config.workspace_dir.join(mk.path().deref());
@@ -130,5 +130,5 @@ pub fn do_revert(state: WebState) {
         open.set_times(FileTimes::new().set_modified(up.modified())).unwrap();
     }
 
-    console.log("工作空间目录已经退回到未修改之前");
+    console.log_info("工作空间目录已经退回到未修改之前");
 }
