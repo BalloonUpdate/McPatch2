@@ -110,7 +110,20 @@ Post：`/api/terminal/full`
 
 ```json
 {
-    "content": "xxxx", // 返回的日志文本
+    // 这里可能会返回多条日志
+    "content": [
+        {
+            // 日志的记录时间，格式为unix时间戳。单位是秒
+            "time": 1732606868,
+            
+            // 日志的内容
+			"content": "Diff (创建目录: 0, 更新文件: 2, 修改文件: 1, 删除目录: 0, 删除文件: 0, 移动文件: 0)",
+            
+            // 日志的重要等级。可能的值：debug，info，warning，error
+			"level": "info"
+        },
+        ...
+    ]
 }
 ```
 
@@ -126,7 +139,20 @@ Post：`/api/terminal/more`
 
 ```json
 {
-    "content": "xxxx", // 返回的日志文本
+    // 这里可能会返回多条日志
+    "content": [
+        {
+            // 日志的记录时间，格式为unix时间戳。单位是秒
+            "time": 1732606868,
+            
+            // 日志的内容
+			"content": "Diff (创建目录: 0, 更新文件: 2, 修改文件: 1, 删除目录: 0, 删除文件: 0, 移动文件: 0)",
+            
+            // 日志的重要等级。可能的值：debug，info，warning，error
+			"level": "info"
+        },
+        ...
+    ]
 }
 ```
 
