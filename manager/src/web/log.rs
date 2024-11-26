@@ -24,7 +24,7 @@ impl Serialize for LogEntry {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum LogLevel {
     Debug,
     Info,
@@ -102,11 +102,27 @@ impl ConsoleBuffer {
         entries
     }
 
-    pub fn log(&mut self, content: impl AsRef<str>) {
+    pub fn log_debug(&mut self, content: impl AsRef<str>) {
+        self.log(content, LogLevel::Debug);
+    }
+
+    pub fn log_info(&mut self, content: impl AsRef<str>) {
+        self.log(content, LogLevel::Info);
+    }
+
+    pub fn log_warning(&mut self, content: impl AsRef<str>) {
+        self.log(content, LogLevel::Warning);
+    }
+
+    pub fn log_error(&mut self, content: impl AsRef<str>) {
+        self.log(content, LogLevel::Error);
+    }
+
+    fn log(&mut self, content: impl AsRef<str>, level: LogLevel) {
         for line in content.as_ref().split("\n") {
             println!("{}", line);
 
-            self.buf.push_back(Line::new(line.to_owned(), LogLevel::Info));
+            self.buf.push_back(Line::new(line.to_owned(), level));
 
             while self.buf.len() > MAX_LOGS {
                 self.buf.pop_front();

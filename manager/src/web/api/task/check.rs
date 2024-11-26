@@ -23,7 +23,7 @@ fn do_check(state: WebState) {
     // 读取现有更新包，并复现在history上
     let index_file = IndexFile::load_from_file(&config.index_file);
 
-    console.log("正在读取数据");
+    console.log_debug("正在读取数据");
 
     let mut history = HistoryFile::new_empty();
 
@@ -37,13 +37,13 @@ fn do_check(state: WebState) {
     }
 
     // 对比文件
-    console.log("正在扫描文件更改");
+    console.log_debug("正在扫描文件更改");
 
     let exclude_rules = &config.config.blocking_lock().core.exclude_rules;
     let disk_file = DiskFile::new(config.workspace_dir.clone(), Weak::new());
     let diff = Diff::diff(&disk_file, &history, Some(&exclude_rules));
 
     // 输出文件差异
-    console.log(format!("{:#?}", diff));
-    console.log(format!("{}", diff));
+    console.log_info(format!("{:#?}", diff));
+    console.log_info(format!("{}", diff));
 }
