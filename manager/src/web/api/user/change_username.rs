@@ -17,7 +17,7 @@ pub async fn api_change_username(State(state): State<WebState>, Json(payload): J
     let mut token = state.token.lock().await;
 
     // 修改用户名
-    config.web.username = payload.new_username;
+    config.user.username = payload.new_username;
     drop(config);
     state.config.save_async().await;
 

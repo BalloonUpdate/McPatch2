@@ -24,7 +24,7 @@ pub struct ResponseData {
 pub async fn api_login(State(state): State<WebState>, Json(payload): Json<RequestBody>) -> Response {
     let config = state.config.config.lock().await;
 
-    let ok = config.web.username == payload.username && config.web.test_password(&payload.password);
+    let ok = config.user.username == payload.username && config.user.test_password(&payload.password);
 
     if !ok {
         return PublicResponseBody::<ResponseData>::err("incorrect username or password");

@@ -19,12 +19,12 @@ pub async fn api_change_password(State(state): State<WebState>, Json(payload): J
     let mut config = state.config.config.lock().await;
     let mut token = state.token.lock().await;
 
-    if !config.web.test_password(&payload.old_password) {
+    if !config.user.test_password(&payload.old_password) {
         return PublicResponseBody::<()>::err("incorrect current password");
     }
 
     // 修改密码
-    config.web.set_password(&payload.new_password);
+    config.user.set_password(&payload.new_password);
     drop(config);
     state.config.save_async().await;
 

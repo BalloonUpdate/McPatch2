@@ -43,7 +43,7 @@ pub async fn api_extract_file(State(state): State<WebState>, Query(params): Quer
     let status = state.status.lock().await;
     let config = status.config.config.lock().await;
 
-    let hash = hash(&format!("{}:{}:{}@{}", path, expire, config.web.username, config.web.password));
+    let hash = hash(&format!("{}:{}:{}@{}", path, expire, config.user.username, config.user.password));
 
     if hash != digest {
         return Response::builder().status(403).body(Body::new("invalid signature".to_owned())).unwrap();
