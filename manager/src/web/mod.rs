@@ -6,9 +6,13 @@ pub mod task_executor;
 pub mod auth_layer;
 pub mod token;
 
+use std::net::SocketAddr;
+use std::str::FromStr;
+
 use axum::routing::get;
 use axum::routing::post;
 use axum::Router;
+use axum_server::tls_rustls::RustlsConfig;
 use tower_http::cors::CorsLayer;
 
 use crate::config::config::Config;
@@ -45,11 +49,11 @@ pub fn serve_web() {
         if first_run {
             let mut lock = config.config.lock().await;
             println!("检测到首次运行，正在生成配置信息。");
-            println!("这是账号和密码，请务必牢记。账号：admin，密码：{}（只会显示一次，请注意保存）", lock.web.password);
+            println!("这是账号和密码，请务必牢记。账号：admin，密码：{}（只会显示一次，请注意保存）", lock.user.password);
 
             // 将密码进行hash计算
-            let raw = lock.web.password.to_owned();
-            lock.web.set_password(&raw);
+            let raw = lock.user.password.to_owned();
+            lock.user.set_password(&raw);
             drop(lock);
 
             config.save_async().await;
@@ -59,9 +63,40 @@ pub fn serve_web() {
         let listen_addr = lock.web.serve_listen_addr.to_owned();
         let listen_port = lock.web.serve_listen_port.to_owned();
         let listen = format!("{}:{}", listen_addr, listen_port);
-        drop(lock);
         
         println!("web监听地址和端口：{}", listen);
+
+        // 配置tls
+        let tls_config = if !lock.web.tls_cert_file.is_empty() && !lock.web.tls_key_file.is_empty() {
+            // println!("准备加载TLS证书");
+
+            let cert_file = config.working_dir.join(&lock.web.tls_cert_file);
+            let key_file = config.working_dir.join(&lock.web.tls_key_file);
+    
+            if !cert_file.exists() || !key_file.exists() {
+                if !cert_file.exists() {
+                    println!("TLS cert文件找不到：{}", lock.web.tls_cert_file);
+                }
+
+                if !key_file.exists() {
+                    println!("TLS key文件找不到：{}", lock.web.tls_key_file);
+                }
+
+                None
+            } else {
+                println!("TLS加密已启用");
+
+                let tls_config = RustlsConfig::from_pem_file(cert_file, key_file)
+                    .await
+                    .unwrap();
+
+                Some(tls_config)
+            }
+        } else {
+            None
+        };
+
+        drop(lock);
 
         let webstate = WebState::new(config);
 
@@ -102,7 +137,24 @@ pub fn serve_web() {
             .with_state(webstate.clone())
             ;
 
-        let listener = tokio::net::TcpListener::bind(listen).await.unwrap();
-        axum::serve(listener, app).await.unwrap();
+        // let listener = tokio::net::TcpListener::bind(listen).await.unwrap();
+        // axum::serve(listener, app).await.unwrap();
+
+        let addr = SocketAddr::from_str(&listen).unwrap();
+
+        match tls_config {
+            Some(ok) => {
+                axum_server::bind_rustls(addr, ok)
+                    .serve(app.into_make_service())
+                    .await
+                    .unwrap();
+            },
+            None => {
+                axum_server::bind(addr)
+                    .serve(app.into_make_service())
+                    .await
+                    .unwrap();
+            },
+        }
     });
 }
