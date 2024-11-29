@@ -10,10 +10,12 @@ use sha2::Sha256;
 pub struct GlobalConfig {
     pub core: CoreConfig,
     pub web: WebConfig,
+    pub user: UserConfig,
 }
 
 /// 核心功能配置（主要是打包相关）
 #[derive(Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "kebab-case")]
 pub struct CoreConfig {
     /// 要排除的文件规则，格式为正则表达式，暂时不支持Glob表达式
     /// 匹配任意一条规则时，文件就会被忽略（忽略：管理端会当这个文件不存在一般）
@@ -23,6 +25,7 @@ pub struct CoreConfig {
 
 /// web相关功能配置
 #[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "kebab-case")]
 pub struct WebConfig {
     /// webui的监听地址
     pub serve_listen_addr: String,
@@ -30,6 +33,27 @@ pub struct WebConfig {
     /// webui的监听端口
     pub serve_listen_port: u16,
 
+    /// https的证书文件
+    pub tls_cert_file: String,
+
+    /// https的私钥文件
+    pub tls_key_file: String,
+}
+
+impl Default for WebConfig {
+    fn default() -> Self {
+        Self {
+            serve_listen_addr: "0.0.0.0".to_owned(), 
+            serve_listen_port: 6710, 
+            tls_cert_file: "".to_owned(),
+            tls_key_file: "".to_owned(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "kebab-case")]
+pub struct UserConfig {
     /// 用户名
     #[serde(default)]
     pub username: String,
@@ -37,9 +61,12 @@ pub struct WebConfig {
     /// 密码的哈希值，计算方法：sha256(password)
     #[serde(default)]
     pub password: String,
+
+    // /// 目前保存的token
+    // pub token: String,
 }
 
-impl WebConfig {
+impl UserConfig {
     pub fn set_password(&mut self, password: &impl AsRef<str>) {
         self.password = hash(password);
     }
@@ -49,11 +76,9 @@ impl WebConfig {
     }
 }
 
-impl Default for WebConfig {
+impl Default for UserConfig {
     fn default() -> Self {
         Self {
-            serve_listen_addr: "0.0.0.0".to_owned(), 
-            serve_listen_port: 6710, 
             username: "admin".to_owned(), 
             password: random_password(),
         }

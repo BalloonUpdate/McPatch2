@@ -45,7 +45,7 @@ pub async fn api_sign_file(State(state): State<WebState>, Json(payload): Json<Re
     let unix_ts = expire.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
 
     let core_data = format!("{}:{}", relative_path, unix_ts);
-    let full_data = format!("{}:{}@{}", core_data, config.web.username, config.web.password);
+    let full_data = format!("{}:{}@{}", core_data, config.user.username, config.user.password);
     let digest = hash(&full_data);
     let signature = format!("{}:{}", core_data, digest);
 
