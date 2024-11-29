@@ -15,6 +15,7 @@ use axum::Router;
 use axum_server::tls_rustls::RustlsConfig;
 use tower_http::cors::CorsLayer;
 
+use crate::builtin_server::start_builtin_server;
 use crate::config::config::Config;
 use crate::web::api::fs::extract_file::api_extract_file;
 use crate::web::api::fs::sign_file::api_sign_file;
@@ -59,11 +60,13 @@ pub fn serve_web() {
             config.save_async().await;
         }
 
+        start_builtin_server(config.clone()).await;
+
         let lock = config.config.lock().await;
-        let listen_addr = lock.web.serve_listen_addr.to_owned();
-        let listen_port = lock.web.serve_listen_port.to_owned();
+        let listen_addr = lock.web.listen_addr.to_owned();
+        let listen_port = lock.web.listen_port.to_owned();
         let listen = format!("{}:{}", listen_addr, listen_port);
-        
+
         println!("web监听地址和端口：{}", listen);
 
         // 配置tls

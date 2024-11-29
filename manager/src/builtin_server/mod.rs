@@ -1,7 +1,8 @@
 //! 运行内置服务端，使用私有协议
+use std::future::Future;
 use std::io::ErrorKind;
-use std::net::TcpListener;
 use std::ops::Range;
+use std::path::Path;
 use std::time::SystemTime;
 
 use chrono::Local;
@@ -9,62 +10,71 @@ use shared::utility::partial_read::PartialAsyncRead;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncSeekExt;
 use tokio::io::AsyncWriteExt;
+use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 
+use crate::config::config::Config;
 use crate::utility::traffic_control::AsyncTrafficControl;
-use crate::AppContext;
 
-pub fn do_serve(port: u16, ctx: &AppContext) -> i32 {
-    println!("==============改动说明==============");
-    println!("自管理端0.0.14版本开始");
-    println!("serve命令的端口设置，已经从命令行参数，移动到配置文件config.toml中");
-    println!("请备份现有的config.toml后，删除此文件重新生成");
-    println!("============================");
+pub async fn start_builtin_server(config: Config) {
+    let lock = config.config.lock().await;
 
-    let capacity = ctx.config.serve_tbf_burst;
-    let regain = ctx.config.serve_tbf_rate;
+    if !lock.builtin_server.enabled {
+        return;
+    }
+
+    let capacity = lock.builtin_server.capacity;
+    let regain = lock.builtin_server.regain;
 
     if capacity > 0 && regain > 0 {
-        println!("启动内置服务端，限速参数：突发容量：{}, 限速速率：{}", capacity, regain);
+        println!("私有协议服务端已经启动。限速参数：突发容量：{}, 限速速率：{}", capacity, regain);
     } else {
-        println!("启动内置服务端");
+        println!("私有协议服务端已经启动。");
     }
 
-    let host = &ctx.config.serve_listen_addr;
-    let port = format!("{}", if port != 0 { port } else { ctx.config.serve_listen_port });
+    let host = lock.builtin_server.listen_addr.to_owned();
+    let port = format!("{}", lock.builtin_server.listen_port);
 
-    let listen_ip_port = format!("{}:{}", host, port);
+    drop(lock);
 
-    let listener = TcpListener::bind(listen_ip_port).unwrap();
-    println!("listening on {}:{}", host, port);
+    println!("private protocol server is now listening on {}:{}", host, port);
 
-    let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    tokio::spawn(async move {
+        let listener = TcpListener::bind(format!("{}:{}", host, port)).await.unwrap();
 
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
-        stream.set_read_timeout(Some(std::time::Duration::from_secs(30))).expect("设置连接 Read Timeout 参数失败");
-        stream.set_write_timeout(Some(std::time::Duration::from_secs(30))).expect("设置连接 Write Timeout 参数失败");
-        let ctx = ctx.clone();
-        runtime.spawn(async move { serve_loop(stream, ctx).await });
-    }
+        loop {
+            let (stream, _peer_addr) = listener.accept().await.unwrap();
 
-    0
+            let config = config.clone();
+
+            tokio::spawn(async move { serve_loop(stream, config).await });
+        }
+    });
 }
 
-async fn serve_loop(stream: std::net::TcpStream, ctx: AppContext) {
-    let mut stream = TcpStream::from_std(stream).unwrap();
+async fn serve_loop(mut stream: TcpStream, config: Config) {
+    let lock = config.config.lock().await;
+    let tbf_burst = lock.builtin_server.capacity as u64;
+    let tbf_rate = lock.builtin_server.regain as u64;
+    let public_dir = config.public_dir;
 
-    async fn inner(mut stream: &mut TcpStream, ctx: &AppContext, info: &mut Option<(String, Range<u64>)>) -> std::io::Result<()> {
+    async fn inner(
+        mut stream: &mut TcpStream, 
+        tbf_burst: u64,
+        tbf_rate: u64,
+        public_dir: &Path,
+        info: &mut Option<(String, Range<u64>)>
+    ) -> std::io::Result<()> {
         // 接收文件路径
         let mut path = String::with_capacity(1024);
         receive_data(&mut stream).await?.read_to_string(&mut path).await?;
 
-        let start = stream.read_u64_le().await?;
-        let mut end = stream.read_u64_le().await?;
+        let start = timeout(stream.read_u64_le()).await?;
+        let mut end = timeout(stream.read_u64_le()).await?;
 
         *info = Some((path.to_owned(), start..end));
 
-        let path = ctx.public_dir.join(path);
+        let path = public_dir.join(path);
 
         assert!(start <= end, "the end is {} and the start is {}", end, start);
 
@@ -100,7 +110,7 @@ async fn serve_loop(stream: std::net::TcpStream, ctx: AppContext) {
         file.seek(std::io::SeekFrom::Start(start)).await?;
 
         // 增加限速效果
-        let mut file = AsyncTrafficControl::new(&mut file, ctx.config.serve_tbf_burst as u64, ctx.config.serve_tbf_rate as u64);
+        let mut file = AsyncTrafficControl::new(&mut file, tbf_burst, tbf_rate);
 
         while remains > 0 {
             let mut buf = [0u8; 32 * 1024];
@@ -123,7 +133,7 @@ async fn serve_loop(stream: std::net::TcpStream, ctx: AppContext) {
         let mut info = Option::<(String, Range<u64>)>::None;
 
         let start = SystemTime::now();
-        let result = inner(&mut stream, &ctx, &mut info).await;
+        let result = inner(&mut stream, tbf_burst, tbf_rate, &public_dir, &mut info).await;
         let time = SystemTime::now().duration_since(start).unwrap();
 
         match result {
@@ -155,7 +165,18 @@ async fn _send_data(stream: &mut TcpStream, data: &[u8]) -> std::io::Result<()> 
 }
 
 async fn receive_data<'a>(stream: &'a mut TcpStream) -> std::io::Result<PartialAsyncRead<'a, TcpStream>> {
-    let len = stream.read_u64_le().await?;
+    let len = timeout(stream.read_u64_le()).await?;
 
     Ok(PartialAsyncRead::new(stream, len))
+}
+
+async fn timeout<T, F: Future<Output = std::io::Result<T>>>(f: F) -> std::io::Result<T> {
+    tokio::select! {
+        _ = tokio::time::sleep(std::time::Duration::from_secs(30)) => {
+            return Err(std::io::Error::new(ErrorKind::UnexpectedEof, "timeout"));
+        },
+        d = f => {
+            d
+        }
+    }
 }
