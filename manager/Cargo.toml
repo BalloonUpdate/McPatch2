@@ -29,6 +29,7 @@ futures-util = "0.3.31"
 sysinfo = "0.32.0"
 base64ct = { version = "1.6.0", features = ["alloc"] }
 axum-server = { version = "0.7.1", features = ["tls-rustls-no-provider"] }
+aws-config = "1.5.10"
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 embed-resource = "2.4"

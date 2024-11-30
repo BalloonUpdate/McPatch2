@@ -2,6 +2,7 @@ use std::ops::Deref;
 use std::rc::Weak;
 
 use axum::extract::State;
+use axum::http::HeaderMap;
 use axum::response::Response;
 use axum::Json;
 use serde::Deserialize;
@@ -17,7 +18,6 @@ use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
-use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
 #[derive(Deserialize)]
@@ -30,14 +30,14 @@ pub struct RequestBody {
 }
 
 /// 打包新版本
-pub async fn api_pack(State(state): State<WebState>, Json(payload): Json<RequestBody>) -> Response {
+pub async fn api_pack(State(state): State<WebState>, headers: HeaderMap, Json(payload): Json<RequestBody>) -> Response {
+    let wait = headers.get("wait").is_some();
+
     state.clone().te.lock().await
-        .try_schedule(move || do_check(payload, state)).await;
-    
-    PublicResponseBody::<()>::ok_no_data()
+        .try_schedule(wait, state.clone(), move || do_check(payload, state)).await
 }
 
-fn do_check(payload: RequestBody, state: WebState) {
+fn do_check(payload: RequestBody, state: WebState) -> u8 {
     let version_label = payload.label;
     let change_logs = payload.change_logs;
 
@@ -48,7 +48,7 @@ fn do_check(payload: RequestBody, state: WebState) {
 
     if index_file.contains(&version_label) {
         console.log_error(format!("版本号已经存在: {}", version_label));
-        return;
+        return 1;
     }
 
     // 1. 读取所有历史版本，并推演出上个版本的文件状态，用于和工作空间目录对比生成文件差异
@@ -75,7 +75,7 @@ fn do_check(payload: RequestBody, state: WebState) {
 
     if !diff.has_diff() {
         console.log_error("目前工作目录还没有任何文件修改");
-        return;
+        return 1;
     }
 
     console.log_info(format!("{:#?}", diff));
@@ -151,4 +151,6 @@ fn do_check(payload: RequestBody, state: WebState) {
     // };
 
     // generate_upload_script(context, ctx, &version_label);
+
+    0
 }
