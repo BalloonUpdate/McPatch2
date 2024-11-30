@@ -1,20 +1,20 @@
 use axum::extract::State;
+use axum::http::HeaderMap;
 use axum::response::Response;
 use shared::data::index_file::IndexFile;
 
 use crate::common::archive_tester::ArchiveTester;
-use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
 /// 执行更新包解压测试
-pub async fn api_test(State(state): State<WebState>) -> Response {
-    state.clone().te.lock().await
-        .try_schedule(move || do_test(state)).await;
+pub async fn api_test(State(state): State<WebState>, headers: HeaderMap) -> Response {
+    let wait = headers.get("wait").is_some();
 
-    PublicResponseBody::<()>::ok_no_data()
+    state.clone().te.lock().await
+        .try_schedule(wait, state.clone(), move || do_test(state)).await
 }
 
-fn do_test(state: WebState) {
+fn do_test(state: WebState) -> u8 {
     let config = state.config;
     let mut console = state.console.blocking_lock();
 
@@ -33,4 +33,6 @@ fn do_test(state: WebState) {
     tester.finish(|e| console.log_debug(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
 
     console.log_info("测试通过！");
+
+    0
 }
