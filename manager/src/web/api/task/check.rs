@@ -1,6 +1,7 @@
 use std::rc::Weak;
 
 use axum::extract::State;
+use axum::http::HeaderMap;
 use axum::response::Response;
 use shared::data::index_file::IndexFile;
 
@@ -11,12 +12,14 @@ use crate::diff::history_file::HistoryFile;
 use crate::web::webstate::WebState;
 
 /// 检查工作空间目录的文件修改情况，类似于git status命令
-pub async fn api_check(State(state): State<WebState>) -> Response {
+pub async fn api_check(State(state): State<WebState>, headers: HeaderMap) -> Response {
+    let wait = headers.get("wait").is_some();
+
     state.clone().te.lock().await
-        .try_schedule(move || do_check(state)).await
+        .try_schedule(wait, state.clone(), move || do_check(state)).await
 }
 
-fn do_check(state: WebState) {
+fn do_check(state: WebState) -> u8 {
     let config = state.config;
     let mut console = state.console.blocking_lock();
 
@@ -46,4 +49,6 @@ fn do_check(state: WebState) {
     // 输出文件差异
     console.log_info(format!("{:#?}", diff));
     console.log_info(format!("{}", diff));
+
+    0
 }

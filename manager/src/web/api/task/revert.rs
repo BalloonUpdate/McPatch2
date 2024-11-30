@@ -3,6 +3,7 @@ use std::ops::Deref;
 use std::rc::Weak;
 
 use axum::extract::State;
+use axum::http::HeaderMap;
 use axum::response::Response;
 use shared::data::index_file::IndexFile;
 
@@ -11,20 +12,19 @@ use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
-use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
 /// 恢复工作空间目录到未修改的时候
 /// 
 /// 有时可能修改了工作空间目录下的文件，但是觉得不满意，想要退回未修改之前，那么可以使用revert命令
-pub async fn api_revert(State(state): State<WebState>) -> Response {
-    state.clone().te.lock().await
-        .try_schedule(move || do_revert(state)).await;
+pub async fn api_revert(State(state): State<WebState>, headers: HeaderMap) -> Response {
+    let wait = headers.get("wait").is_some();
 
-    PublicResponseBody::<()>::ok_no_data()
+    state.clone().te.lock().await
+        .try_schedule(wait, state.clone(), move || do_revert(state)).await
 }
 
-pub fn do_revert(state: WebState) {
+pub fn do_revert(state: WebState) -> u8 {
     let config = state.config;
     let mut console = state.console.blocking_lock();
 
@@ -131,4 +131,6 @@ pub fn do_revert(state: WebState) {
     }
 
     console.log_info("工作空间目录已经退回到未修改之前");
+
+    0
 }

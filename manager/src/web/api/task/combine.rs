@@ -3,6 +3,7 @@ use std::collections::LinkedList;
 use std::rc::Weak;
 
 use axum::extract::State;
+use axum::http::HeaderMap;
 use axum::response::Response;
 use shared::data::index_file::IndexFile;
 use shared::data::index_file::VersionIndex;
@@ -13,7 +14,6 @@ use crate::common::archive_tester::ArchiveTester;
 use crate::common::tar_reader::TarReader;
 use crate::common::tar_writer::TarWriter;
 use crate::diff::history_file::HistoryFile;
-use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
 pub const COMBINED_FILENAME: &str = "combined.tar";
@@ -37,14 +37,14 @@ struct Location {
 }
 
 // 执行更新包合并操作
-pub async fn api_combine(State(state): State<WebState>) -> Response {
-    state.clone().te.lock().await
-        .try_schedule(move || do_combine(state)).await;
+pub async fn api_combine(State(state): State<WebState>, headers: HeaderMap) -> Response {
+    let wait = headers.get("wait").is_some();
 
-    PublicResponseBody::<()>::ok_no_data()
+    state.clone().te.lock().await
+        .try_schedule(wait, state.clone(), move || do_combine(state)).await
 }
 
-fn do_combine(state: WebState) {
+fn do_combine(state: WebState) -> u8 {
     let config = state.config;
     let mut console = state.console.blocking_lock();
     
@@ -66,7 +66,7 @@ fn do_combine(state: WebState) {
 
     if versions_to_be_combined.is_empty() {
         console.log_info("没有更新包可以合并");
-        return;
+        return 1;
     }
 
     console.log_debug("正在读取数据");
@@ -194,4 +194,6 @@ fn do_combine(state: WebState) {
     // };
 
     // generate_upload_script(context, ctx, "combined");
+
+    0
 }
