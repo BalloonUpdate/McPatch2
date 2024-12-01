@@ -9,6 +9,8 @@ export const fsMakeDirectoryRequest = (path = '') => instance.post('/fs/make-dir
 
 export const fsDeleteRequest = (path = '') => instance.post('/fs/delete', {path})
 
+export const fsSignFileRequest = (path = '') => instance.post('/fs/sign-file', {path})
+
 export const fsUploadRequest = (path = '', file, onProgress) => {
   const formData = new FormData();
   formData.append('path', path);

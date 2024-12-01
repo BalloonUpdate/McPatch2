@@ -1,7 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import FileItem from "@/components/TileViewFileExplorer/FileItem/index.jsx";
 import './index.css'
-import {fsDeleteRequest} from "@/api/fs.js";
+import {fsDeleteRequest, fsSignFileRequest} from "@/api/fs.js";
 import {message} from "antd";
 
 const Index = ({path, getFileList, items, handlerNextPath}) => {
@@ -39,10 +39,24 @@ const Index = ({path, getFileList, items, handlerNextPath}) => {
     };
   }, []);
 
-  const open = (item) => {
+  const fsOpenOrDownload = async (item) => {
+    closeMenu()
     if (item.is_directory) {
-      closeMenu()
       handlerNextPath(item)
+    } else {
+      let key = path.join('/');
+      key = key.length === 0 ? item.name : `${key}/${item.name}`
+
+      const {code, msg, data} = await fsSignFileRequest(key);
+      if (code === 1) {
+        const link = document.createElement('a');
+        link.href = `${import.meta.env.VITE_API_URL}/fs/extract-file?sign=${data.signature}`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        messageApi.error(msg);
+      }
     }
   }
 
@@ -90,7 +104,7 @@ const Index = ({path, getFileList, items, handlerNextPath}) => {
           items.map((item, index) => (
             <div
               key={index}
-              onDoubleClick={() => open(item)}
+              onDoubleClick={() => fsOpenOrDownload(item)}
               onContextMenu={(e) => handleContextMenu(e, index)} onClick={closeMenu}>
               <FileItem item={item}/>
             </div>
@@ -125,7 +139,7 @@ const Index = ({path, getFileList, items, handlerNextPath}) => {
                 selectedItem.is_directory &&
                 <>
                   <button
-                    onClick={() => open(selectedItem)}
+                    onClick={() => fsOpenOrDownload(selectedItem)}
                     className="flex items-center rounded-md w-full p-2 text-sm text-indigo-500 hover:bg-indigo-100 duration-200">
                     打开
                   </button>
@@ -135,6 +149,7 @@ const Index = ({path, getFileList, items, handlerNextPath}) => {
                 !selectedItem.is_directory &&
                 <>
                   <button
+                    onClick={() => fsOpenOrDownload(selectedItem)}
                     className="flex items-center rounded-md w-full p-2 text-sm text-indigo-500 hover:bg-indigo-100 duration-200">
                     下载
                   </button>
