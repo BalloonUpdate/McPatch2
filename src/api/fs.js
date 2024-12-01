@@ -12,13 +12,10 @@ export const fsDeleteRequest = (path = '') => instance.post('/fs/delete', {path}
 export const fsSignFileRequest = (path = '') => instance.post('/fs/sign-file', {path})
 
 export const fsUploadRequest = (path = '', file, onProgress) => {
-  const formData = new FormData();
-  formData.append('path', path);
-  formData.append('file', file);
-
-  return axios.post(`${import.meta.env.VITE_API_URL}/fs/upload`, formData, {
+  return axios.post(`${import.meta.env.VITE_API_URL}/fs/upload`, file, {
     headers: {
-      'Content-Type': 'multipart/form-data',
+      'Content-Type': 'application/octet-stream',
+      'Path': encodeURIComponent(path)
     },
     onUploadProgress: (event) => {
       let percent = Math.floor((event.loaded / event.total) * 100);

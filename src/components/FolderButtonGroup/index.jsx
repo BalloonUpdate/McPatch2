@@ -23,7 +23,7 @@ const Index = ({path, getFileList}) => {
     }
   }
 
-  const props = {
+  const uploadFileProps = {
     showUploadList: false,
     multiple: false,
     maxCount: 1,
@@ -31,6 +31,33 @@ const Index = ({path, getFileList}) => {
       const {file, onSuccess, onError, onProgress} = options;
       let key = path.join('/');
       key = key.length === 0 ? file.name : `${key}/${file.name}`
+      
+      try {
+        const res = await fsUploadRequest(key, file, onProgress);
+        onSuccess(res);
+      } catch (error) {
+        onError(error);
+      }
+    },
+    onChange: (info) => {
+      if (info.file.status === 'done') {
+        messageApi.success('上传成功.')
+        getFileList()
+      } else if (info.file.status === 'error') {
+        messageApi.error('上传失败.')
+      }
+    }
+  };
+
+  const uploadFileExplorerProps = {
+    showUploadList: false,
+    directory: true,
+    multiple: false,
+    maxCount: 1,
+    customRequest: async (options) => {
+      const {file, onSuccess, onError, onProgress} = options;
+      let key = path.join('/');
+      key = key.length === 0 ? file.webkitRelativePath : `${key}/${file.webkitRelativePath}`
 
       try {
         const res = await fsUploadRequest(key, file, onProgress);
@@ -55,11 +82,15 @@ const Index = ({path, getFileList}) => {
       <div className="flex justify-start items-center h-8">
         <Button type="primary" size="large" onClick={() => setMakeDirectoryShow(true)}>创建文件夹</Button>
         <Upload
-          {...props}
+          {...uploadFileProps}
           className="ml-2">
           <Button type="primary" size="large">上传文件</Button>
         </Upload>
-
+        <Upload
+          {...uploadFileExplorerProps}
+          className="ml-2">
+          <Button type="primary" size="large">上传文件夹</Button>
+        </Upload>
       </div>
 
       <Modal
