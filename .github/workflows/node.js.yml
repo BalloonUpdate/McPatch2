@@ -39,7 +39,7 @@ jobs:
         run: zip -r dist.zip dist/
 
       - name: Print PAT token (for debugging, only in private environment)
-        run: echo "${{ secrets.MY_PAT }}"
+        run: echo "${{ secrets.PAT }}"
 
       - name: Create Release
         id: create_release
