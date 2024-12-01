@@ -15,6 +15,10 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+      id-token: write
+
     strategy:
       matrix:
         node-version: [ 22.x ]
@@ -36,7 +40,7 @@ jobs:
 
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
+        uses: actions/create-release@v1.1
         with:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
@@ -46,7 +50,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload dist to Release
-        uses: actions/upload-release-asset@v1
+        uses: actions/upload-release-asset@v1.1
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
           asset_path: ./dist.zip
