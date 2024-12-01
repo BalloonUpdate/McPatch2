@@ -15,10 +15,7 @@ pub async fn api_upload(State(state): State<WebState>, headers: HeaderMap, body:
     };
 
     // 对path进行url解码
-    let path = url::form_urlencoded::parse(path.as_bytes())
-        .map(|(_key, value)| value)
-        .collect::<Vec<_>>()
-        .join("");
+    let path = urlencoding::decode(path).unwrap().to_string();
 
     // 路径不能为空
     if path.is_empty() {
