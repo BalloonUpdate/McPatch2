@@ -5,7 +5,7 @@ use std::sync::Arc;
 use shared::utility::is_running_under_cargo;
 use tokio::sync::Mutex;
 
-use crate::config::detail_config::GlobalConfig;
+use crate::config::global_config::GlobalConfig;
 
 #[derive(Clone)]
 pub struct Config {
