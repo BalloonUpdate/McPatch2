@@ -6,7 +6,7 @@ use sha2::Sha256;
 
 /// 用户认证相关配置
 #[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[serde(default, rename_all = "kebab-case")]
 pub struct UserConfig {
     /// 用户名
     #[serde(default)]

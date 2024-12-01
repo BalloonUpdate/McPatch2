@@ -30,6 +30,7 @@ axum-server = { version = "0.7.1", features = ["tls-rustls-no-provider"] }
 aws-config = { version = "1.5.10", features = ["behavior-version-latest"] }
 aws-sdk-s3 = "1.63.0"
 minio = "0.1.0"
+url = "2.5.4"
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 embed-resource = "2.4"

@@ -1,10 +1,9 @@
 use serde::Deserialize;
 use serde::Serialize;
 
-
 /// web相关功能配置
 #[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[serde(default, rename_all = "kebab-case")]
 pub struct WebConfig {
     /// webui的监听地址
     pub listen_addr: String,

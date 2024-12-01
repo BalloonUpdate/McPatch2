@@ -14,6 +14,12 @@ pub async fn api_upload(State(state): State<WebState>, headers: HeaderMap, body:
         None => return PublicResponseBody::<()>::err("no filed 'path' is found in headers."),
     };
 
+    // 对path进行url解码
+    let path = url::form_urlencoded::parse(path.as_bytes())
+        .map(|(_key, value)| value)
+        .collect::<Vec<_>>()
+        .join("");
+
     // 路径不能为空
     if path.is_empty() {
         return PublicResponseBody::<()>::err("parameter 'path' is empty, and it is not allowed.");

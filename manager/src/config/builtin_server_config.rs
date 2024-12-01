@@ -3,7 +3,7 @@ use serde::Serialize;
 
 /// 私有协议服务端相关配置
 #[derive(Serialize, Deserialize, Clone)]
-#[serde(rename_all = "kebab-case")]
+#[serde(default, rename_all = "kebab-case")]
 pub struct BuiltinServerConfig {
     /// 是否启动私有协议服务器功能
     pub enabled: bool,
