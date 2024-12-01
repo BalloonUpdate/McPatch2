@@ -8,6 +8,7 @@ use axum::extract::State;
 use axum::response::Response;
 use sha2::Digest;
 use sha2::Sha256;
+use shared::utility::filename_ext::GetFileNamePart;
 
 use crate::web::webstate::WebState;
 
@@ -56,15 +57,21 @@ pub async fn api_extract_file(State(state): State<WebState>, Query(params): Quer
 
     let path = state.config.workspace_dir.join(path);
 
+    let metadata = tokio::fs::metadata(&path).await.unwrap();
+
     let file = tokio::fs::File::options()
         .read(true)
-        .open(path)
+        .open(&path)
         .await
         .unwrap();
 
     let file = tokio_util::io::ReaderStream::new(file);
 
-    Response::builder().body(Body::from_stream(file)).unwrap()
+    Response::builder()
+        .header(axum::http::header::CONTENT_TYPE, "application/octet-stream")
+        .header(axum::http::header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", path.filename()))
+        .header(axum::http::header::CONTENT_LENGTH, format!("{}", metadata.len()))
+        .body(Body::from_stream(file)).unwrap()
 }
 
 fn hash(text: &impl AsRef<str>) -> String {
