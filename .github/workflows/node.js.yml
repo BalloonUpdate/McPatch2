@@ -10,8 +10,6 @@ on:
   pull_request:
     branches: [ "main" ]
 
-permissions: write-all
-
 jobs:
   build:
 
@@ -43,6 +41,7 @@ jobs:
           tag_name: ${{ github.ref }}
           release_name: ${{ github.ref }}
           body: "Release created from commit ${{ github.sha }}"
+          prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
