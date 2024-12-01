@@ -7,6 +7,7 @@ pub mod common;
 pub mod config;
 pub mod web;
 pub mod builtin_server;
+pub mod upload;
 
 fn main() {
     std::env::set_var("RUST_BACKTRACE", "1");
