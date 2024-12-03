@@ -175,11 +175,15 @@ pub fn do_combine(ctx: &AppContext) -> i32 {
 
     // 生成上传脚本
     let context = TemplateContext {
-        upload_files: vec![combine_file.strip_prefix(&ctx.working_dir).unwrap().to_str().unwrap().to_owned()],
+        upload_files: vec![
+            combine_file.strip_prefix(&ctx.working_dir).unwrap().to_str().unwrap().replace("\\", "/").to_owned(),
+            ctx.index_file.strip_prefix(&ctx.working_dir).unwrap().to_str().unwrap().replace("\\", "/").to_owned(),
+        ],
         delete_files: versions_to_be_combined.iter().map(|e| {
             ctx.public_dir.join(&e.filename)
                 .strip_prefix(&ctx.working_dir).unwrap()
                 .to_str().unwrap()
+                .replace("\\", "/")
                 .to_owned()
         }).collect(),
     };
