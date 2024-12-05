@@ -3,7 +3,7 @@ use serde::Serialize;
 
 use crate::config::builtin_server_config::BuiltinServerConfig;
 use crate::config::core_config::CoreConfig;
-use crate::config::upload_config::S3Config;
+use crate::config::s3_config::S3Config;
 use crate::config::user_config::UserConfig;
 use crate::config::web_config::WebConfig;
 
