@@ -1,13 +1,18 @@
 pub mod s3;
+pub mod webdav;
+pub mod file_list_cache;
 
 use std::future::Future;
-
-use tokio::io::AsyncRead;
+use std::path::PathBuf;
 
 pub trait SyncTarget {
-    fn upload(path: &str, data: impl AsyncRead) -> impl Future;
+    fn list(&mut self) -> impl Future<Output = Result<Vec<String>, String>>;
 
-    fn download(path: &str) -> impl Future<Output = impl AsyncRead>;
+    fn read(&mut self, filename: &str) -> impl Future<Output = Result<String, String>>;
 
-    fn delete(path: &str) -> impl Future;
+    fn write(&mut self, filename: &str, content: &str) -> impl Future<Output = Result<(), String>>;
+
+    fn upload(&mut self, filename: &str, filepath: PathBuf) -> impl Future<Output = Result<(), String>>;
+
+    fn delete(&mut self, filename: &str) -> impl Future<Output = Result<(), String>>;
 }
