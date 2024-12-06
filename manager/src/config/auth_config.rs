@@ -1,6 +1,5 @@
 use std::ops::Deref;
 use std::sync::Arc;
-use std::time::Duration;
 use std::time::SystemTime;
 
 use rand::seq::SliceRandom;
@@ -17,7 +16,7 @@ use crate::app_path::AppPath;
 #[derive(Clone)]
 pub struct AuthConfig {
     app_path: AppPath,
-    inner: Arc<Mutex<Inenr>>,
+    inner: Arc<Mutex<Inner>>,
 }
 
 impl AuthConfig {
@@ -26,14 +25,14 @@ impl AuthConfig {
 
         if exist {
             let content = std::fs::read_to_string(&app_path.auth_file).unwrap();
-            let data = toml::from_str::<Inenr>(&content).unwrap();
+            let data = toml::from_str::<Inner>(&content).unwrap();
 
             return (Self { app_path, inner: Arc::new(Mutex::new(data)) }, None);
         }
 
         let password = random_password();
 
-        let inner = Inenr::new(password.clone());
+        let inner = Inner::new(password.clone());
 
         let this = Self { app_path, inner: Arc::new(Mutex::new(inner)) };
 
@@ -71,12 +70,15 @@ impl AuthConfig {
 
         let mut lock = self.inner.lock().await;
         
-        lock.expire = SystemTime::now().checked_add(Duration::from_secs(6 * 60 * 60)).unwrap();
+        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
+
+        // 有效期6个小时
+        lock.expire = now + 6 * 60 * 60;
 
         let mut rng = rand::rngs::OsRng;
         let new_token: String = CHARSET.choose_multiple(&mut rng, 32).map(|e| *e as char).collect();
 
-        lock.token = new_token.clone();
+        lock.token = hash(&new_token);
 
         new_token
     }
@@ -90,7 +92,7 @@ impl AuthConfig {
     pub async fn validate_token(&self, token: &str) -> Result<(), &'static str> {
         let lock = self.inner.lock().await;
 
-        let now = SystemTime::now();
+        let now = SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
 
         // 检查token是否存在
         if lock.token.is_empty() {
@@ -98,12 +100,12 @@ impl AuthConfig {
         }
 
         // 检查token是否有效
-        if lock.token != token {
+        if lock.token != hash(token) {
             return Err("invalid token");
         }
 
         // 检查token是否过期
-        if lock.expire.duration_since(now).is_err() {
+        if lock.expire < now {
             return Err("token expired");
         }
 
@@ -134,7 +136,7 @@ impl AuthConfig {
 /// 用户认证相关配置
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(rename_all = "kebab-case")]
-pub struct Inenr {
+pub struct Inner {
     /// 用户名
     pub username: String,
 
@@ -145,16 +147,16 @@ pub struct Inenr {
     pub token: String,
 
     /// token的到期时间
-    pub expire: SystemTime,
+    pub expire: u64,
 }
 
-impl Inenr {
+impl Inner {
     fn new(password: String) -> Self {
         Self {
             username: "admin".to_owned(), 
-            password,
+            password: hash(&password),
             token: "".to_owned(),
-            expire: SystemTime::UNIX_EPOCH,
+            expire: 0,
         }
     }
 }

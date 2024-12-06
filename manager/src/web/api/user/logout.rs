@@ -9,5 +9,7 @@ pub async fn api_logout(State(state): State<WebState>) -> Response {
 
     auth.clear_token().await;
 
+    auth.save().await;
+
     PublicResponseBody::<()>::ok_no_data()
 }
