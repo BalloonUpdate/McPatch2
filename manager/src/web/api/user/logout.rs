@@ -5,11 +5,9 @@ use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
 pub async fn api_logout(State(state): State<WebState>) -> Response {
-    let _config = state.config.config.lock().await;
+    let mut auth = state.auth;
 
-    let mut token = state.token.lock().await;
-
-    token.clear();
+    auth.clear_token().await;
 
     PublicResponseBody::<()>::ok_no_data()
 }

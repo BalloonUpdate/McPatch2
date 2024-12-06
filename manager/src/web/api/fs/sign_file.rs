@@ -25,27 +25,26 @@ pub struct ResponseData {
 }
 
 pub async fn api_sign_file(State(state): State<WebState>, Json(payload): Json<RequestBody>) -> Response {
-    let status = state.status.lock().await;
-
     // 路径不能为空
     if payload.path.is_empty() {
         return PublicResponseBody::<ResponseData>::err("parameter 'path' is empty, and it is not allowed.");
     }
 
-    let path = status.config.workspace_dir.join(payload.path);
+    let path = state.app_path.workspace_dir.join(payload.path);
 
     if !path.exists() || !path.is_file() {
         return PublicResponseBody::<ResponseData>::err("file not exists.");
     }
 
-    let config = status.config.config.lock().await;
+    let username = state.auth.username().await;
+    let password = state.auth.password().await;
 
-    let relative_path = path.strip_prefix(&status.config.workspace_dir).unwrap().to_str().unwrap().to_owned();
+    let relative_path = path.strip_prefix(&state.app_path.workspace_dir).unwrap().to_str().unwrap().to_owned();
     let expire = SystemTime::now() + Duration::from_secs(2 * 60 * 60);
     let unix_ts = expire.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
 
     let core_data = format!("{}:{}", relative_path, unix_ts);
-    let full_data = format!("{}:{}@{}", core_data, config.user.username, config.user.password);
+    let full_data = format!("{}:{}@{}", core_data, username, password);
     let digest = hash(&full_data);
     let signature = format!("{}:{}", core_data, digest);
 

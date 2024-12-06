@@ -22,18 +22,16 @@ pub struct ResponseData {
 }
 
 pub async fn api_login(State(state): State<WebState>, Json(payload): Json<RequestBody>) -> Response {
-    let config = state.config.config.lock().await;
+    let mut auth = state.auth;
 
-    let ok = config.user.username == payload.username && config.user.test_password(&payload.password);
+    let ok = auth.test_username(&payload.username).await && auth.test_password(&payload.password).await;
 
     if !ok {
         return PublicResponseBody::<ResponseData>::err("incorrect username or password");
     }
 
-    let mut token = state.token.lock().await;
-
     // 生成新的token
-    let new_token = token.regen().to_owned();
+    let new_token = auth.regen_token().await;
 
     PublicResponseBody::<ResponseData>::ok(ResponseData { token: new_token })
 }
