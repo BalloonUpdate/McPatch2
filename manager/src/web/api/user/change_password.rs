@@ -24,10 +24,11 @@ pub async fn api_change_password(State(state): State<WebState>, Json(payload): J
 
     // 修改密码
     auth.set_password(&payload.new_password).await;
-    auth.save().await;
 
     // 使token失效
     auth.clear_token().await;
+
+    auth.save().await;
 
     PublicResponseBody::<()>::ok_no_data()
 }

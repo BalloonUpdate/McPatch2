@@ -34,7 +34,7 @@ impl Config {
         if !exist {
             let content = toml::to_string_pretty(&Config::default()).unwrap();
 
-            std::fs::write(&app_path.auth_file, content).unwrap();
+            std::fs::write(&app_path.config_file, content).unwrap();
         }
 
         let content = tokio::fs::read_to_string(&app_path.config_file).await.unwrap();

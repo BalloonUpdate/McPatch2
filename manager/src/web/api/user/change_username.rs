@@ -17,10 +17,11 @@ pub async fn api_change_username(State(state): State<WebState>, Json(payload): J
 
     // 修改用户名
     auth.set_username(&payload.new_username).await;
-    auth.save().await;
-
+    
     // 使token失效
     auth.clear_token().await;
+    
+    auth.save().await;
 
     PublicResponseBody::<()>::ok_no_data()
 }
