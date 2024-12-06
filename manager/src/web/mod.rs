@@ -4,7 +4,6 @@ pub mod log;
 pub mod webstate;
 pub mod task_executor;
 pub mod auth_layer;
-pub mod token;
 
 use std::net::SocketAddr;
 use std::str::FromStr;
@@ -15,8 +14,10 @@ use axum::Router;
 use axum_server::tls_rustls::RustlsConfig;
 use tower_http::cors::CorsLayer;
 
+use crate::app_path::AppPath;
 use crate::builtin_server::start_builtin_server;
-use crate::config::config::Config;
+use crate::config::auth_config::AuthConfig;
+use crate::config::Config;
 use crate::web::api::fs::extract_file::api_extract_file;
 use crate::web::api::fs::sign_file::api_sign_file;
 use crate::web::api::public::api_public;
@@ -45,44 +46,39 @@ pub fn serve_web() {
     let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
     
     runtime.block_on(async move {
-        let (config, first_run) = Config::load();
+        let app_path = AppPath::new();
+        
+        let config = Config::load(&app_path).await;
 
-        if first_run {
-            let mut lock = config.config.lock().await;
+        let (auth_config, first_password) = AuthConfig::load(app_path.clone()).await;
+
+        if let Some(pwd) = first_password {
             println!("检测到首次运行，正在生成配置信息。");
-            println!("这是账号和密码，请务必牢记。账号：admin，密码：{}（只会显示一次，请注意保存）", lock.user.password);
-
-            // 将密码进行hash计算
-            let raw = lock.user.password.to_owned();
-            lock.user.set_password(&raw);
-            drop(lock);
-
-            config.save_async().await;
+            println!("这是账号和密码，请务必牢记。账号：admin，密码：{}（只会显示一次，请注意保存）", pwd);
         }
 
-        start_builtin_server(config.clone()).await;
+        start_builtin_server(config.clone(), app_path.clone()).await;
 
-        let lock = config.config.lock().await;
-        let listen_addr = lock.web.listen_addr.to_owned();
-        let listen_port = lock.web.listen_port.to_owned();
+        let listen_addr = config.web.listen_addr.to_owned();
+        let listen_port = config.web.listen_port.to_owned();
         let listen = format!("{}:{}", listen_addr, listen_port);
 
         println!("web监听地址和端口：{}", listen);
 
         // 配置tls
-        let tls_config = if !lock.web.tls_cert_file.is_empty() && !lock.web.tls_key_file.is_empty() {
+        let tls_config = if !config.web.tls_cert_file.is_empty() && !config.web.tls_key_file.is_empty() {
             // println!("准备加载TLS证书");
 
-            let cert_file = config.working_dir.join(&lock.web.tls_cert_file);
-            let key_file = config.working_dir.join(&lock.web.tls_key_file);
+            let cert_file = app_path.working_dir.join(&config.web.tls_cert_file);
+            let key_file = app_path.working_dir.join(&config.web.tls_key_file);
     
             if !cert_file.exists() || !key_file.exists() {
                 if !cert_file.exists() {
-                    println!("TLS cert文件找不到：{}", lock.web.tls_cert_file);
+                    println!("TLS cert文件找不到：{}", config.web.tls_cert_file);
                 }
 
                 if !key_file.exists() {
-                    println!("TLS key文件找不到：{}", lock.web.tls_key_file);
+                    println!("TLS key文件找不到：{}", config.web.tls_key_file);
                 }
 
                 None
@@ -99,9 +95,7 @@ pub fn serve_web() {
             None
         };
 
-        drop(lock);
-
-        let webstate = WebState::new(config);
+        let webstate = WebState::new(app_path, config, auth_config);
 
         let app = Router::new()
             // 这部分参与请求验证

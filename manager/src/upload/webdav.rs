@@ -15,7 +15,7 @@ pub struct WebdavTarget {
 }
 
 impl WebdavTarget {
-    pub fn new(config: WebdavConfig) -> Self {
+    pub async fn new(config: WebdavConfig) -> Self {
         let reqwest_client = reqwest_dav::re_exports::reqwest::ClientBuilder::new()
             .connect_timeout(Duration::from_millis(10 as u64))
             .read_timeout(Duration::from_millis(10 as u64))

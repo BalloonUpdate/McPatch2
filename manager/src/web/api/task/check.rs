@@ -20,18 +20,17 @@ pub async fn api_check(State(state): State<WebState>, headers: HeaderMap) -> Res
 }
 
 fn do_check(state: WebState) -> u8 {
-    let config = state.config;
     let mut console = state.console.blocking_lock();
 
     // 读取现有更新包，并复现在history上
-    let index_file = IndexFile::load_from_file(&config.index_file);
+    let index_file = IndexFile::load_from_file(&state.app_path.index_file);
 
     console.log_debug("正在读取数据");
 
     let mut history = HistoryFile::new_empty();
 
     for v in &index_file {
-        let mut reader = TarReader::new(config.public_dir.join(&v.filename));
+        let mut reader = TarReader::new(state.app_path.public_dir.join(&v.filename));
         let meta_group = reader.read_metadata_group(v.offset, v.len);
 
         for meta in meta_group {
@@ -42,8 +41,8 @@ fn do_check(state: WebState) -> u8 {
     // 对比文件
     console.log_debug("正在扫描文件更改");
 
-    let exclude_rules = &config.config.blocking_lock().core.exclude_rules;
-    let disk_file = DiskFile::new(config.workspace_dir.clone(), Weak::new());
+    let exclude_rules = &state.config.core.exclude_rules;
+    let disk_file = DiskFile::new(state.app_path.workspace_dir.clone(), Weak::new());
     let diff = Diff::diff(&disk_file, &history, Some(&exclude_rules));
 
     // 输出文件差异

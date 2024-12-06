@@ -45,16 +45,15 @@ pub async fn api_combine(State(state): State<WebState>, headers: HeaderMap) -> R
 }
 
 fn do_combine(state: WebState) -> u8 {
-    let config = state.config;
     let mut console = state.console.blocking_lock();
     
-    let index_file = IndexFile::load_from_file(&config.index_file);
+    let index_file = IndexFile::load_from_file(&state.app_path.index_file);
 
     // 执行合并前需要先测试一遍
     console.log_debug("正在执行合并前的解压测试");
     let mut tester = ArchiveTester::new();
     for v in &index_file {
-        tester.feed(config.public_dir.join(&v.filename), v.offset, v.len);
+        tester.feed(state.app_path.public_dir.join(&v.filename), v.offset, v.len);
     }
     tester.finish(|e| console.log_debug(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
     console.log_debug("测试通过，开始更新包合并流程");
@@ -92,7 +91,7 @@ fn do_combine(state: WebState) -> u8 {
         meta_cache_keys.push(cache_key);
 
         // 开始正常读取
-        let mut reader = TarReader::new(config.public_dir.join(&v.filename));
+        let mut reader = TarReader::new(state.app_path.public_dir.join(&v.filename));
         let group = reader.read_metadata_group(v.offset, v.len);
         
         for meta in group.into_iter() {
@@ -132,13 +131,13 @@ fn do_combine(state: WebState) -> u8 {
     console.log_debug("正在合并数据");
 
     // 生成新的合并包
-    let new_tar_file = config.public_dir.join("_combined.temp.tar");
+    let new_tar_file = state.app_path.public_dir.join("_combined.temp.tar");
     let mut writer = TarWriter::new(&new_tar_file);
 
     // 写入每个版本里的所有文件数据
     for (_, loc) in &data_locations {
         // 读取原tar包中的文件，然后复制到合并包中
-        let mut reader = TarReader::new(config.public_dir.join(&loc.filename));
+        let mut reader = TarReader::new(state.app_path.public_dir.join(&loc.filename));
         let read = reader.open_file(loc.offset, loc.len);
         writer.add_file(read, loc.len, &loc.path, &loc.label);
     }
@@ -150,7 +149,7 @@ fn do_combine(state: WebState) -> u8 {
     let meta_loc = writer.finish(meta_group);
 
     // 更新索引文件
-    let new_index_filepath = config.public_dir.join("_index.temp.json");
+    let new_index_filepath = state.app_path.public_dir.join("_index.temp.json");
     let mut new_index_file = IndexFile::new();
     for index in &index_file {
         new_index_file.add(VersionIndex {
@@ -169,15 +168,15 @@ fn do_combine(state: WebState) -> u8 {
     tester.finish(|e| console.log_debug(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
     
     // 合并回原包
-    std::fs::copy(&new_index_filepath, &config.index_file).unwrap();
+    std::fs::copy(&new_index_filepath, &state.app_path.index_file).unwrap();
 
-    let combine_file = config.public_dir.join(COMBINED_FILENAME);
+    let combine_file = state.app_path.public_dir.join(COMBINED_FILENAME);
     let _ = std::fs::remove_file(&combine_file);
     std::fs::rename(&new_tar_file, &combine_file).unwrap();
     std::fs::remove_file(&new_index_filepath).unwrap();
     
     for v in &versions_to_be_combined {
-        std::fs::remove_file(config.public_dir.join(&v.filename)).unwrap();
+        std::fs::remove_file(state.app_path.public_dir.join(&v.filename)).unwrap();
     }
 
     console.log_info(format!("合并完成！一共合并了 {} 个版本", version_count));

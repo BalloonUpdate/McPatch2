@@ -57,8 +57,6 @@ impl<S, Req> Service<Request<Req>> for AuthService<S> where
         let uri = req.uri().to_string();
         println!("url = {:?}", uri);
 
-        // let need_token = !req.uri().path().ends_with(API_PATH_LOGIN);
-
         let webstate = self.webstate.clone();
 
         let token_header = match req.headers().get("token") {
@@ -69,16 +67,9 @@ impl<S, Req> Service<Request<Req>> for AuthService<S> where
         let fut = self.service.call(req);
         
         Box::pin(async move {
-            let token = webstate.token.lock().await;
-
-            // if need_token {
-                // 验证token
-                if let Err(reason) = token.validate(&token_header) {
-                    return Ok(PublicResponseBody::<()>::err(reason));
-                }
-            // }
-
-            drop(token);
+            if let Err(reason) = webstate.auth.validate_token(&token_header).await {
+                return Ok(PublicResponseBody::<()>::err(reason));
+            }
             
             // 请求继续往后走
             fut.await

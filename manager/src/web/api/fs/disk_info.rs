@@ -14,7 +14,7 @@ pub struct ResponseData {
 
 pub async fn api_disk_info(State(state): State<WebState>) -> Response {
     #[allow(unused_mut)]
-    let mut path = state.config.working_dir.canonicalize().unwrap().to_str().unwrap().to_string();
+    let mut path = state.app_path.working_dir.canonicalize().unwrap().to_str().unwrap().to_string();
 
     #[cfg(target_os = "windows")]
     if path.starts_with(r"\\?\") {
