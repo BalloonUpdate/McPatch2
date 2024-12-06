@@ -33,5 +33,7 @@ pub async fn api_login(State(state): State<WebState>, Json(payload): Json<Reques
     // 生成新的token
     let new_token = auth.regen_token().await;
 
+    auth.save().await;
+
     PublicResponseBody::<ResponseData>::ok(ResponseData { token: new_token })
 }
