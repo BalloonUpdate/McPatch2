@@ -13,16 +13,14 @@ pub struct RequestBody {
 }
 
 pub async fn api_change_username(State(state): State<WebState>, Json(payload): Json<RequestBody>) -> Response {
-    let mut config = state.config.config.lock().await;
-    let mut token = state.token.lock().await;
+    let mut auth = state.auth;
 
     // 修改用户名
-    config.user.username = payload.new_username;
-    drop(config);
-    state.config.save_async().await;
+    auth.set_username(&payload.new_username).await;
+    auth.save().await;
 
     // 使token失效
-    token.clear();
+    auth.clear_token().await;
 
     PublicResponseBody::<()>::ok_no_data()
 }

@@ -41,10 +41,10 @@ pub async fn api_extract_file(State(state): State<WebState>, Query(params): Quer
         None => return Response::builder().status(403).body(Body::empty()).unwrap(),
     };
 
-    let status = state.status.lock().await;
-    let config = status.config.config.lock().await;
+    let username = state.auth.username().await;
+    let password = state.auth.password().await;
 
-    let hash = hash(&format!("{}:{}:{}@{}", path, expire, config.user.username, config.user.password));
+    let hash = hash(&format!("{}:{}:{}@{}", path, expire, username, password));
 
     if hash != digest {
         return Response::builder().status(403).body(Body::new("invalid signature".to_owned())).unwrap();
@@ -55,7 +55,7 @@ pub async fn api_extract_file(State(state): State<WebState>, Query(params): Quer
         return Response::builder().status(403).body(Body::new("signature is outdate".to_owned())).unwrap();
     }
 
-    let path = state.config.workspace_dir.join(path);
+    let path = state.app_path.workspace_dir.join(path);
 
     let metadata = tokio::fs::metadata(&path).await.unwrap();
 

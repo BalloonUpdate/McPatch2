@@ -20,7 +20,7 @@ pub async fn api_delete(State(state): State<WebState>, Json(payload): Json<Reque
         return PublicResponseBody::<()>::err("parameter 'path' is empty");
     }
 
-    let file = state.config.workspace_dir.join(path);
+    let file = state.app_path.workspace_dir.join(path);
 
     if !file.exists() {
         return PublicResponseBody::<()>::err("file not exists.");

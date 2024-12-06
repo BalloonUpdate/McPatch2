@@ -2,8 +2,9 @@ use std::rc::Weak;
 
 use shared::data::index_file::IndexFile;
 
+use crate::app_path::AppPath;
 use crate::common::tar_reader::TarReader;
-use crate::config::config::Config;
+use crate::config::Config;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
@@ -41,13 +42,14 @@ pub struct Status {
 }
 
 pub struct FileStatus {
+    pub app_path: AppPath,
     pub config: Config,
     pub status: Option<Status>,
 }
 
 impl FileStatus {
-    pub fn new(config: Config) -> Self {
-        Self { config, status: None }
+    pub fn new(app_path: AppPath, config: Config) -> Self {
+        Self { app_path, config, status: None }
     }
 
     pub fn invalidate(&mut self) {
@@ -132,16 +134,15 @@ impl FileStatus {
 
     async fn refresh(&mut self) -> &Status {
         if self.status.is_none() {
-            let config = &self.config;
-            let cfg = config.config.lock().await;
+            let app_path = &self.app_path;
 
             // 读取现有更新包，并复现在history上
-            let index_file = IndexFile::load_from_file(&config.index_file);
+            let index_file = IndexFile::load_from_file(&app_path.index_file);
 
             let mut history = HistoryFile::new_empty();
 
             for v in &index_file {
-                let mut reader = TarReader::new(config.public_dir.join(&v.filename));
+                let mut reader = TarReader::new(app_path.public_dir.join(&v.filename));
                 let meta_group = reader.read_metadata_group(v.offset, v.len);
 
                 for meta in meta_group {
@@ -150,8 +151,8 @@ impl FileStatus {
             }
 
             // 对比文件
-            let exclude_rules = &cfg.core.exclude_rules;
-            let disk_file = DiskFile::new(config.workspace_dir.clone(), Weak::new());
+            let exclude_rules = &self.config.core.exclude_rules;
+            let disk_file = DiskFile::new(app_path.workspace_dir.clone(), Weak::new());
             let diff = Diff::diff(&disk_file, &history, Some(&exclude_rules));
 
             let mut status = Status::default();

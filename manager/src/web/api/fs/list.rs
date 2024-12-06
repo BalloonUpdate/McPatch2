@@ -35,7 +35,7 @@ pub struct File {
 pub async fn api_list(State(state): State<WebState>, Json(payload): Json<RequestBody>) -> Response {
     let mut status = state.status.lock().await;
 
-    let dir = state.config.workspace_dir.join(&payload.path);
+    let dir = state.app_path.workspace_dir.join(&payload.path);
 
     // println!("list: {:?}", dir);
 
@@ -51,7 +51,7 @@ pub async fn api_list(State(state): State<WebState>, Json(payload): Json<Request
         let is_directory = entry.file_type().await.unwrap().is_dir();
         let metadata = entry.metadata().await.unwrap();
 
-        let relative_path = entry.path().strip_prefix(&state.config.workspace_dir).unwrap().to_str().unwrap().replace("\\", "/");
+        let relative_path = entry.path().strip_prefix(&state.app_path.workspace_dir).unwrap().to_str().unwrap().replace("\\", "/");
 
         // println!("relative: {:?}", relative_path);
 

@@ -16,20 +16,18 @@ pub struct RequestBody {
 }
 
 pub async fn api_change_password(State(state): State<WebState>, Json(payload): Json<RequestBody>) -> Response {
-    let mut config = state.config.config.lock().await;
-    let mut token = state.token.lock().await;
+    let mut auth = state.auth;
 
-    if !config.user.test_password(&payload.old_password) {
+    if !auth.test_password(&payload.old_password).await {
         return PublicResponseBody::<()>::err("incorrect current password");
     }
 
     // 修改密码
-    config.user.set_password(&payload.new_password);
-    drop(config);
-    state.config.save_async().await;
+    auth.set_password(&payload.new_password).await;
+    auth.save().await;
 
     // 使token失效
-    token.clear();
+    auth.clear_token().await;
 
     PublicResponseBody::<()>::ok_no_data()
 }

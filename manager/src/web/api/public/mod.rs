@@ -9,7 +9,7 @@ use crate::web::webstate::WebState;
 pub async fn api_public(State(state): State<WebState>, Path(path): Path<String>) -> Response {
     println!("+ {}", path);
 
-    let path = state.config.public_dir.join(path);
+    let path = state.app_path.public_dir.join(path);
 
     if !path.is_file() {
         return Response::builder().status(404).body(Body::empty()).unwrap();

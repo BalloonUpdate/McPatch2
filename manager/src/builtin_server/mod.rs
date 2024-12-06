@@ -13,18 +13,17 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 use tokio::net::TcpStream;
 
-use crate::config::config::Config;
+use crate::app_path::AppPath;
+use crate::config::Config;
 use crate::utility::traffic_control::AsyncTrafficControl;
 
-pub async fn start_builtin_server(config: Config) {
-    let lock = config.config.lock().await;
-
-    if !lock.builtin_server.enabled {
+pub async fn start_builtin_server(config: Config, app_path: AppPath) {
+    if !config.builtin_server.enabled {
         return;
     }
 
-    let capacity = lock.builtin_server.capacity;
-    let regain = lock.builtin_server.regain;
+    let capacity = config.builtin_server.capacity;
+    let regain = config.builtin_server.regain;
 
     if capacity > 0 && regain > 0 {
         println!("私有协议服务端已经启动。限速参数：突发容量：{}, 限速速率：{}", capacity, regain);
@@ -32,10 +31,8 @@ pub async fn start_builtin_server(config: Config) {
         println!("私有协议服务端已经启动。");
     }
 
-    let host = lock.builtin_server.listen_addr.to_owned();
-    let port = format!("{}", lock.builtin_server.listen_port);
-
-    drop(lock);
+    let host = config.builtin_server.listen_addr.to_owned();
+    let port = format!("{}", config.builtin_server.listen_port);
 
     println!("private protocol server is now listening on {}:{}", host, port);
 
@@ -46,17 +43,17 @@ pub async fn start_builtin_server(config: Config) {
             let (stream, _peer_addr) = listener.accept().await.unwrap();
 
             let config = config.clone();
+            let app_path = app_path.clone();
 
-            tokio::spawn(async move { serve_loop(stream, config).await });
+            tokio::spawn(async move { serve_loop(stream, config, app_path).await });
         }
     });
 }
 
-async fn serve_loop(mut stream: TcpStream, config: Config) {
-    let lock = config.config.lock().await;
-    let tbf_burst = lock.builtin_server.capacity as u64;
-    let tbf_rate = lock.builtin_server.regain as u64;
-    let public_dir = config.public_dir;
+async fn serve_loop(mut stream: TcpStream, config: Config, app_path: AppPath) {
+    let tbf_burst = config.builtin_server.capacity as u64;
+    let tbf_rate = config.builtin_server.regain as u64;
+    let public_dir = app_path.public_dir;
 
     async fn inner(
         mut stream: &mut TcpStream, 
