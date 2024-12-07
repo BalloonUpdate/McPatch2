@@ -1,6 +1,12 @@
 use core::str;
 use std::path::PathBuf;
 
+use aws_sdk_s3::config::endpoint::Endpoint;
+use aws_sdk_s3::config::endpoint::EndpointFuture;
+use aws_sdk_s3::config::endpoint::Params;
+use aws_sdk_s3::config::endpoint::ResolveEndpoint;
+use aws_sdk_s3::config::BehaviorVersion;
+use aws_sdk_s3::config::Region;
 use aws_sdk_s3::primitives::ByteStream;
 use aws_sdk_s3::types::CompletedMultipartUpload;
 use aws_sdk_s3::types::CompletedPart;
@@ -10,6 +16,17 @@ use tokio::io::AsyncReadExt;
 use crate::config::s3_config::S3Config;
 use crate::upload::file_list_cache::FileListCache;
 use crate::upload::SyncTarget;
+use crate::utility::to_detail_error::ToDetailError;
+
+#[derive(Debug)]
+struct EPResolver(pub String);
+
+impl ResolveEndpoint for EPResolver {
+    fn resolve_endpoint(&self, _params: &Params) -> EndpointFuture<'_> {
+        // println!(">++++++++++ {}", self.0);
+        EndpointFuture::ready(Ok(Endpoint::builder().url(self.0.clone()).build()))
+    }
+}
 
 pub struct S3Target {
     config: S3Config,
@@ -22,9 +39,12 @@ impl S3Target {
     }
 
     pub async fn new(config: S3Config) -> Self {
-        // cos.ap-guangzhou.myqcloud.com
+        let ep_resolver = EPResolver(config.endpoint.clone());
+
         let cfg = aws_sdk_s3::config::Builder::new()
-            .endpoint_url(config.endpoint.clone())
+            .behavior_version(BehaviorVersion::v2024_03_28())
+            .endpoint_resolver(ep_resolver)
+            .region(Region::new("ap-nanjing"))
             .credentials_provider(aws_sdk_s3::config::Credentials::new(
                 config.access_id.clone(),
                 config.secret_key.clone(),
@@ -51,19 +71,21 @@ impl SyncTarget for S3Target {
             // .key("")
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_detail_error())?;
 
         Ok(list_rsp.contents().iter().map(|e| e.key().unwrap().to_owned()).collect())
     }
     
     async fn read(&mut self, filename: &str) -> Result<String, String> {
+        println!(">>>> {} | {}", self.config.bucket, filename);
+
         let result = self.client.get_object()
             .bucket(&self.config.bucket)
             .key(filename)
             .send()
             .await;
 
-        let read = result.map_err(|e| e.to_string())?;
+        let read = result.map_err(|e| e.to_detail_error())?;
 
         let text = std::str::from_utf8(read.body.bytes().unwrap()).unwrap().to_owned();
 
@@ -77,7 +99,7 @@ impl SyncTarget for S3Target {
             .body(ByteStream::from(content.as_bytes().to_vec()))
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_detail_error())?;
 
         Ok(())
     }
@@ -96,7 +118,7 @@ impl SyncTarget for S3Target {
             .key(filename)
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_detail_error())?;
 
         let upload_id = create_multipart_resp.upload_id.unwrap();
 
@@ -128,7 +150,7 @@ impl SyncTarget for S3Target {
                 .body(body)
                 .send()
                 .await
-                .map_err(|e| e.to_string())?;
+                .map_err(|e| e.to_detail_error())?;
 
             // 保存etag
             let cp = CompletedPart::builder()
@@ -150,7 +172,7 @@ impl SyncTarget for S3Target {
             .multipart_upload(complete_parts.build())
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_detail_error())?;
 
         Ok(())
     }
@@ -162,7 +184,7 @@ impl SyncTarget for S3Target {
             .key(filename)
             .send()
             .await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_detail_error())?;
 
         Ok(())
     }
