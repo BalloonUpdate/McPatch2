@@ -25,7 +25,7 @@ pub async fn api_revert(State(state): State<WebState>, headers: HeaderMap) -> Re
 }
 
 pub fn do_revert(state: WebState) -> u8 {
-    let mut console = state.console.blocking_lock();
+    let console = &state.console;
 
     let index_file = IndexFile::load_from_file(&state.app_path.index_file);
 

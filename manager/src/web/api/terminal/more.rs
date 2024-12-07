@@ -13,7 +13,7 @@ pub struct ResponseData {
 }
 
 pub async fn api_more(State(state): State<WebState>) -> Response {
-    let mut console = state.console.lock().await;
+    let console = &state.console;
 
     let buf = console.get_logs(false);
 

@@ -20,7 +20,7 @@ pub async fn api_check(State(state): State<WebState>, headers: HeaderMap) -> Res
 }
 
 fn do_check(state: WebState) -> u8 {
-    let mut console = state.console.blocking_lock();
+    let console = &state.console;
 
     // 读取现有更新包，并复现在history上
     let index_file = IndexFile::load_from_file(&state.app_path.index_file);

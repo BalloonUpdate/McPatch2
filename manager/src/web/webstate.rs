@@ -14,7 +14,7 @@ pub struct WebState {
     pub app_path: AppPath,
     pub config: Config,
     pub auth: AuthConfig,
-    pub console: Arc<Mutex<ConsoleBuffer>>,
+    pub console: ConsoleBuffer,
     pub te: Arc<Mutex<TaskExecutor>>,
     pub status: Arc<Mutex<FileStatus>>,
 }
@@ -25,7 +25,7 @@ impl WebState {
             app_path: app_path.clone(),
             config: config.clone(),
             auth,
-            console: Arc::new(Mutex::new(ConsoleBuffer::new())),
+            console: ConsoleBuffer::new(),
             te: Arc::new(Mutex::new(TaskExecutor::new())),
             status: Arc::new(Mutex::new(FileStatus::new(app_path, config))),
         }
