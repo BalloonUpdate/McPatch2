@@ -29,7 +29,7 @@ impl TaskExecutor {
         }
 
         // 先标记已读
-        state.console.lock().await.get_logs(true);
+        state.console.get_logs(true);
 
         let code = self.schedule(wait, f).await;
 
@@ -41,7 +41,7 @@ impl TaskExecutor {
         
         let mut buf = String::with_capacity(1024);
     
-        for log in state.console.lock().await.get_logs(false) {
+        for log in state.console.get_logs(false) {
             buf += &log.content;
             buf += "\n";
         }

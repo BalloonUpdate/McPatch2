@@ -32,20 +32,14 @@ async fn async_upload(state: WebState) -> u8 {
         // if webdav_config
 
         if let Err(err) = upload("webdav", state.clone(), FileListCache::new(WebdavTarget::new(webdav_config).await)).await {
-            let mut console = state.console.lock().await;
-    
-            console.log_error(err);
-    
+            state.console.log_error(err);
             return 1;
         }
     }
 
     if s3_config.enabled {
         if let Err(err) = upload("s3", state.clone(), FileListCache::new(S3Target::new(s3_config).await)).await {
-            let mut console = state.console.lock().await;
-    
-            console.log_error(err);
-    
+            state.console.log_error(err);
             return 1;
         }
     }
@@ -54,7 +48,7 @@ async fn async_upload(state: WebState) -> u8 {
 }
 
 async fn upload(name: &str, state: WebState, mut target: impl SyncTarget) -> Result<(), String> {
-    let mut console = state.console.lock().await;
+    let console = &state.console;
 
     console.log_debug("收集本地文件列表...");
     let local = get_local(&state).await;
@@ -84,13 +78,19 @@ async fn upload(name: &str, state: WebState, mut target: impl SyncTarget) -> Res
 
     // 上传文件
     for f in &need_upload {
+        console.log_debug(format!("上传文件: {}", f));
+
         target.upload(&f, state.app_path.public_dir.join(&f)).await?;
     }
 
     // 删除文件
     for f in &need_delete {
+        console.log_debug(format!("删除文件: {}", f));
+        
         target.delete(&f).await?;
     }
+
+    console.log_info("文件同步完成");
 
     Ok(())
 }

@@ -15,7 +15,7 @@ pub async fn api_test(State(state): State<WebState>, headers: HeaderMap) -> Resp
 }
 
 fn do_test(state: WebState) -> u8 {
-    let mut console = state.console.blocking_lock();
+    let console = &state.console;
 
     console.log_debug("正在执行更新包的解压测试");
 

@@ -8,7 +8,7 @@ use std::path::PathBuf;
 pub trait SyncTarget {
     fn list(&mut self) -> impl Future<Output = Result<Vec<String>, String>>;
 
-    fn read(&mut self, filename: &str) -> impl Future<Output = Result<String, String>>;
+    fn read(&mut self, filename: &str) -> impl Future<Output = Result<Option<String>, String>>;
 
     fn write(&mut self, filename: &str, content: &str) -> impl Future<Output = Result<(), String>>;
 

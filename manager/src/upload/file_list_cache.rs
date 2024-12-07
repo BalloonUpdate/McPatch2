@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use crate::upload::SyncTarget;
 
-const FILELIST: &str = "_list.txt";
+const FILELIST: &str = ".filelist.txt";
 
 pub struct FileListCache<T> where T : SyncTarget {
     target: T,
@@ -34,12 +34,15 @@ impl<T> FileListCache<T> where T : SyncTarget {
         if self.cache.is_none() {
             let text = self.target.read(FILELIST).await?;
 
-            let files = text
-                .split("\n")
-                .map(|e| e.trim())
-                .filter(|e| !e.is_empty())
-                .map(|e| e.to_owned())
-                .collect();
+            let files = match text {
+                Some(text) => text
+                    .split("\n")
+                    .map(|e| e.trim())
+                    .filter(|e| !e.is_empty())
+                    .map(|e| e.to_owned())
+                    .collect(),
+                None => HashSet::new(),
+            };
 
             self.cache = Some(files);
         }
@@ -67,7 +70,7 @@ impl<T> SyncTarget for FileListCache<T> where T : SyncTarget {
         Ok(list)
     }
 
-    async fn read(&mut self, filename: &str) -> Result<String, String> {
+    async fn read(&mut self, filename: &str) -> Result<Option<String>, String> {
         self.target.read(filename).await
     }
 
