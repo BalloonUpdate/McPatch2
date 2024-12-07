@@ -8,6 +8,7 @@ use reqwest_dav::Depth;
 
 use crate::config::webdav_config::WebdavConfig;
 use crate::upload::SyncTarget;
+use crate::utility::to_detail_error::ToDetailError;
 
 pub struct WebdavTarget {
     _config: WebdavConfig,
@@ -41,7 +42,7 @@ impl WebdavTarget {
 impl SyncTarget for WebdavTarget {
     async fn list(&mut self) -> Result<Vec<String>, String> {
         let items = self.client.list("", Depth::Number(1)).await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_detail_error())?;
         
         let mut files = Vec::new();
 
@@ -56,14 +57,14 @@ impl SyncTarget for WebdavTarget {
 
     async fn read(&mut self, filename: &str) -> Result<String, String> {
         let rsp = self.client.get(filename).await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_detail_error())?;
 
         Ok(rsp.text().await.unwrap())
     }
 
     async fn write(&mut self, filename: &str, content: &str) -> Result<(), String> {
         self.client.put(filename, content.to_owned()).await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_detail_error())?;
         
         Ok(())
     }
@@ -72,14 +73,14 @@ impl SyncTarget for WebdavTarget {
         let file = tokio::fs::File::open(filepath).await.unwrap();
 
         self.client.put(filename, file).await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_detail_error())?;
 
         Ok(())
     }
 
     async fn delete(&mut self, filename: &str) -> Result<(), String> {
         self.client.delete(filename).await
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| e.to_detail_error())?;
 
         Ok(())
     }

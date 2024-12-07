@@ -8,8 +8,8 @@ use crate::upload::webdav::WebdavTarget;
 use crate::upload::SyncTarget;
 use crate::web::webstate::WebState;
 
-/// 打包新版本
-pub async fn api_upload(State(state): State<WebState>, headers: HeaderMap) -> Response {
+/// 同步public目录
+pub async fn api_sync(State(state): State<WebState>, headers: HeaderMap) -> Response {
     let wait = headers.get("wait").is_some();
 
     state.clone().te.lock().await
@@ -32,7 +32,7 @@ async fn async_upload(state: WebState) -> u8 {
         // if webdav_config
 
         if let Err(err) = upload("webdav", state.clone(), FileListCache::new(WebdavTarget::new(webdav_config).await)).await {
-            let mut console = state.console.blocking_lock();
+            let mut console = state.console.lock().await;
     
             console.log_error(err);
     
@@ -42,7 +42,7 @@ async fn async_upload(state: WebState) -> u8 {
 
     if s3_config.enabled {
         if let Err(err) = upload("s3", state.clone(), FileListCache::new(S3Target::new(s3_config).await)).await {
-            let mut console = state.console.blocking_lock();
+            let mut console = state.console.lock().await;
     
             console.log_error(err);
     
@@ -54,7 +54,7 @@ async fn async_upload(state: WebState) -> u8 {
 }
 
 async fn upload(name: &str, state: WebState, mut target: impl SyncTarget) -> Result<(), String> {
-    let mut console = state.console.blocking_lock();
+    let mut console = state.console.lock().await;
 
     console.log_debug("收集本地文件列表...");
     let local = get_local(&state).await;
