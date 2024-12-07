@@ -45,7 +45,7 @@ pub async fn api_combine(State(state): State<WebState>, headers: HeaderMap) -> R
 }
 
 fn do_combine(state: WebState) -> u8 {
-    let mut console = state.console.blocking_lock();
+    let console = &state.console;
     
     let index_file = IndexFile::load_from_file(&state.app_path.index_file);
 

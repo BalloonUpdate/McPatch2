@@ -18,8 +18,8 @@ pub struct WebdavTarget {
 impl WebdavTarget {
     pub async fn new(config: WebdavConfig) -> Self {
         let reqwest_client = reqwest_dav::re_exports::reqwest::ClientBuilder::new()
-            .connect_timeout(Duration::from_millis(10 as u64))
-            .read_timeout(Duration::from_millis(10 as u64))
+            .connect_timeout(Duration::from_millis(10000 as u64))
+            .read_timeout(Duration::from_millis(10000 as u64))
             // .danger_accept_invalid_certs(config.http_ignore_certificate)
             .use_rustls_tls() // https://github.com/seanmonstar/reqwest/issues/2004#issuecomment-2180557375
             .build()
@@ -55,11 +55,23 @@ impl SyncTarget for WebdavTarget {
         Ok(files)
     }
 
-    async fn read(&mut self, filename: &str) -> Result<String, String> {
-        let rsp = self.client.get(filename).await
-            .map_err(|e| e.to_detail_error())?;
+    async fn read(&mut self, filename: &str) -> Result<Option<String>, String> {
+        let rsp = match self.client.get(&format!("/{}", filename)).await {
+            Ok(ok) => ok,
+            Err(err) => {
+                if let reqwest_dav::types::Error::Decode(err) = &err {
+                    if let reqwest_dav::types::DecodeError::Server(err) = err {
+                        if err.response_code == 404 {
+                            return Ok(None);
+                        }
+                    }
+                }
+                
+                return Err(err.to_detail_error());
+            },
+        };
 
-        Ok(rsp.text().await.unwrap())
+        Ok(Some(rsp.text().await.unwrap()))
     }
 
     async fn write(&mut self, filename: &str, content: &str) -> Result<(), String> {

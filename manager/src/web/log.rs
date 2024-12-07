@@ -1,4 +1,6 @@
 use std::collections::LinkedList;
+use std::sync::Arc;
+use std::sync::Mutex;
 use std::time::SystemTime;
 
 use serde::ser::SerializeMap;
@@ -65,36 +67,43 @@ impl Line {
     }
 }
 
+pub struct Inner {
+    pub buf: LinkedList<Line>,
+}
+
+#[derive(Clone)]
 pub struct ConsoleBuffer {
-    buf: LinkedList<Line>,
+    inner: Arc<Mutex<Inner>>,
 }
 
 impl ConsoleBuffer {
     pub fn new() -> Self {
-        ConsoleBuffer {
-            buf: LinkedList::new(),
+        Self {
+            inner: Arc::new(Mutex::new(Inner { buf: LinkedList::new() }))
         }
     }
 
-    pub fn get_logs<'a>(&'a mut self, full: bool) -> Vec<LogEntry> {
+    pub fn get_logs<'a>(&'a self, full: bool) -> Vec<LogEntry> {
+        let mut lock = self.inner.lock().unwrap();
+
         let mut entries = Vec::<LogEntry>::new();
 
         if full {
-            for log in &mut self.buf {
+            for log in &mut lock.buf {
                 log.read = true;
             }
 
-            for line in &self.buf {
+            for line in &lock.buf {
                 entries.push(LogEntry { time: line.time, content: line.content.to_owned(), level: line.level.clone() });
             }
         } else {
-            for line in &self.buf {
+            for line in &lock.buf {
                 if !line.read {
                     entries.push(LogEntry { time: line.time, content: line.content.to_owned(), level: line.level.clone() });
                 }
             }
 
-            for log in &mut self.buf {
+            for log in &mut lock.buf {
                 log.read = true;
             }
         }
@@ -102,30 +111,32 @@ impl ConsoleBuffer {
         entries
     }
 
-    pub fn log_debug(&mut self, content: impl AsRef<str>) {
+    pub fn log_debug(&self, content: impl AsRef<str>) {
         self.log(content, LogLevel::Debug);
     }
 
-    pub fn log_info(&mut self, content: impl AsRef<str>) {
+    pub fn log_info(&self, content: impl AsRef<str>) {
         self.log(content, LogLevel::Info);
     }
 
-    pub fn log_warning(&mut self, content: impl AsRef<str>) {
+    pub fn log_warning(&self, content: impl AsRef<str>) {
         self.log(content, LogLevel::Warning);
     }
 
-    pub fn log_error(&mut self, content: impl AsRef<str>) {
+    pub fn log_error(&self, content: impl AsRef<str>) {
         self.log(content, LogLevel::Error);
     }
 
-    fn log(&mut self, content: impl AsRef<str>, level: LogLevel) {
+    fn log(&self, content: impl AsRef<str>, level: LogLevel) {
+        let mut lock = self.inner.lock().unwrap();
+        
         for line in content.as_ref().split("\n") {
             println!("{}", line);
 
-            self.buf.push_back(Line::new(line.to_owned(), level));
+            lock.buf.push_back(Line::new(line.to_owned(), level));
 
-            while self.buf.len() > MAX_LOGS {
-                self.buf.pop_front();
+            while lock.buf.len() > MAX_LOGS {
+                lock.buf.pop_front();
             }
         }
     }

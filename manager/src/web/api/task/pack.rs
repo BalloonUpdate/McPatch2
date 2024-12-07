@@ -41,7 +41,7 @@ fn do_check(payload: RequestBody, state: WebState) -> u8 {
     let version_label = payload.label;
     let change_logs = payload.change_logs;
 
-    let mut console = state.console.blocking_lock();
+    let console = &state.console;
     
     let mut index_file = IndexFile::load_from_file(&state.app_path.index_file);
 
