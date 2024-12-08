@@ -5,7 +5,7 @@ pub mod file_list_cache;
 use std::future::Future;
 use std::path::PathBuf;
 
-pub trait SyncTarget {
+pub trait UploadTarget {
     fn list(&mut self) -> impl Future<Output = Result<Vec<String>, String>>;
 
     fn read(&mut self, filename: &str) -> impl Future<Output = Result<Option<String>, String>>;

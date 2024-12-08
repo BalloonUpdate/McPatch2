@@ -7,7 +7,7 @@ use reqwest_dav::ClientBuilder;
 use reqwest_dav::Depth;
 
 use crate::config::webdav_config::WebdavConfig;
-use crate::upload::SyncTarget;
+use crate::upload::UploadTarget;
 use crate::utility::to_detail_error::ToDetailError;
 
 pub struct WebdavTarget {
@@ -39,7 +39,7 @@ impl WebdavTarget {
     }
 }
 
-impl SyncTarget for WebdavTarget {
+impl UploadTarget for WebdavTarget {
     async fn list(&mut self) -> Result<Vec<String>, String> {
         let items = self.client.list("", Depth::Number(1)).await
             .map_err(|e| e.to_detail_error())?;

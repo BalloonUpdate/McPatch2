@@ -225,7 +225,7 @@ Post：`/api/task/revert`
 
 ### 上传
 
-Post：`/api/task/sync`
+Post：`/api/task/upload`
 
 用途：往远端存储服务器同步public目录下的文件，比如s3或者webdav。
 
