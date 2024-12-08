@@ -8,6 +8,7 @@ pub mod fs;
 pub mod terminal;
 pub mod public;
 
+/// 公共响应体
 #[derive(Serialize)]
 pub struct PublicResponseBody<T> where T : Serialize {
     /// 状态码，1代表成功，其它值则代表失败

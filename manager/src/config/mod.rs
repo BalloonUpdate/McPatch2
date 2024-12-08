@@ -19,10 +19,19 @@ pub mod webdav_config;
 #[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(default, rename_all = "kebab-case")]
 pub struct Config {
+    /// 核心配置项
     pub core: CoreConfig,
+
+    /// web相关配置项
     pub web: WebConfig,
+
+    /// 私有协议服务端配置项
     pub builtin_server: BuiltinServerConfig,
+
+    /// s3上传相关配置项
     pub s3: S3Config,
+
+    /// webdav上传相关配置项
     pub webdav: WebdavConfig,
 }
 
@@ -33,12 +42,11 @@ impl Config {
         // 生成默认配置文件
         if !exist {
             let content = toml::to_string_pretty(&Config::default()).unwrap();
-
             std::fs::write(&app_path.config_file, content).unwrap();
         }
 
+        // 加载配置文件
         let content = tokio::fs::read_to_string(&app_path.config_file).await.unwrap();
-
         let config = toml::from_str::<Config>(&content).unwrap();
 
         config

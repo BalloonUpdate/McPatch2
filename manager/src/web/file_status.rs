@@ -10,37 +10,6 @@ use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
 
-pub enum SingleFileStatus {
-    /// 文件无变更
-    Keep,
-
-    /// 新增的文件或者目录
-    Added,
-
-    /// 修改的文件或者目录
-    Modified,
-
-    /// 删除的文件或者目录
-    Missing,
-
-    /// 被移动走的的文件或者目录
-    Gone,
-
-    /// 被移动过来的文件或者目录
-    Come,
-}
-
-#[derive(Default)]
-pub struct Status {
-    pub added_folders: Vec<String>,
-    pub added_files: Vec<String>,
-    pub modified_files: Vec<String>,
-    pub missing_folders: Vec<String>,
-    pub missing_files: Vec<String>,
-    pub gone_files: Vec<String>,
-    pub come_files: Vec<String>,
-}
-
 pub struct FileStatus {
     pub app_path: AppPath,
     pub config: Config,
@@ -52,10 +21,12 @@ impl FileStatus {
         Self { app_path, config, status: None }
     }
 
+    /// 清空缓存，下次会进行重建
     pub fn invalidate(&mut self) {
         self.status = None;
     }
 
+    /// 获取一个文件的修改状态
     pub async fn get_file_status(&mut self, path: &str) -> SingleFileStatus {
         let status = self.refresh().await;
 
@@ -132,6 +103,7 @@ impl FileStatus {
         return SingleFileStatus::Keep;
     }
 
+    /// 尝试重新生成文件状态缓存
     async fn refresh(&mut self) -> &Status {
         if self.status.is_none() {
             let app_path = &self.app_path;
@@ -187,4 +159,36 @@ impl FileStatus {
 
         return &self.status.as_ref().unwrap();
     }
+}
+
+pub enum SingleFileStatus {
+    /// 文件无变更
+    Keep,
+
+    /// 新增的文件或者目录
+    Added,
+
+    /// 修改的文件或者目录
+    Modified,
+
+    /// 删除的文件或者目录
+    Missing,
+
+    /// 被移动走的的文件或者目录
+    Gone,
+
+    /// 被移动过来的文件或者目录
+    Come,
+}
+
+/// 保存计算出来的文件状态缓存
+#[derive(Default)]
+pub struct Status {
+    pub added_folders: Vec<String>,
+    pub added_files: Vec<String>,
+    pub modified_files: Vec<String>,
+    pub missing_folders: Vec<String>,
+    pub missing_files: Vec<String>,
+    pub gone_files: Vec<String>,
+    pub come_files: Vec<String>,
 }

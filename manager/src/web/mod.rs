@@ -49,6 +49,7 @@ use crate::web::api::user::logout::api_logout;
 use crate::web::auth_layer::AuthLayer;
 use crate::web::webstate::WebState;
 
+/// 管理端主线程
 pub fn serve_web() {
     let runtime = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
@@ -67,6 +68,7 @@ pub fn serve_web() {
             println!("这是账号和密码，请务必牢记。账号：admin，密码：{}（只会显示一次，请注意保存）", pwd);
         }
 
+        // 启动私有协议服务端
         start_builtin_server(config.clone(), app_path.clone()).await;
 
         let listen_addr = config.web.listen_addr.to_owned();
@@ -84,16 +86,16 @@ pub fn serve_web() {
     
             if !cert_file.exists() || !key_file.exists() {
                 if !cert_file.exists() {
-                    println!("TLS cert文件找不到：{}", config.web.tls_cert_file);
+                    println!("TLS cert 文件找不到：{}", config.web.tls_cert_file);
                 }
 
                 if !key_file.exists() {
-                    println!("TLS key文件找不到：{}", config.web.tls_key_file);
+                    println!("TLS key 文件找不到：{}", config.web.tls_key_file);
                 }
 
                 None
             } else {
-                println!("TLS加密已启用");
+                println!("TLS 加密已启用");
 
                 let tls_config = RustlsConfig::from_pem_file(cert_file, key_file)
                     .await
@@ -104,42 +106,8 @@ pub fn serve_web() {
         } else {
             None
         };
-
-        // fn parse_allow_headers(date: &Vec<String>) -> AllowHeaders {
-        //     match date.iter().any(|e| e == "*") {
-        //         true => AllowHeaders::any(),
-        //         false => AllowHeaders::list(date.iter().map(|e| HeaderName::from_str(&e).unwrap()).collect::<Vec<HeaderName>>()),
-        //     }
-        // }
-
-        fn parse_allow_headers(date: &Vec<String>) -> AllowHeaders {
-            match date.iter().any(|e| e == "*") {
-                true => AllowHeaders::any(),
-                false => AllowHeaders::list(date.iter().map(|e| HeaderName::from_str(&e).unwrap()).collect::<Vec<_>>()),
-            }
-        }
-
-        fn parse_allow_methods(date: &Vec<String>) -> AllowMethods {
-            match date.iter().any(|e| e == "*") {
-                true => AllowMethods::any(),
-                false => AllowMethods::list(date.iter().map(|e| Method::from_str(&e).unwrap()).collect::<Vec<_>>()),
-            }
-        }
-
-        fn parse_allow_origin(date: &Vec<String>) -> AllowOrigin {
-            match date.iter().any(|e| e == "*") {
-                true => AllowOrigin::any(),
-                false => AllowOrigin::list(date.iter().map(|e| e.parse().unwrap()).collect::<Vec<_>>()),
-            }
-        }
-
-        fn parse_expose_headers(date: &Vec<String>) -> ExposeHeaders {
-            match date.iter().any(|e| e == "*") {
-                true => ExposeHeaders::any(),
-                false => ExposeHeaders::list(date.iter().map(|e| HeaderName::from_str(&e).unwrap()).collect::<Vec<_>>()),
-            }
-        }
         
+        // 配置cors
         let cors_layer = CorsLayer::new()
             .allow_credentials(config.web.cors_allow_credentials)
             .allow_headers(parse_allow_headers(&config.web.cors_allow_headers))
@@ -148,6 +116,7 @@ pub fn serve_web() {
             .allow_private_network(config.web.cors_allow_private_network)
             .expose_headers(parse_expose_headers(&config.web.cors_expose_headers));
 
+        // 配置上下文对象
         let webstate = WebState::new(app_path, config, auth_config);
 
         let app = Router::new()
@@ -188,9 +157,7 @@ pub fn serve_web() {
             .with_state(webstate.clone())
             ;
 
-        // let listener = tokio::net::TcpListener::bind(listen).await.unwrap();
-        // axum::serve(listener, app).await.unwrap();
-
+        // 开始监听传入连接
         let addr = SocketAddr::from_str(&listen).unwrap();
 
         match tls_config {
@@ -208,4 +175,32 @@ pub fn serve_web() {
             },
         }
     });
+}
+
+fn parse_allow_headers(date: &Vec<String>) -> AllowHeaders {
+    match date.iter().any(|e| e == "*") {
+        true => AllowHeaders::any(),
+        false => AllowHeaders::list(date.iter().map(|e| HeaderName::from_str(&e).unwrap()).collect::<Vec<_>>()),
+    }
+}
+
+fn parse_allow_methods(date: &Vec<String>) -> AllowMethods {
+    match date.iter().any(|e| e == "*") {
+        true => AllowMethods::any(),
+        false => AllowMethods::list(date.iter().map(|e| Method::from_str(&e).unwrap()).collect::<Vec<_>>()),
+    }
+}
+
+fn parse_allow_origin(date: &Vec<String>) -> AllowOrigin {
+    match date.iter().any(|e| e == "*") {
+        true => AllowOrigin::any(),
+        false => AllowOrigin::list(date.iter().map(|e| e.parse().unwrap()).collect::<Vec<_>>()),
+    }
+}
+
+fn parse_expose_headers(date: &Vec<String>) -> ExposeHeaders {
+    match date.iter().any(|e| e == "*") {
+        true => ExposeHeaders::any(),
+        false => ExposeHeaders::list(date.iter().map(|e| HeaderName::from_str(&e).unwrap()).collect::<Vec<_>>()),
+    }
 }
