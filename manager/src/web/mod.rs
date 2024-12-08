@@ -31,7 +31,7 @@ use crate::web::api::task::check::api_check;
 use crate::web::api::task::combine::api_combine;
 use crate::web::api::task::pack::api_pack;
 use crate::web::api::task::revert::api_revert;
-use crate::web::api::task::sync::api_sync;
+use crate::web::api::task::sync::api_uploa;
 use crate::web::api::task::test::api_test;
 use crate::web::api::fs::delete::api_delete;
 use crate::web::api::fs::disk_info::api_disk_info;
@@ -165,7 +165,7 @@ pub fn serve_web() {
             .route("/api/task/combine", post(api_combine))
             .route("/api/task/pack", post(api_pack))
             .route("/api/task/revert", post(api_revert))
-            .route("/api/task/sync", post(api_sync))
+            .route("/api/task/upload", post(api_uploa))
 
             .route("/api/fs/disk-info", post(api_disk_info))
             .route("/api/fs/list", post(api_list))

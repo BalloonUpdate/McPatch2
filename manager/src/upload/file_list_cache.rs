@@ -1,16 +1,16 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
-use crate::upload::SyncTarget;
+use crate::upload::UploadTarget;
 
 const FILELIST: &str = ".filelist.txt";
 
-pub struct FileListCache<T> where T : SyncTarget {
+pub struct FileListCache<T> where T : UploadTarget {
     target: T,
     cache: Option<HashSet<String>>,
 }
 
-impl<T> FileListCache<T> where T : SyncTarget {
+impl<T> FileListCache<T> where T : UploadTarget {
     pub fn new(target: T) -> Self {
         Self {
             target,
@@ -63,7 +63,7 @@ impl<T> FileListCache<T> where T : SyncTarget {
     }
 }
 
-impl<T> SyncTarget for FileListCache<T> where T : SyncTarget {
+impl<T> UploadTarget for FileListCache<T> where T : UploadTarget {
     async fn list(&mut self) -> Result<Vec<String>, String> {
         let list = self.read_filelist().await?;
 
