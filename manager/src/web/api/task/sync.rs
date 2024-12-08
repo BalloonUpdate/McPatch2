@@ -2,7 +2,6 @@ use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::response::Response;
 
-use crate::upload::file_list_cache::FileListCache;
 use crate::upload::s3::S3Target;
 use crate::upload::webdav::WebdavTarget;
 use crate::upload::UploadTarget;
@@ -28,17 +27,17 @@ async fn async_upload(state: WebState) -> u8 {
     let webdav_config = state.config.webdav.clone();
     let s3_config = state.config.s3.clone();
 
+    // 先上传webdav
     if webdav_config.enabled {
-        // if webdav_config
-
-        if let Err(err) = upload("webdav", state.clone(), FileListCache::new(WebdavTarget::new(webdav_config).await)).await {
+        if let Err(err) = upload("webdav", state.clone(), WebdavTarget::new(webdav_config).await).await {
             state.console.log_error(err);
             return 1;
         }
     }
 
+    // 再上传s3
     if s3_config.enabled {
-        if let Err(err) = upload("s3", state.clone(), FileListCache::new(S3Target::new(s3_config).await)).await {
+        if let Err(err) = upload("s3", state.clone(), S3Target::new(s3_config).await).await {
             state.console.log_error(err);
             return 1;
         }

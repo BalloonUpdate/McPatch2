@@ -24,11 +24,7 @@ pub struct S3Target {
 }
 
 impl S3Target {
-    pub async fn new_cached(config: S3Config) -> FileListCache<Self> {
-        FileListCache::new(Self::new(config).await)
-    }
-
-    pub async fn new(config: S3Config) -> Self {
+    pub async fn new(config: S3Config) -> FileListCache<Self> {
         let base_url = config.endpoint.parse::<BaseUrl>().unwrap();
 
         let static_provider = StaticProvider::new(
@@ -42,10 +38,10 @@ impl S3Target {
             .build()
             .unwrap();
 
-        Self {
+        FileListCache::new(Self {
             config,
             client,
-        }
+        })
     }
 }
 

@@ -11,6 +11,7 @@ use tower_service::Service;
 use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
+/// 身份认证middleware
 #[derive(Clone)]
 pub struct AuthLayer {
     webstate: WebState
@@ -59,6 +60,7 @@ impl<S, Req> Service<Request<Req>> for AuthService<S> where
 
         let webstate = self.webstate.clone();
 
+        // 获取token
         let token_header = match req.headers().get("token") {
             Some(ok) => ok.to_str().unwrap().to_owned(),
             None => "".to_owned(),
@@ -67,6 +69,7 @@ impl<S, Req> Service<Request<Req>> for AuthService<S> where
         let fut = self.service.call(req);
         
         Box::pin(async move {
+            // 如果token验证失败，就不调用后面的逻辑，直接返回错误
             if let Err(reason) = webstate.auth.validate_token(&token_header).await {
                 return Ok(PublicResponseBody::<()>::err(reason));
             }
