@@ -7,6 +7,7 @@ use reqwest_dav::ClientBuilder;
 use reqwest_dav::Depth;
 
 use crate::config::webdav_config::WebdavConfig;
+use crate::upload::file_list_cache::FileListCache;
 use crate::upload::UploadTarget;
 use crate::utility::to_detail_error::ToDetailError;
 
@@ -16,7 +17,7 @@ pub struct WebdavTarget {
 }
 
 impl WebdavTarget {
-    pub async fn new(config: WebdavConfig) -> Self {
+    pub async fn new(config: WebdavConfig) -> FileListCache<Self> {
         let reqwest_client = reqwest_dav::re_exports::reqwest::ClientBuilder::new()
             .connect_timeout(Duration::from_millis(10000 as u64))
             .read_timeout(Duration::from_millis(10000 as u64))
@@ -32,10 +33,10 @@ impl WebdavTarget {
             .build()
             .unwrap();
 
-        Self {
+        FileListCache::new(Self {
             _config: config,
             client,
-        }
+        })
     }
 }
 
