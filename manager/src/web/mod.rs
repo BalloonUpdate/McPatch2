@@ -8,11 +8,17 @@ pub mod auth_layer;
 use std::net::SocketAddr;
 use std::str::FromStr;
 
+use axum::http::HeaderName;
 use axum::routing::get;
 use axum::routing::post;
 use axum::Router;
 use axum_server::tls_rustls::RustlsConfig;
+use reqwest::Method;
+use tower_http::cors::AllowHeaders;
+use tower_http::cors::AllowMethods;
+use tower_http::cors::AllowOrigin;
 use tower_http::cors::CorsLayer;
+use tower_http::cors::ExposeHeaders;
 
 use crate::app_path::AppPath;
 use crate::builtin_server::start_builtin_server;
@@ -44,7 +50,10 @@ use crate::web::auth_layer::AuthLayer;
 use crate::web::webstate::WebState;
 
 pub fn serve_web() {
-    let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .unwrap();
     
     runtime.block_on(async move {
         let app_path = AppPath::new();
@@ -96,6 +105,49 @@ pub fn serve_web() {
             None
         };
 
+        // fn parse_allow_headers(date: &Vec<String>) -> AllowHeaders {
+        //     match date.iter().any(|e| e == "*") {
+        //         true => AllowHeaders::any(),
+        //         false => AllowHeaders::list(date.iter().map(|e| HeaderName::from_str(&e).unwrap()).collect::<Vec<HeaderName>>()),
+        //     }
+        // }
+
+        fn parse_allow_headers(date: &Vec<String>) -> AllowHeaders {
+            match date.iter().any(|e| e == "*") {
+                true => AllowHeaders::any(),
+                false => AllowHeaders::list(date.iter().map(|e| HeaderName::from_str(&e).unwrap()).collect::<Vec<_>>()),
+            }
+        }
+
+        fn parse_allow_methods(date: &Vec<String>) -> AllowMethods {
+            match date.iter().any(|e| e == "*") {
+                true => AllowMethods::any(),
+                false => AllowMethods::list(date.iter().map(|e| Method::from_str(&e).unwrap()).collect::<Vec<_>>()),
+            }
+        }
+
+        fn parse_allow_origin(date: &Vec<String>) -> AllowOrigin {
+            match date.iter().any(|e| e == "*") {
+                true => AllowOrigin::any(),
+                false => AllowOrigin::list(date.iter().map(|e| e.parse().unwrap()).collect::<Vec<_>>()),
+            }
+        }
+
+        fn parse_expose_headers(date: &Vec<String>) -> ExposeHeaders {
+            match date.iter().any(|e| e == "*") {
+                true => ExposeHeaders::any(),
+                false => ExposeHeaders::list(date.iter().map(|e| HeaderName::from_str(&e).unwrap()).collect::<Vec<_>>()),
+            }
+        }
+        
+        let cors_layer = CorsLayer::new()
+            .allow_credentials(config.web.cors_allow_credentials)
+            .allow_headers(parse_allow_headers(&config.web.cors_allow_headers))
+            .allow_methods(parse_allow_methods(&config.web.cors_allow_methods))
+            .allow_origin(parse_allow_origin(&config.web.cors_allow_methods))
+            .allow_private_network(config.web.cors_allow_private_network)
+            .expose_headers(parse_expose_headers(&config.web.cors_expose_headers));
+
         let webstate = WebState::new(app_path, config, auth_config);
 
         let app = Router::new()
@@ -132,7 +184,7 @@ pub fn serve_web() {
             .route("/public/*path", get(api_public))
             
             // 其它的中间件
-            .layer(CorsLayer::permissive())
+            .layer(cors_layer)
             .with_state(webstate.clone())
             ;
 
