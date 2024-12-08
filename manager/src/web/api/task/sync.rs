@@ -5,11 +5,11 @@ use axum::response::Response;
 use crate::upload::file_list_cache::FileListCache;
 use crate::upload::s3::S3Target;
 use crate::upload::webdav::WebdavTarget;
-use crate::upload::SyncTarget;
+use crate::upload::UploadTarget;
 use crate::web::webstate::WebState;
 
 /// 同步public目录
-pub async fn api_sync(State(state): State<WebState>, headers: HeaderMap) -> Response {
+pub async fn api_uploa(State(state): State<WebState>, headers: HeaderMap) -> Response {
     let wait = headers.get("wait").is_some();
 
     state.clone().te.lock().await
@@ -47,7 +47,7 @@ async fn async_upload(state: WebState) -> u8 {
     0
 }
 
-async fn upload(name: &str, state: WebState, mut target: impl SyncTarget) -> Result<(), String> {
+async fn upload(name: &str, state: WebState, mut target: impl UploadTarget) -> Result<(), String> {
     let console = &state.console;
 
     console.log_debug("收集本地文件列表...");

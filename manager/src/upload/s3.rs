@@ -15,7 +15,7 @@ use minio::s3::http::BaseUrl;
 
 use crate::config::s3_config::S3Config;
 use crate::upload::file_list_cache::FileListCache;
-use crate::upload::SyncTarget;
+use crate::upload::UploadTarget;
 use crate::utility::to_detail_error::ToDetailError;
 
 pub struct S3Target {
@@ -49,7 +49,7 @@ impl S3Target {
     }
 }
 
-impl SyncTarget for S3Target {
+impl UploadTarget for S3Target {
     async fn list(&mut self) -> Result<Vec<String>, String> {
 
         let files = RefCell::new(Vec::<String>::new());
