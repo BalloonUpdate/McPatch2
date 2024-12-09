@@ -34,7 +34,7 @@ jobs:
           echo V: $VERSION
           curl -L https://github.com/BalloonUpdate/McPatch2Web/releases/download/v$VERSION/dist.zip -o dist.zip
           ls
-          unzip dist.zip
+          unzip dist.zip -d test/webpage
           ls
 
       # - name: Cargo build
