@@ -30,26 +30,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Cargo build
-        env:
-          MP_RUSTC_TARGET: ${{ matrix.rustc-target }}
+      - name: Download web pages
         run: |-
-          rustup update ${{ env.rust-version }} && rustup default ${{ env.rust-version }}
-          rustup target add ${{ matrix.rustc-target }}
-          cargo ci manager
+          curl -L https://github.com/BalloonUpdate/McPatch2Web/releases/download/${GITHUB_REF_NAME}/dist.zip -o dist.zip
+          unzip dist.zip
+          ls
+
+      # - name: Cargo build
+      #   env:
+      #     MP_RUSTC_TARGET: ${{ matrix.rustc-target }}
+      #   run: |-
+      #     rustup update ${{ env.rust-version }} && rustup default ${{ env.rust-version }}
+      #     rustup target add ${{ matrix.rustc-target }}
+      #     cargo ci manager
       
-      - name: Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: target/dist/*
+      # - name: Release
+      #   uses: softprops/action-gh-release@v2
+      #   with:
+      #     files: target/dist/*
       
-      - name: Distribute
-        uses: bxb100/action-upload@main
-        with:
-          provider: webdav
-          provider_options: |
-            endpoint=${{ secrets.webdav_endpoint }}
-            username=${{ secrets.webdav_username }}
-            password=${{ secrets.webdav_password }}
-            root=${{ secrets.webdav_root_manager }}
-          include: 'target/dist/**'
+      # - name: Distribute
+      #   uses: bxb100/action-upload@main
+      #   with:
+      #     provider: webdav
+      #     provider_options: |
+      #       endpoint=${{ secrets.webdav_endpoint }}
+      #       username=${{ secrets.webdav_username }}
+      #       password=${{ secrets.webdav_password }}
+      #       root=${{ secrets.webdav_root_manager }}
+      #     include: 'target/dist/**'
