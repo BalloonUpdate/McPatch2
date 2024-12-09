@@ -14,6 +14,9 @@ pub struct AppPath {
     /// 公共目录。用来存放更新包向外提供服务
     pub public_dir: PathBuf,
 
+    /// 外部加载的web目录。当这个目录存在时，会优先从这个目录加载web目录资源，然后是从可执行文件内部
+    pub web_dir: PathBuf,
+
     /// 索引文件路径。用来识别当前有哪些更新包
     pub index_file: PathBuf,
 
@@ -35,6 +38,7 @@ impl AppPath {
 
         let workspace_dir = working_dir.join("workspace");
         let public_dir = working_dir.join("public");
+        let web_dir = working_dir.join("webpage");
         let index_file = working_dir.join("public/index.json");
         let config_file = working_dir.join("config.toml");
         let auth_file = working_dir.join("user.toml");
@@ -46,6 +50,7 @@ impl AppPath {
             working_dir,
             workspace_dir,
             public_dir,
+            web_dir,
             index_file,
             config_file,
             auth_file,

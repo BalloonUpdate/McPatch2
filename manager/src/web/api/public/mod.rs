@@ -7,7 +7,7 @@ use shared::utility::filename_ext::GetFileNamePart;
 use crate::web::webstate::WebState;
 
 pub async fn api_public(State(state): State<WebState>, Path(path): Path<String>) -> Response {
-    println!("+ {}", path);
+    println!("+public: {}", path);
 
     let path = state.app_path.public_dir.join(path);
 
@@ -22,7 +22,6 @@ pub async fn api_public(State(state): State<WebState>, Path(path): Path<String>)
         .open(&path)
         .await
         .unwrap();
-
 
     let file = tokio_util::io::ReaderStream::new(file);
 
