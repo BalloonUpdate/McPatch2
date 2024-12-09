@@ -36,7 +36,11 @@ pub struct WebConfig {
     /// 控制`Access-Control-Expose-Headers`的值
     pub cors_expose_headers: Vec<String>,
 
-    pub coco: Option<bool>,
+    /// 首页的文件名。用来在访问根目录时展示给用户的页面
+    pub index_filename: String,
+
+    /// 遇到文件404时，重定向到哪个文件。主要用于支持前端的SinglePageApplication特性
+    pub redirect_404: String,
 }
 
 impl Default for WebConfig {
@@ -53,7 +57,8 @@ impl Default for WebConfig {
                 cors_allow_origin: vec!["*".to_owned()],
                 cors_allow_private_network: false,
                 cors_expose_headers: vec!["*".to_owned()],
-                coco: None
+                index_filename: "index.html".to_owned(),
+                redirect_404: "index.html".to_owned(),
             }
         } else {
             Self {
@@ -67,7 +72,8 @@ impl Default for WebConfig {
                 cors_allow_origin: vec![],
                 cors_allow_private_network: false,
                 cors_expose_headers: vec![],
-                coco: None
+                index_filename: "index.html".to_owned(),
+                redirect_404: "index.html".to_owned(),
             }
         }
     }
