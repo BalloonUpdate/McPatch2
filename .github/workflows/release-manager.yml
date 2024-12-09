@@ -4,6 +4,8 @@ on:
   push:
     tags:
       - "m*"
+# on:
+#   - push
 
 permissions:
   contents: write
@@ -21,14 +23,25 @@ jobs:
             rustc-target: x86_64-pc-windows-msvc
           - os: ubuntu-latest
             rustc-target: x86_64-unknown-linux-gnu
-          - os: ubuntu-latest
-            rustc-target: x86_64-unknown-linux-musl
+          # - os: ubuntu-latest
+          #   rustc-target: x86_64-unknown-linux-musl
     runs-on: ${{ matrix.os }}
     env:
       rust-version: '1.81'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install dependencies for Linux
+        if: ${{ runner.os == 'Linux' }}
+        run: |-
+          sudo apt install libssl-dev
+
+      # - name: Install dependencies for Linux musl
+      #   if: ${{ runner.os == 'Linux' && contains(matrix.rustc-target, 'musl') }}
+      #   run: |-
+      #     sudo apt install musl-tools
+      #     sudo apt install musl-dev
 
       - name: Cargo build
         env:
