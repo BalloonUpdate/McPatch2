@@ -37,6 +37,7 @@ jobs:
           echo "------------------------"
           ls
           echo "------------------------"
+          mkdir -p test/webpage
           unzip dist.zip -d test/webpage
           echo "------------------------"
           ls
