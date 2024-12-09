@@ -1,6 +1,9 @@
 name: Release Manager
 
-on: ["push"]
+on:
+  push:
+    tags:
+      - "m*"
 
 permissions:
   contents: write
