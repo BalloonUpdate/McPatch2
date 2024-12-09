@@ -46,6 +46,8 @@ use crate::web::api::user::change_username::api_change_username;
 use crate::web::api::user::check_token::api_check_token;
 use crate::web::api::user::login::api_login;
 use crate::web::api::user::logout::api_logout;
+use crate::web::api::webpage::api_webpage;
+use crate::web::api::webpage::api_webpage_index;
 use crate::web::auth_layer::AuthLayer;
 use crate::web::webstate::WebState;
 
@@ -151,6 +153,9 @@ pub fn serve_web() {
             .route("/api/fs/extract-file", get(api_extract_file))
 
             .route("/public/*path", get(api_public))
+
+            .route("/", get(api_webpage_index))
+            .route("/*path", get(api_webpage))
             
             // 其它的中间件
             .layer(cors_layer)

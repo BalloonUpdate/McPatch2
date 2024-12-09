@@ -7,6 +7,7 @@ pub mod task;
 pub mod fs;
 pub mod terminal;
 pub mod public;
+pub mod webpage;
 
 /// 公共响应体
 #[derive(Serialize)]
