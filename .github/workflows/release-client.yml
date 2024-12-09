@@ -28,7 +28,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install dependencies on Linux
+      - name: Install dependencies for Linux
         if: runner.os == 'Linux'
         run: |-
           sudo apt install libssl-dev

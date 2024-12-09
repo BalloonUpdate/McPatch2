@@ -4,3 +4,5 @@ version = "1.0.0"
 edition.workspace = true
 
 [dependencies]
+reqwest = { version = "0.12.9", features = ["blocking", "rustls-tls"] }
+zip = "2.2.1"
