@@ -10,6 +10,8 @@ fn main() -> ProcessResult {
     let mut args = std::env::args();
     let task = args.nth(1);
 
+    println!("> {:?}", task);
+
     match task.as_deref() {
         Some("client") => dist_client(),
         Some("manager") => dist_manager(),
