@@ -1,9 +1,6 @@
 name: Release Manager
 
-on:
-  push:
-    tags:
-      - "m*"
+on: ["push"]
 
 permissions:
   contents: write
@@ -32,9 +29,10 @@ jobs:
 
       - name: Download web pages
         run: |-
-          VERSION=${GITHUB_REF_NAME:1}
+          # VERSION=${GITHUB_REF_NAME:1}
+          VERSION="0.1.2"
           echo V: $VERSION
-          curl -L https://github.com/BalloonUpdate/McPatch2Web/releases/download/VERSION/dist.zip -o dist.zip
+          curl -L https://github.com/BalloonUpdate/McPatch2Web/releases/download/v$VERSION/dist.zip -o dist.zip
           ls
           unzip dist.zip
           ls
