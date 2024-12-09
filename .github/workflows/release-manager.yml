@@ -32,7 +32,7 @@ jobs:
 
       - name: Download web pages
         run: |-
-          VERSION=${GITHUB_REF_NAME:1}
+          VERSION="${GITHUB_REF_NAME:1}"
           curl -L https://github.com/BalloonUpdate/McPatch2Web/releases/download/v$VERSION/dist.zip -o dist.zip
           mkdir -p test/webpage
           unzip dist.zip -d test/webpage
