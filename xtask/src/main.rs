@@ -8,7 +8,7 @@ type ProcessResult = Result<(), Box<dyn std::error::Error>>;
 
 fn main() -> ProcessResult {
     let mut args = std::env::args();
-    let task = args.next();
+    let task = args.nth(1);
 
     match task.as_deref() {
         Some("client") => dist_client(),
