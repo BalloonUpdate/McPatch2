@@ -19,10 +19,10 @@ jobs:
         include:
           - os: windows-latest
             rustc-target: x86_64-pc-windows-msvc
-          # - os: ubuntu-latest
-          #   rustc-target: x86_64-unknown-linux-gnu
-          # - os: ubuntu-latest
-          #   rustc-target: x86_64-unknown-linux-musl
+          - os: ubuntu-latest
+            rustc-target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            rustc-target: x86_64-unknown-linux-musl
     runs-on: ${{ matrix.os }}
     env:
       rust-version: '1.81'
@@ -30,20 +30,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download web pages
-        run: |-
-          VERSION="${GITHUB_REF_NAME:1}"
-          curl -L https://github.com/BalloonUpdate/McPatch2Web/releases/download/v$VERSION/dist.zip -o dist.zip
-          mkdir -p test/webpage
-          unzip dist.zip -d test/webpage
-
       - name: Cargo build
         env:
           MP_RUSTC_TARGET: ${{ matrix.rustc-target }}
         run: |-
           rustup update ${{ env.rust-version }} && rustup default ${{ env.rust-version }}
           rustup target add ${{ matrix.rustc-target }}
-          cargo ci manager "bundle-webpage"
+          cargo ci manager
       
       - name: Release
         uses: softprops/action-gh-release@v2
