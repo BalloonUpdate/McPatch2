@@ -17,10 +17,10 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: windows-latest
-            rustc-target: x86_64-pc-windows-msvc
-          - os: ubuntu-latest
-            rustc-target: x86_64-unknown-linux-gnu
+          # - os: windows-latest
+          #   rustc-target: x86_64-pc-windows-msvc
+          # - os: ubuntu-latest
+          #   rustc-target: x86_64-unknown-linux-gnu
           - os: ubuntu-latest
             rustc-target: x86_64-unknown-linux-musl
     runs-on: ${{ matrix.os }}
@@ -32,7 +32,9 @@ jobs:
 
       - name: Download web pages
         run: |-
-          curl -L https://github.com/BalloonUpdate/McPatch2Web/releases/download/${GITHUB_REF_NAME:1}/dist.zip -o dist.zip
+          VERSION=${GITHUB_REF_NAME:1}
+          echo V: $VERSION
+          curl -L https://github.com/BalloonUpdate/McPatch2Web/releases/download/VERSION/dist.zip -o dist.zip
           unzip dist.zip
           ls
 
