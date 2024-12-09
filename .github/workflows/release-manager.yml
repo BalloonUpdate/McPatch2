@@ -35,6 +35,7 @@ jobs:
           VERSION=${GITHUB_REF_NAME:1}
           echo V: $VERSION
           curl -L https://github.com/BalloonUpdate/McPatch2Web/releases/download/VERSION/dist.zip -o dist.zip
+          ls
           unzip dist.zip
           ls
 
