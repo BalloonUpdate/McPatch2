@@ -5,16 +5,18 @@ use std::process::Command;
 type ProcessResult = Result<(), Box<dyn std::error::Error>>;
 
 fn main() -> ProcessResult {
-    let task = std::env::args().nth(1);
+    let mut args = std::env::args();
+    let task = args.next();
+    let features = args.next();
 
     match task.as_deref() {
-        Some("client") => dist_binary("client", "c"),
-        Some("manager") => dist_binary("manager", "m"),
+        Some("client") => dist_binary("client", "c", features),
+        Some("manager") => dist_binary("manager", "m", features),
         _ => print_help(),
     }
 }
 
-fn dist_binary(crate_name: &str, production_name: &str) -> ProcessResult {
+fn dist_binary(crate_name: &str, production_name: &str, features: Option<String>) -> ProcessResult {
     std::env::set_var("RUST_BACKTRACE", "1");
 
     let ref_name = github_ref_name();
@@ -25,8 +27,25 @@ fn dist_binary(crate_name: &str, production_name: &str) -> ProcessResult {
     let cargo = std::env::var("CARGO").unwrap();
 
     let mut cmd = Command::new(cargo);
+
     cmd.current_dir(project_root());
-    cmd.args(&["build", "--release", "--bin", crate_name, "--target", &target.rustc_target]);
+
+    let mut args = Vec::<String>::new();
+
+    args.push("build".to_owned());
+    args.push("--release".to_owned());
+    args.push("--bin".to_owned());
+    args.push(crate_name.to_owned());
+    args.push("--target".to_owned());
+    args.push(target.rustc_target.to_owned());
+
+    if let Some(features) = features {
+        args.push("--features".to_owned());
+        args.push(features.to_owned());
+    }
+
+    cmd.args(args);
+
     let status = cmd.status()?;
 
     if !status.success() {
