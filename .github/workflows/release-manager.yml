@@ -30,6 +30,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install dependencies for Linux musl
+        if: runner.os == 'Linux' && contains(${{ matrix.rustc-target }}, 'musl')
+        run: |-
+          sudo apt install musl-tools
+
       - name: Cargo build
         env:
           MP_RUSTC_TARGET: ${{ matrix.rustc-target }}
