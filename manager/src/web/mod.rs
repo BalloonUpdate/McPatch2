@@ -27,7 +27,7 @@ use crate::config::Config;
 use crate::web::api::fs::extract_file::api_extract_file;
 use crate::web::api::fs::sign_file::api_sign_file;
 use crate::web::api::public::api_public;
-use crate::web::api::task::check::api_check;
+use crate::web::api::task::check::api_status;
 use crate::web::api::task::combine::api_combine;
 use crate::web::api::task::pack::api_pack;
 use crate::web::api::task::revert::api_revert;
@@ -131,7 +131,7 @@ pub fn serve_web() {
             .route("/api/terminal/full", post(api_full))
             .route("/api/terminal/more", post(api_more))
 
-            .route("/api/task/check", post(api_check))
+            .route("/api/task/status", post(api_status))
             .route("/api/task/test", post(api_test))
             .route("/api/task/combine", post(api_combine))
             .route("/api/task/pack", post(api_pack))
