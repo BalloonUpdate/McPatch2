@@ -12,14 +12,14 @@ use crate::diff::history_file::HistoryFile;
 use crate::web::webstate::WebState;
 
 /// 检查工作空间目录的文件修改情况，类似于git status命令
-pub async fn api_check(State(state): State<WebState>, headers: HeaderMap) -> Response {
+pub async fn api_status(State(state): State<WebState>, headers: HeaderMap) -> Response {
     let wait = headers.get("wait").is_some();
 
     state.clone().te.lock().await
-        .try_schedule(wait, state.clone(), move || do_check(state)).await
+        .try_schedule(wait, state.clone(), move || do_status(state)).await
 }
 
-fn do_check(state: WebState) -> u8 {
+fn do_status(state: WebState) -> u8 {
     let console = &state.console;
 
     // 读取现有更新包，并复现在history上
