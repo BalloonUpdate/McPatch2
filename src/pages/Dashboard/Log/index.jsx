@@ -1,9 +1,21 @@
 import React, {useEffect, useRef, useState} from "react";
-import {Button, Input, message, Modal} from "antd";
-import {taskCombineRequest, taskPackRequest, taskRevertRequest, taskTestRequest, taskUploadRequest, taskStatusRequest} from "@/api/task.js";
+import {Button, Input, message, Modal, Select} from "antd";
+import {
+  taskCombineRequest, taskPackRequest,
+  taskRevertRequest,
+  taskTestRequest,
+  taskUploadRequest,
+  taskStatusRequest
+} from "@/api/task.js";
 import {terminalFullRequest, terminalMoreRequest} from "@/api/terminal.js";
 import {RotateCcw} from "lucide-react";
 import {generateRandomStr} from "@/utils/tool.js";
+
+const options = [
+  {value: 5000, label: '5s'},
+  {value: 1000, label: '1s'},
+  {value: 15000, label: '15s'}
+]
 
 const Index = () => {
 
@@ -11,6 +23,7 @@ const Index = () => {
   const [packShow, setPackShow] = useState(false)
   const [version, setVersion] = useState('');
   const [updateRecord, setUpdateRecord] = useState('');
+  const [refreshInterval, setRefreshInterval] = useState(options[0].value);
   const logsRef = useRef(null);
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -24,6 +37,14 @@ const Index = () => {
     }
   }, [logs]);
 
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      terminalMore()
+    }, refreshInterval)
+
+    return () => clearInterval(intervalId);
+  }, [refreshInterval])
+
   const terminalFull = async () => {
     const {code, msg, data} = await terminalFullRequest();
     if (code === 1) {
@@ -35,11 +56,15 @@ const Index = () => {
     const {code, msg, data} = await terminalMoreRequest();
     if (code === 1) {
       if (data.content.length === 0) {
-        messageApi.warning('未产生任何新日志.')
+        return
       }
       setLogs(prev => [...prev, ...data.content])
     }
   }
+
+  const changeRefreshInterval = (value) => {
+    setRefreshInterval(value)
+  };
 
   const taskPack = async () => {
     const tempVersion = version === '' ? generateRandomStr() : version
@@ -48,7 +73,6 @@ const Index = () => {
     const {code, msg, data} = await taskPackRequest(tempVersion, tempUpdateRecord);
     if (code === 1) {
       messageApi.success('打包成功.')
-      await terminalMore()
     } else {
       messageApi.error(msg)
     }
@@ -59,7 +83,6 @@ const Index = () => {
     const {code, msg, data} = await taskCombineRequest();
     if (code === 1) {
       messageApi.success('合并成功.')
-      await terminalMore()
     } else {
       messageApi.error(msg)
     }
@@ -69,7 +92,6 @@ const Index = () => {
     const {code, msg, data} = await taskTestRequest();
     if (code === 1) {
       messageApi.success('测试成功.')
-      await terminalMore()
     } else {
       messageApi.error(msg)
     }
@@ -79,7 +101,6 @@ const Index = () => {
     const {code, msg, data} = await taskRevertRequest();
     if (code === 1) {
       messageApi.success('回退成功.')
-      await terminalMore()
     } else {
       messageApi.error(msg)
     }
@@ -89,7 +110,6 @@ const Index = () => {
     const {code, msg, data} = await taskUploadRequest();
     if (code === 1) {
       messageApi.success('任务已提交.')
-      await terminalMore()
     } else {
       messageApi.error(msg)
     }
@@ -99,7 +119,6 @@ const Index = () => {
     const {code, msg, data} = await taskStatusRequest();
     if (code === 1) {
       messageApi.success('任务已提交.')
-      await terminalMore()
     } else {
       messageApi.error(msg)
     }
@@ -134,13 +153,21 @@ const Index = () => {
       {contextHolder}
       <div className="flex flex-col min-h-[calc(100vh-80px)]">
         <div className="flex justify-start items-center h-8">
-          <Button type="primary" size="large" icon={<RotateCcw size={20} strokeWidth={1.5}/>} onClick={terminalMore}/>
-          <Button type="primary" size="large" className="ml-2" onClick={taskStatus}>检查文件修改</Button>
+          <Button type="primary" size="large" onClick={taskStatus}>检查文件修改</Button>
           <Button type="primary" size="large" className="ml-2" onClick={taskTest}>测试更新包</Button>
           <Button type="primary" size="large" className="ml-2" onClick={taskUpload}>上传public目录</Button>
           <Button type="primary" size="large" className="ml-2" onClick={() => setPackShow(true)}>打包新版本</Button>
           <Button type="primary" size="large" className="ml-2" onClick={taskRevert}>回退整个工作空间</Button>
           <Button type="primary" size="large" className="ml-2" onClick={taskCombine}>合并更新包</Button>
+          <Select
+            defaultValue={options[0].value}
+            size={"large"}
+            className="ml-auto w-40"
+            onChange={changeRefreshInterval}
+            options={options}/>
+          <Button type="primary" size="large" className="ml-2" icon={<RotateCcw size={20} strokeWidth={1.5}/>}
+                  onClick={terminalMore}/>
+
         </div>
         <div
           ref={logsRef}
