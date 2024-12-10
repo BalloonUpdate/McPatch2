@@ -11,6 +11,8 @@ import {terminalFullRequest, terminalMoreRequest} from "@/api/terminal.js";
 import {RotateCcw} from "lucide-react";
 import {generateRandomStr} from "@/utils/tool.js";
 
+const {TextArea} = Input;
+
 const options = [
   {value: 5000, label: '5s'},
   {value: 1000, label: '1s'},
@@ -212,9 +214,11 @@ const Index = () => {
             placeholder="请输入版本号."
             value={version}
             onChange={(e) => setVersion(e.target.value)}/>
-          <Input
+          <TextArea
             className="mt-2 mb-5"
             placeholder="请输入更新记录."
+            autoSize={{maxRows: 10, minRows: 4}}
+            maxLength={4000}
             value={updateRecord}
             onChange={(e) => setUpdateRecord(e.target.value)}/>
         </div>
