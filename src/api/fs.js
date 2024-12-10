@@ -1,5 +1,6 @@
 import instance from "@/utils/request.js";
 import axios from "axios";
+import store from "@/store/index.js";
 
 export const fsDiskInfoRequest = () => instance.post('/fs/disk-info', {})
 
@@ -14,6 +15,7 @@ export const fsSignFileRequest = (path = '') => instance.post('/fs/sign-file', {
 export const fsUploadRequest = (path = '', file, onProgress) => {
   return axios.post(`${import.meta.env.VITE_API_URL}/fs/upload`, file, {
     headers: {
+      'Token': store.getState().user.token,
       'Content-Type': 'application/octet-stream',
       'Path': encodeURIComponent(path)
     },
