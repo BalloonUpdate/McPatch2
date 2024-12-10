@@ -17,7 +17,7 @@ pub async fn api_webpage_index(State(state): State<WebState>) -> Response {
 }
 
 async fn respond_file(mut path: &str, state: &WebState) -> Response {
-    println!("+webpage /{}", path);
+    let raw_path = path.to_owned();
 
     if path == "" {
         path = &state.config.web.index_filename;
@@ -25,8 +25,12 @@ async fn respond_file(mut path: &str, state: &WebState) -> Response {
 
     // 当外部文件夹存在时，优先从外部文件夹响应
     if state.app_path.web_dir.exists() {
+        println!("+webpage-o /{}", raw_path);
+
         return respond_from_outer(path, state).await;
     }
+
+    println!("+webpage-i /{}", raw_path);
 
     // 从文件内部响应
     #[cfg(feature = "bundle-webpage")]

@@ -26,7 +26,7 @@ pub async fn start_builtin_server(config: Config, app_path: AppPath) {
     let regain = config.builtin_server.regain;
 
     if capacity > 0 && regain > 0 {
-        println!("私有协议服务端已经启动。限速参数：突发容量：{}, 限速速率：{}", capacity, regain);
+        println!("私有协议服务端已经启动。capacity: {}, regain: {}", capacity, regain);
     } else {
         println!("私有协议服务端已经启动。");
     }
@@ -34,7 +34,7 @@ pub async fn start_builtin_server(config: Config, app_path: AppPath) {
     let host = config.builtin_server.listen_addr.to_owned();
     let port = format!("{}", config.builtin_server.listen_port);
 
-    println!("private protocol server is now listening on {}:{}", host, port);
+    println!("private protocol is now listening on {}:{}", host, port);
 
     tokio::spawn(async move {
         let listener = TcpListener::bind(format!("{}:{}", host, port)).await.unwrap();
