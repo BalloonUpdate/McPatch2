@@ -1,6 +1,6 @@
 import React, {useEffect, useRef, useState} from "react";
 import {Button, Input, message, Modal} from "antd";
-import {taskCombineRequest, taskPackRequest, taskRevertRequest, taskTestRequest, taskUploadRequest} from "@/api/task.js";
+import {taskCombineRequest, taskPackRequest, taskRevertRequest, taskTestRequest, taskUploadRequest, taskStatusRequest} from "@/api/task.js";
 import {terminalFullRequest, terminalMoreRequest} from "@/api/terminal.js";
 import {RotateCcw} from "lucide-react";
 import {generateRandomStr} from "@/utils/tool.js";
@@ -95,6 +95,16 @@ const Index = () => {
     }
   }
 
+  const taskStatus = async () => {
+    const {code, msg, data} = await taskStatusRequest();
+    if (code === 1) {
+      messageApi.success('任务已提交.')
+      await terminalMore()
+    } else {
+      messageApi.error(msg)
+    }
+  }
+
   const copy = async (item) => {
     await navigator.clipboard.writeText(`${showTime(item.time)}-${item.level}-${item.content}`);
     messageApi.success('复制成功!')
@@ -125,11 +135,12 @@ const Index = () => {
       <div className="flex flex-col min-h-[calc(100vh-80px)]">
         <div className="flex justify-start items-center h-8">
           <Button type="primary" size="large" icon={<RotateCcw size={20} strokeWidth={1.5}/>} onClick={terminalMore}/>
-          <Button type="primary" size="large" className="ml-2" onClick={() => setPackShow(true)}>打包</Button>
-          <Button type="primary" size="large" className="ml-2" onClick={taskCombine}>合并</Button>
-          <Button type="primary" size="large" className="ml-2" onClick={taskTest}>测试</Button>
-          <Button type="primary" size="large" className="ml-2" onClick={taskRevert}>回退</Button>
-          <Button type="primary" size="large" className="ml-2" onClick={taskUpload}>上传</Button>
+          <Button type="primary" size="large" className="ml-2" onClick={taskStatus}>检查文件修改</Button>
+          <Button type="primary" size="large" className="ml-2" onClick={taskTest}>测试更新包</Button>
+          <Button type="primary" size="large" className="ml-2" onClick={taskUpload}>上传public目录</Button>
+          <Button type="primary" size="large" className="ml-2" onClick={() => setPackShow(true)}>打包新版本</Button>
+          <Button type="primary" size="large" className="ml-2" onClick={taskRevert}>回退整个工作空间</Button>
+          <Button type="primary" size="large" className="ml-2" onClick={taskCombine}>合并更新包</Button>
         </div>
         <div
           ref={logsRef}

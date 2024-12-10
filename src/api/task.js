@@ -12,3 +12,5 @@ export const taskTestRequest = () => instance.post('/task/test', {})
 export const taskRevertRequest = () => instance.post('/task/revert', {})
 
 export const taskUploadRequest = () => instance.post('/task/upload', {})
+
+export const taskStatusRequest = () => instance.post('/task/status', {})
