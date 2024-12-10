@@ -77,7 +77,9 @@ pub fn serve_web() {
         let listen_port = config.web.listen_port.to_owned();
         let listen = format!("{}:{}", listen_addr, listen_port);
 
-        println!("web监听地址和端口：{}", listen);
+        let quick_addr = format!("{}:{}", listen_addr.replace("0.0.0.0", "127.0.0.1"), listen_port);
+
+        println!("web监听地址和端口：{} ( http://{} )", listen, quick_addr);
 
         // 配置tls
         let tls_config = if !config.web.tls_cert_file.is_empty() && !config.web.tls_key_file.is_empty() {
