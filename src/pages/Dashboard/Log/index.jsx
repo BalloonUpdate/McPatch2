@@ -1,6 +1,6 @@
 import React, {useEffect, useRef, useState} from "react";
 import {Button, Input, message, Modal} from "antd";
-import {taskCombineRequest, taskPackRequest, taskRevertRequest, taskTestRequest} from "@/api/task.js";
+import {taskCombineRequest, taskPackRequest, taskRevertRequest, taskTestRequest, taskUploadRequest} from "@/api/task.js";
 import {terminalFullRequest, terminalMoreRequest} from "@/api/terminal.js";
 import {RotateCcw} from "lucide-react";
 import {generateRandomStr} from "@/utils/tool.js";
@@ -85,6 +85,16 @@ const Index = () => {
     }
   }
 
+  const taskUpload = async () => {
+    const {code, msg, data} = await taskUploadRequest();
+    if (code === 1) {
+      messageApi.success('任务已提交.')
+      await terminalMore()
+    } else {
+      messageApi.error(msg)
+    }
+  }
+
   const copy = async (item) => {
     await navigator.clipboard.writeText(`${showTime(item.time)}-${item.level}-${item.content}`);
     messageApi.success('复制成功!')
@@ -119,6 +129,7 @@ const Index = () => {
           <Button type="primary" size="large" className="ml-2" onClick={taskCombine}>合并</Button>
           <Button type="primary" size="large" className="ml-2" onClick={taskTest}>测试</Button>
           <Button type="primary" size="large" className="ml-2" onClick={taskRevert}>回退</Button>
+          <Button type="primary" size="large" className="ml-2" onClick={taskUpload}>上传</Button>
         </div>
         <div
           ref={logsRef}
