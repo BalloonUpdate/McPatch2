@@ -6,6 +6,37 @@ import {useDispatch, useSelector} from "react-redux";
 import {clearToken} from "@/store/modules/userStore.js";
 import {useEffect} from "react";
 
+const navs = [
+  {
+    nav: '/dashboard',
+    name: '概览',
+    icon: <AppWindow size={16} strokeWidth={1.5}/>
+  },
+  {
+    nav: '/dashboard/folder',
+    name: '文件',
+    icon: <Folder size={16} strokeWidth={1.5}/>
+  },
+  {
+    nav: '/dashboard/log',
+    name: '日志',
+    icon: <ScrollText size={16} strokeWidth={1.5}/>
+  }
+]
+
+const navsFooter = [
+  {
+    nav: '/dashboard/help',
+    name: '帮助',
+    icon: <CircleHelp size={16} strokeWidth={1.5}/>
+  },
+  {
+    nav: '/dashboard/settings',
+    name: '设置',
+    icon: <Settings size={16} strokeWidth={1.5}/>
+  }
+]
+
 const Index = () => {
 
   const navigate = useNavigate();
@@ -39,37 +70,6 @@ const Index = () => {
       messageApi.error(msg)
     }
   }
-
-  const navs = [
-    {
-      nav: '/dashboard',
-      name: '概览',
-      icon: <AppWindow size={16} strokeWidth={1.5}/>
-    },
-    {
-      nav: '/dashboard/folder',
-      name: '文件',
-      icon: <Folder size={16} strokeWidth={1.5}/>
-    },
-    {
-      nav: '/dashboard/log',
-      name: '日志',
-      icon: <ScrollText size={16} strokeWidth={1.5}/>
-    }
-  ]
-
-  const navsFooter = [
-    {
-      nav: '/dashboard/help',
-      name: '帮助',
-      icon: <CircleHelp size={16} strokeWidth={1.5}/>
-    },
-    {
-      nav: '/dashboard/settings',
-      name: '设置',
-      icon: <Settings size={16} strokeWidth={1.5}/>
-    }
-  ]
 
   return (
     <>
