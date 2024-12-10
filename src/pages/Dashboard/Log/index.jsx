@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from "react";
-import {Button, Input, message, Modal, Select} from "antd";
+import {Button, Input, message, Modal, Popconfirm, Select} from "antd";
 import {
   taskCombineRequest, taskPackRequest,
   taskRevertRequest,
@@ -153,12 +153,22 @@ const Index = () => {
       {contextHolder}
       <div className="flex flex-col min-h-[calc(100vh-80px)]">
         <div className="flex justify-start items-center h-8">
-          <Button type="primary" size="large" onClick={taskStatus}>检查文件修改</Button>
-          <Button type="primary" size="large" className="ml-2" onClick={taskTest}>测试更新包</Button>
-          <Button type="primary" size="large" className="ml-2" onClick={taskUpload}>上传public目录</Button>
+          <Popconfirm title="风险操作,请再次确认!" onConfirm={taskStatus} okText="确定" cancelText="取消">
+            <Button type="primary" size="large">检查文件修改</Button>
+          </Popconfirm>
+          <Popconfirm title="风险操作,请再次确认!" onConfirm={taskTest} okText="确定" cancelText="取消">
+            <Button type="primary" size="large" className="ml-2">测试更新包</Button>
+          </Popconfirm>
+          <Popconfirm title="风险操作,请再次确认!" onConfirm={taskUpload} okText="确定" cancelText="取消">
+            <Button type="primary" size="large" className="ml-2">上传public目录</Button>
+          </Popconfirm>
           <Button type="primary" size="large" className="ml-2" onClick={() => setPackShow(true)}>打包新版本</Button>
-          <Button type="primary" size="large" className="ml-2" onClick={taskRevert}>回退整个工作空间</Button>
-          <Button type="primary" size="large" className="ml-2" onClick={taskCombine}>合并更新包</Button>
+          <Popconfirm title="风险操作,请再次确认!" onConfirm={taskRevert} okText="确定" cancelText="取消">
+            <Button type="primary" size="large" className="ml-2">回退整个工作空间</Button>
+          </Popconfirm>
+          <Popconfirm title="风险操作,请再次确认!" onConfirm={taskCombine} okText="确定" cancelText="取消">
+            <Button type="primary" size="large" className="ml-2">合并更新包</Button>
+          </Popconfirm>
           <Select
             defaultValue={options[0].value}
             size={"large"}
