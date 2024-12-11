@@ -14,11 +14,11 @@ const Index = ({path, handlerBreadcrumb}) => {
                 <li key={index} className="flex items-center cursor-default">
                   {
                     items.length - 1 !== index ?
-                      <div className="text-base text-gray-800 font-medium">
+                      <div className="text-base text-gray-800 dark:text-gray-500 font-medium">
                         <button onClick={() => handlerBreadcrumb(index)}>{item}</button>
                         <span className="px-3 text-body-color">{" / "}</span>
                       </div> :
-                      <div className="text-base text-gray-400 font-medium">
+                      <div className="text-base text-gray-400 dark:text-white font-medium">
                         {item}
                       </div>
                   }

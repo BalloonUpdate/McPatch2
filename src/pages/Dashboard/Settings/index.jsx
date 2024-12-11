@@ -34,8 +34,8 @@ const Index = () => {
   return (
     <>
       {contextHolder}
-      <div>
-        <Card title="修改用户名" className="w-80 shadow-[0_4px_6px_rgba(0,0,0,0.1)]">
+      <div className="p-10 min-h-screen">
+        <Card title="修改用户名" className="w-80 shadow-[0_4px_6px_rgba(0,0,0,0.1)] ">
           <Form
             layout="vertical"
             initialValues={{layout: 'vertical'}}

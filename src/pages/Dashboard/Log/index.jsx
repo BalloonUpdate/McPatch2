@@ -153,7 +153,7 @@ const Index = () => {
   return (
     <>
       {contextHolder}
-      <div className="flex flex-col min-h-[calc(100vh-80px)]">
+      <div className="flex flex-col p-10 min-h-screen">
         <div className="flex justify-start items-center h-8">
           <Popconfirm title="风险操作,请再次确认!" onConfirm={taskStatus} okText="确定" cancelText="取消">
             <Button type="primary" size="large">检查文件修改</Button>
@@ -183,7 +183,7 @@ const Index = () => {
         </div>
         <div
           ref={logsRef}
-          className="flex-1 mt-4 bg-black text-white overflow-auto min-h-[calc(100vh-160px)] max-h-[calc(100vh-160px)]">
+          className="flex-1 mt-8 bg-black dark:bg-gray-800 text-white overflow-auto min-h-[calc(100vh-160px)] max-h-[calc(100vh-160px)]">
           {
             logs.map((item, index) => {
               return (

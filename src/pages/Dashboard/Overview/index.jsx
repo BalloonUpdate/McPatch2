@@ -17,7 +17,7 @@ const Index = () => {
 
   return (
     <>
-      <div className="mt-2">
+      <div className="p-10 min-h-screen">
         <div className="text-2xl font-bold text-indigo-600">磁盘使用量</div>
         <div className='h-8 mt-2 mb-2 bg-indigo-100 dark:bg-dark-3 relative w-full rounded-2xl'>
           <div

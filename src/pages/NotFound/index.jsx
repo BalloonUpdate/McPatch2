@@ -9,7 +9,7 @@ const Index = () => {
       <div className="max-w-screen-xl mx-auto px-4 flex items-center justify-start h-screen md:px-8">
         <div className="max-w-lg mx-auto space-y-3 text-center">
           <div className="text-4xl text-indigo-600">McPatch</div>
-          <p className="text-gray-600">
+          <p className="text-gray-600 dark:text-gray-50">
             404. 对不起,您要查找的页面无法找到或已被删除.
           </p>
           <div onClick={() => navigate(-1)}
