@@ -26,7 +26,7 @@ pub async fn api_download(State(state): State<WebState>, Json(payload): Json<Req
         return PublicResponseBody::<ResponseData>::err("parameter 'path' is empty, and it is not allowed.");
     }
 
-    let file = state.app_path.workspace_dir.join(payload.path);
+    let file = state.app_path.working_dir.join(payload.path);
 
     if !file.exists() || !file.is_file() {
         return PublicResponseBody::<ResponseData>::err("file not exists.");

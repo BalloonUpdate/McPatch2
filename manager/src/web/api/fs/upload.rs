@@ -22,7 +22,7 @@ pub async fn api_upload(State(state): State<WebState>, headers: HeaderMap, body:
         return PublicResponseBody::<()>::err("parameter 'path' is empty, and it is not allowed.");
     }
 
-    let file = state.app_path.workspace_dir.join(path);
+    let file = state.app_path.working_dir.join(path);
 
     println!("upload: {:?}", file);
 
