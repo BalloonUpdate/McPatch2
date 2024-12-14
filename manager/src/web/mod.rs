@@ -26,6 +26,7 @@ use crate::config::auth_config::AuthConfig;
 use crate::config::Config;
 use crate::web::api::fs::extract_file::api_extract_file;
 use crate::web::api::fs::sign_file::api_sign_file;
+use crate::web::api::misc::version_list::api_version_list;
 use crate::web::api::public::api_public;
 use crate::web::api::task::check::api_status;
 use crate::web::api::task::combine::api_combine;
@@ -147,6 +148,8 @@ pub fn serve_web() {
             .route("/api/fs/make-directory", post(api_make_directory))
             .route("/api/fs/delete", post(api_delete))
             .route("/api/fs/sign-file", post(api_sign_file))
+            
+            .route("/api/misc/version-list", post(api_version_list))
             .route_layer(AuthLayer::new(webstate.clone()))
 
             // 这部分不参与请求验证

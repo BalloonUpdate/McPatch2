@@ -8,6 +8,7 @@ pub mod fs;
 pub mod terminal;
 pub mod public;
 pub mod webpage;
+pub mod misc;
 
 /// 公共响应体
 #[derive(Serialize)]
