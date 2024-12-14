@@ -30,7 +30,7 @@ pub async fn api_sign_file(State(state): State<WebState>, Json(payload): Json<Re
         return PublicResponseBody::<ResponseData>::err("parameter 'path' is empty, and it is not allowed.");
     }
 
-    let path = state.app_path.workspace_dir.join(payload.path);
+    let path = state.app_path.working_dir.join(payload.path);
 
     if !path.exists() || !path.is_file() {
         return PublicResponseBody::<ResponseData>::err("file not exists.");
@@ -39,7 +39,7 @@ pub async fn api_sign_file(State(state): State<WebState>, Json(payload): Json<Re
     let username = state.auth.username().await;
     let password = state.auth.password().await;
 
-    let relative_path = path.strip_prefix(&state.app_path.workspace_dir).unwrap().to_str().unwrap().to_owned();
+    let relative_path = path.strip_prefix(&state.app_path.working_dir).unwrap().to_str().unwrap().to_owned();
     let expire = SystemTime::now() + Duration::from_secs(2 * 60 * 60);
     let unix_ts = expire.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs();
 
