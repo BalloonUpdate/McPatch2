@@ -9,3 +9,25 @@ export const generateRandomStr = (length = 8) => {
 
   return result;
 }
+
+export const showFileSize = (size) => {
+  if (size > (1024 * 1024)) {
+    return `${(size / 1024 / 1024).toFixed(2)} MB`
+  } else if (size > 1024) {
+    return `${(size / 1024).toFixed(2)} KB`
+  } else {
+    return `${size} Bytes`
+  }
+}
+
+export const showTime = (timestamp) => {
+  return new Date(timestamp * 1000).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false
+  });
+}

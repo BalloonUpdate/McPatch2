@@ -3,6 +3,7 @@ import FileItem from "@/components/TileViewFileExplorer/FileItem/index.jsx";
 import './index.css'
 import {fsDeleteRequest, fsSignFileRequest} from "@/api/fs.js";
 import {message} from "antd";
+import {showFileSize, showTime} from "@/utils/tool.js";
 
 const Index = ({path, getFileList, items, handlerNextPath}) => {
 
@@ -72,28 +73,6 @@ const Index = ({path, getFileList, items, handlerNextPath}) => {
       messageApi.error(msg);
     }
     closeMenu()
-  }
-
-  const showFileSize = (size) => {
-    if (size > (1024 * 1024)) {
-      return `${(selectedItem.size / 1024 / 1024).toFixed(2)} MB`
-    } else if (size > 1024) {
-      return `${(selectedItem.size / 1024).toFixed(2)} KB`
-    } else {
-      return `${selectedItem.size} Bytes`
-    }
-  }
-
-  const showTime = (timestamp) => {
-    return new Date(timestamp * 1000).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
   }
 
   return (
