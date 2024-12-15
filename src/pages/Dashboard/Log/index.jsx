@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from "react";
-import {Button, Input, message, Modal, Popconfirm, Select} from "antd";
+import {Button, Input, message, Modal, Popconfirm, Popover, Select, Tooltip} from "antd";
 import {
   taskCombineRequest, taskPackRequest,
   taskRevertRequest,
@@ -9,23 +9,64 @@ import {
 } from "@/api/task.js";
 import {terminalFullRequest, terminalMoreRequest} from "@/api/terminal.js";
 import {RotateCcw} from "lucide-react";
-import {generateRandomStr} from "@/utils/tool.js";
+import {generateRandomStr, showFileSize, showTime} from "@/utils/tool.js";
+import {miscVersionListRequest} from "@/api/misc.js";
 
 const {TextArea} = Input;
 
-const options = [
-  {value: 5000, label: '5s'},
-  {value: 1000, label: '1s'},
-  {value: 15000, label: '15s'}
-]
+const VersionList = ({versionList}) => {
+
+  const content = (
+    <div>
+      {
+        versionList.map((version) => {
+          return (
+            <div className={"p-2"}>
+              <div className={"flex justify-start"}>
+                <div className={"mr-3 w-40 max-h-4"}><span className={"font-bold"}>版本号: </span>{version.label}</div>
+                <div className={"mr-3 w-40 max-h-4"}>
+                  <span className={"font-bold"}>大小: </span>{showFileSize(version.size)}
+                </div>
+                <div className={"mr-3 w-96 max-h-12 overflow-auto"}>
+                  <span className={"font-bold"}>更新记录: </span>{version.change_logs}
+                </div>
+              </div>
+            </div>
+          )
+        })
+      }
+    </div>
+  )
+
+  return (
+    <>
+      {
+        versionList.length > 0 ? (
+          <Popover placement="bottom" content={content}>
+            <Button size={"large"}>{versionList[0].label}</Button>
+          </Popover>
+        ) : (
+          <></>
+        )
+      }
+    </>
+  )
+}
 
 const Index = () => {
+
+  const options = [
+    {value: 5000, label: '5s'},
+    {value: 1000, label: '1s'},
+    {value: 15000, label: '15s'}
+  ]
 
   const [logs, setLogs] = useState([])
   const [packShow, setPackShow] = useState(false)
   const [version, setVersion] = useState('');
   const [updateRecord, setUpdateRecord] = useState('');
-  const [refreshInterval, setRefreshInterval] = useState(options[0].value);
+  const [refreshInterval, setRefreshInterval] = useState(parseInt(localStorage.getItem('logRefreshInterval')) || options[0].value);
+  const [versionList, setVersionList] = useState([])
   const logsRef = useRef(null);
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -47,6 +88,10 @@ const Index = () => {
     return () => clearInterval(intervalId);
   }, [refreshInterval])
 
+  useEffect(() => {
+    miscVersionList()
+  }, []);
+
   const terminalFull = async () => {
     const {code, msg, data} = await terminalFullRequest();
     if (code === 1) {
@@ -66,7 +111,15 @@ const Index = () => {
 
   const changeRefreshInterval = (value) => {
     setRefreshInterval(value)
+    localStorage.setItem('logRefreshInterval', value)
   };
+
+  const miscVersionList = async () => {
+    const {code, msg, data} = await miscVersionListRequest();
+    if (code === 1) {
+      setVersionList(data.versions);
+    }
+  }
 
   const taskPack = async () => {
     const tempVersion = version === '' ? generateRandomStr() : version
@@ -74,6 +127,7 @@ const Index = () => {
 
     const {code, msg, data} = await taskPackRequest(tempVersion, tempUpdateRecord);
     if (code === 1) {
+      await miscVersionList()
       messageApi.success('打包成功.')
     } else {
       messageApi.error(msg)
@@ -138,25 +192,14 @@ const Index = () => {
     if (level === 'error') return 'text-[#FF0000]';
   };
 
-  const showTime = (timestamp) => {
-    return new Date(timestamp * 1000).toLocaleString('zh-CN', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-      hour12: false
-    });
-  }
-
   return (
     <>
       {contextHolder}
       <div className="flex flex-col p-10 min-h-screen">
         <div className="flex justify-start items-center h-8">
+          <VersionList versionList={versionList}/>
           <Popconfirm title="风险操作,请再次确认!" onConfirm={taskStatus} okText="确定" cancelText="取消">
-            <Button type="primary" size="large">检查文件修改</Button>
+            <Button type="primary" size="large" className="ml-2">检查文件修改</Button>
           </Popconfirm>
           <Popconfirm title="风险操作,请再次确认!" onConfirm={taskTest} okText="确定" cancelText="取消">
             <Button type="primary" size="large" className="ml-2">测试更新包</Button>
@@ -172,7 +215,7 @@ const Index = () => {
             <Button type="primary" size="large" className="ml-2">合并更新包</Button>
           </Popconfirm>
           <Select
-            defaultValue={options[0].value}
+            defaultValue={refreshInterval}
             size={"large"}
             className="ml-auto w-40"
             onChange={changeRefreshInterval}
