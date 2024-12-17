@@ -16,9 +16,15 @@ use crate::network::http::AsyncStreamBody;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
 
+/// 代表webdav更新协议
 pub struct Webdav {
+    /// 客户端对象
     client: Client,
+
+    /// 打码的关键字，所有日志里的这个关键字都会被打码。通常用来保护服务器ip或者域名地址不被看到
     mask_keyword: String,
+
+    /// 当前这个更新协议的编号，用来做debug用途
     index: u32,
 }
 

@@ -9,6 +9,7 @@ struct Sample {
     timestamp: SystemTime,
 }
 
+/// 代表一个速度计算器，用来计算下载文件时的网速
 pub struct SpeedCalculator {
     period: u128,
     frames: LinkedList<Sample>,

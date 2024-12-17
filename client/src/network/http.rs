@@ -19,10 +19,18 @@ use crate::log::log_debug;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
 
+/// 代表http更新协议
 pub struct HttpProtocol {
+    /// 更新地址的url
     pub url: String,
+
+    /// http客户端对象
     pub client: Client,
+
+    /// 打码的关键字，所有日志里的这个关键字都会被打码。通常用来保护服务器ip或者域名地址不被看到
     mask_keyword: String,
+
+    /// 当前这个更新协议的编号，用来做debug用途
     index: u32,
 }
 
@@ -62,18 +70,21 @@ impl UpdatingSource for HttpProtocol {
     async fn request(&mut self, path: &str, range: &Range<u64>, desc: &str, _config: &GlobalConfig) -> DownloadResult {
         let full_url = format!("{}{}{}", self.url, if self.url.ends_with("/") { "" } else { "/" }, path);
 
+        // 检查输入参数，start不能大于end
         let partial_file = range.start > 0 || range.end > 0;
 
         if partial_file {
             assert!(range.end >= range.start);
         }
 
+        // 构建请求
         let mut req = self.client.get(&full_url);
         if partial_file {
             req = req.header("Range", format!("bytes={}-{}", range.start, range.end - 1));
         }
         let req = req.build().unwrap();
 
+        // 发起请求
         let rsp = match self.client.execute(req).await {
             Ok(rsp) => rsp,
             Err(err) => return Err(std::io::Error::new(std::io::ErrorKind::Other, err)),
@@ -81,8 +92,9 @@ impl UpdatingSource for HttpProtocol {
 
         let code = rsp.status().as_u16();
 
+        // 检查状态码
         if (!partial_file && (code < 200 || code >= 300)) || (partial_file && code != 206) {
-            // 输出响应体
+            // 如果状态码不对，就考虑输出响应体内容，因为通常会包含一些服务端返回的错误信息，对排查问题很有帮助
             let mut body = rsp.text().await.map_or_else(|e| format!("{:?}", e), |v| v);
 
             log_debug(format!("------------\n{}\n------------", body));
