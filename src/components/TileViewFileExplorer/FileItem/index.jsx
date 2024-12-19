@@ -23,6 +23,7 @@ const Index = ({item}) => {
   return (
     <>
       <div
+        title={item.name}
         className={`w-24 h-24 flex flex-col justify-center items-center cursor-pointer duration-200 select-none ${getBgColor(item)}`}>
         <div className="max-w-20 text-3xl">
           {item.is_directory ? '📁' : '📄'}
