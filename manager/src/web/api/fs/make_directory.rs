@@ -30,5 +30,9 @@ pub async fn api_make_directory(State(state): State<WebState>, Json(payload): Js
 
     tokio::fs::create_dir(&file).await.unwrap();
 
+    // 清除文件状态缓存
+    let mut status = state.status.lock().await;
+    status.invalidate();
+
     PublicResponseBody::<()>::ok_no_data()
 }

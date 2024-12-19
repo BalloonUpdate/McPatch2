@@ -52,5 +52,9 @@ pub async fn api_upload(State(state): State<WebState>, headers: HeaderMap, body:
         f.write_all(&frame).await.unwrap();
     }
 
+    // 清除文件状态缓存
+    let mut status = state.status.lock().await;
+    status.invalidate();
+
     PublicResponseBody::<()>::ok_no_data()
 }

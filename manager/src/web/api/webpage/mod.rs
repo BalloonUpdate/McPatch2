@@ -43,7 +43,7 @@ async fn respond_file(mut path: &str, state: &WebState) -> Response {
 /// 从可执行文件内部响应页面文件请求
 #[cfg(feature = "bundle-webpage")]
 async fn respond_from_inner(mut path: &str, state: &WebState) -> Response {
-    println!("inner");
+    // println!("inner");
 
     // 文件找不到就尝试访问404文件
     if !WEBPAGE_DIR.contains(path) && !state.config.web.redirect_404.is_empty() {
@@ -71,7 +71,7 @@ async fn respond_from_inner(mut path: &str, state: &WebState) -> Response {
 
 /// 从外部的webpage目录响应页面文件请求
 async fn respond_from_outer(path: &str, state: &WebState) -> Response {
-    println!("outer");
+    // println!("outer");
 
     let mut path = state.app_path.web_dir.join(path);
 

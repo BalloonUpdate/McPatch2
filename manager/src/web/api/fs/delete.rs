@@ -38,5 +38,9 @@ pub async fn api_delete(State(state): State<WebState>, Json(payload): Json<Reque
         }
     }
 
+    // 清除文件状态缓存
+    let mut status = state.status.lock().await;
+    status.invalidate();
+
     PublicResponseBody::<()>::ok_no_data()
 }

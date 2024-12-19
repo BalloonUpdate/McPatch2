@@ -51,11 +51,13 @@ pub async fn api_list(State(state): State<WebState>, Json(payload): Json<Request
         let is_directory = entry.file_type().await.unwrap().is_dir();
         let metadata = entry.metadata().await.unwrap();
 
-        let relative_path = entry.path().strip_prefix(&state.app_path.working_dir).unwrap().to_str().unwrap().replace("\\", "/");
+        let status = match entry.path().strip_prefix(&state.app_path.workspace_dir) {
+            Ok(ok) => status.get_file_status(&ok.to_str().unwrap().replace("\\", "/")).await,
+            Err(_) => SingleFileStatus::Keep,
+        };
 
+        // let relative_path = entry.path().strip_prefix(&state.app_path.working_dir).unwrap().to_str().unwrap().replace("\\", "/");
         // println!("relative: {:?}", relative_path);
-
-        let st = status.get_file_status(&relative_path).await;
 
         files.push(File {
             name: entry.file_name().to_str().unwrap().to_string(),
@@ -63,7 +65,7 @@ pub async fn api_list(State(state): State<WebState>, Json(payload): Json<Request
             size: if is_directory { 0 } else { metadata.len() },
             ctime: metadata.created().unwrap().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
             mtime: metadata.modified().unwrap().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
-            state: match st {
+            state: match status {
                 SingleFileStatus::Keep => "keep".to_owned(),
                 SingleFileStatus::Added => "added".to_owned(),
                 SingleFileStatus::Modified => "modified".to_owned(),

@@ -106,6 +106,8 @@ impl FileStatus {
     /// 尝试重新生成文件状态缓存
     async fn refresh(&mut self) -> &Status {
         if self.status.is_none() {
+            println!("rebuild cache");
+
             let app_path = &self.app_path;
 
             // 读取现有更新包，并复现在history上
