@@ -13,8 +13,8 @@ const navs = [
     icon: <AppWindow size={16} strokeWidth={1.5}/>
   },
   {
-    nav: '/dashboard/folder',
-    name: '文件',
+    nav: '/dashboard/directory',
+    name: '目录',
     icon: <Folder size={16} strokeWidth={1.5}/>
   },
   {

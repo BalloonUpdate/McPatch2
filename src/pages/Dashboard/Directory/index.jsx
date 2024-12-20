@@ -5,8 +5,12 @@ import TileViewFileExplorer from "@/components/TileViewFileExplorer/index.jsx";
 import FolderButtonGroup from "@/components/FolderButtonGroup/index.jsx";
 
 const Index = () => {
-  const [path, setPath] = useState([]);
+  const [path, setPath] = useState(JSON.parse(localStorage.getItem("filePath")) || []);
   const [fileList, setFileList] = useState([])
+
+  useEffect(() => {
+    localStorage.setItem("filePath", JSON.stringify(path));
+  }, [path]);
 
   const getFileList = async () => {
     const {code, msg, data} = await fsListRequest(path.join('/'));
