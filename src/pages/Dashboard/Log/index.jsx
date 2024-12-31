@@ -1,5 +1,5 @@
 import React, {useEffect, useRef, useState} from "react";
-import {Button, Input, message, Modal, Popconfirm, Popover, Select, Tooltip} from "antd";
+import {Button, Input, message, Modal, Popconfirm, Popover, Select} from "antd";
 import {
   taskCombineRequest, taskPackRequest,
   taskRevertRequest,
@@ -19,9 +19,9 @@ const VersionList = ({versionList}) => {
   const content = (
     <div>
       {
-        versionList.map((version) => {
+        versionList.map((version, index) => {
           return (
-            <div className={"p-2"}>
+            <div key={index} className={"p-2"}>
               <div className={"flex justify-start"}>
                 <div className={"mr-3 w-40 max-h-4"}><span className={"font-bold"}>版本号: </span>{version.label}</div>
                 <div className={"mr-3 w-40 max-h-4"}>
@@ -102,10 +102,9 @@ const Index = () => {
   const terminalMore = async () => {
     const {code, msg, data} = await terminalMoreRequest();
     if (code === 1) {
-      if (data.content.length === 0) {
-        return
+      if (data.content.length !== 0) {
+        setLogs(prev => prev.concat(data.content))
       }
-      setLogs(prev => [...prev, ...data.content])
     }
   }
 
