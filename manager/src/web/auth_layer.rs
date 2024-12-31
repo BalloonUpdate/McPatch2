@@ -71,7 +71,7 @@ impl<S, Req> Service<Request<Req>> for AuthService<S> where
         Box::pin(async move {
             // 如果token验证失败，就不调用后面的逻辑，直接返回错误
             if let Err(reason) = webstate.auth.validate_token(&token_header).await {
-                return Ok(PublicResponseBody::<()>::err(reason));
+                return Ok(PublicResponseBody::<()>::err_token_expired(reason));
             }
             
             // 请求继续往后走
