@@ -49,6 +49,14 @@ impl<T> PublicResponseBody<T> where T : Serialize {
         }.to_response()
     }
 
+    pub fn err_token_expired(reason: &str) -> Response {
+        Self {
+            code: -2,
+            msg: reason.to_owned(),
+            data: None,
+        }.to_response()
+    }
+
     fn to_response(self) -> Response {
         let json = serde_json::to_string_pretty(&self).unwrap();
 
