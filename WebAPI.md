@@ -402,6 +402,23 @@ Post：`/api/fs/delete`
 
 响应体（data字段）：无data字段
 
+### 移动文件
+
+Post：`/api/fs/move`
+
+用途：移动一个后端文件或者目录到新的位置
+
+请求体：
+
+```json
+{
+    "from": "", // 原路径
+    "to": "" // 目标路径
+}
+```
+
+响应体（data字段）：无data字段
+
 ### 请求文件签名
 
 Post：`/api/fs/sign-file`
