@@ -1,17 +1,17 @@
 use core::str;
-use std::cell::RefCell;
 use std::collections::VecDeque;
 use std::path::PathBuf;
 
-use minio::s3::args::ListObjectsArgs;
 use minio::s3::args::ObjectConditionalReadArgs;
 use minio::s3::args::PutObjectArgs;
-use minio::s3::args::RemoveObjectArgs;
 use minio::s3::args::UploadObjectArgs;
 use minio::s3::client::Client;
 use minio::s3::client::ClientBuilder;
 use minio::s3::creds::StaticProvider;
 use minio::s3::http::BaseUrl;
+use minio::s3::types::S3Api;
+use minio::s3::types::ToStream;
+use tokio_stream::StreamExt;
 
 use crate::config::s3_config::S3Config;
 use crate::upload::file_list_cache::FileListCache;
@@ -47,24 +47,27 @@ impl S3Target {
 
 impl UploadTarget for S3Target {
     async fn list(&mut self) -> Result<Vec<String>, String> {
+        let mut files = Vec::<String>::new();
 
-        let files = RefCell::new(Vec::<String>::new());
-        
-        self.client.list_objects(&ListObjectsArgs::new(&self.config.bucket, &|e| {
-            let mut files = files.borrow_mut();
+        let mut list_objects = self.client
+            .list_objects(&self.config.bucket)
+            .recursive(false)
+            .to_stream()
+            .await;
 
-            for f in e {
-                files.push(f.name);
+        while let Some(result) = list_objects.next().await {
+            let rsp = result.map_err(|e| e.to_detail_error())?;
+
+            for item in rsp.contents {
+                files.push(item.name);
             }
+        }
 
-            true
-        }).unwrap()).await.map_err(|e| e.to_detail_error())?;
-
-        Ok(files.into_inner())
+        Ok(files)
     }
     
     async fn read(&mut self, filename: &str) -> Result<Option<String>, String> {
-        let response = self.client.get_object(&ObjectConditionalReadArgs::new(
+        let response = self.client.get_object_old(&ObjectConditionalReadArgs::new(
             &self.config.bucket,
             filename
         ).unwrap()).await;
@@ -91,7 +94,7 @@ impl UploadTarget for S3Target {
         let mut buf = VecDeque::from(content.as_bytes().to_vec());
         let len = buf.len();
 
-        self.client.put_object(&mut PutObjectArgs::new(
+        self.client.put_object_old(&mut PutObjectArgs::new(
             &self.config.bucket,
             filename,
             &mut buf,
@@ -113,10 +116,11 @@ impl UploadTarget for S3Target {
     }
     
     async fn delete(&mut self, filename: &str) -> Result<(), String> {
-        self.client.remove_object(&RemoveObjectArgs::new(
-            &self.config.bucket,
-            filename
-        ).unwrap()).await.map_err(|e| e.to_detail_error())?;
+        let rsp = self.client.remove_object(&self.config.bucket, filename)
+            .send()
+            .await;
+
+        rsp.map_err(|e| e.to_detail_error())?;
 
         Ok(())
     }
