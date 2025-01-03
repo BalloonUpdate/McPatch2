@@ -21,10 +21,10 @@ jobs:
         include:
           - os: windows-latest
             rustc-target: x86_64-pc-windows-msvc
-          - os: ubuntu-latest
-            rustc-target: x86_64-unknown-linux-gnu
           # - os: ubuntu-latest
-          #   rustc-target: x86_64-unknown-linux-musl
+          #   rustc-target: x86_64-unknown-linux-gnu
+          - os: ubuntu-latest
+            rustc-target: x86_64-unknown-linux-musl
     runs-on: ${{ matrix.os }}
     env:
       rust-version: '1.81'
@@ -37,11 +37,11 @@ jobs:
         run: |-
           sudo apt install libssl-dev
 
-      # - name: Install dependencies for Linux musl
-      #   if: ${{ runner.os == 'Linux' && contains(matrix.rustc-target, 'musl') }}
-      #   run: |-
-      #     sudo apt install musl-tools
-      #     sudo apt install musl-dev
+      - name: Install dependencies for Linux musl
+        if: ${{ runner.os == 'Linux' && contains(matrix.rustc-target, 'musl') }}
+        run: |-
+          sudo apt install musl-tools
+          sudo apt install musl-dev
 
       - name: Cargo build
         env:
