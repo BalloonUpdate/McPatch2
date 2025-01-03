@@ -1,8 +1,9 @@
 {
     "rust-analyzer.linkedProjects": [
-        ".\\manager\\Cargo.toml",
-        ".\\client\\Cargo.toml",
-        ".\\shared\\Cargo.toml",
-        ".\\config_template_derive\\Cargo.toml"
-    ]
+        "./manager/Cargo.toml",
+        "./client/Cargo.toml",
+        "./shared/Cargo.toml",
+        "./config_template_derive/Cargo.toml"
+    ],
+    "rust-analyzer.checkOnSave": true
 }
