@@ -75,7 +75,7 @@ fn dist_binary(crate_name: &str, production_name: &str, features: Option<String>
 
     args.push("build".to_owned());
     args.push("--release".to_owned());
-    args.push("--bin".to_owned());
+    args.push("--package".to_owned());
     args.push(crate_name.to_owned());
     args.push("--target".to_owned());
     args.push(target.rustc_target.to_owned());
