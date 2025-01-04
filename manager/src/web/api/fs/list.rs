@@ -63,7 +63,7 @@ pub async fn api_list(State(state): State<WebState>, Json(payload): Json<Request
             name: entry.file_name().to_str().unwrap().to_string(),
             is_directory,
             size: if is_directory { 0 } else { metadata.len() },
-            ctime: metadata.created().unwrap().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
+            ctime: metadata.created().map(|e| e.duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs()).unwrap_or(0),
             mtime: metadata.modified().unwrap().duration_since(SystemTime::UNIX_EPOCH).unwrap().as_secs(),
             state: match status {
                 SingleFileStatus::Keep => "keep".to_owned(),
