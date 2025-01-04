@@ -576,6 +576,8 @@ dependencies = [
  "once_cell",
  "reqwest",
  "reqwest_dav",
+ "serde",
+ "serde_json",
  "shared",
  "tokio",
  "yaml-rust",

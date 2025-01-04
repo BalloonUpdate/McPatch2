@@ -10,7 +10,7 @@ use crate::error::ResultToBusinessError;
 #[derive(ConfigTemplate)]
 pub struct GlobalConfig {
     /// 更新服务器地址，可以填写多个备用地址，当一个不可用时会切换到备用地址上
-    /// 目前支持的协议：http(s)、webdav(s)、私有协议
+    /// 目前支持的协议：http(s)、webdav(s)、私有协议、Alist网盘协议
     ///
     /// http协议的例子：（填写索引文件index.json所在的目录就好，不需要填写index.json本身）
     ///   1. http://127.0.0.1:6700 （走http协议）
@@ -23,6 +23,12 @@ pub struct GlobalConfig {
     /// 
     /// 私有协议的例子：（私有协议是mcpatch自己的协议，无需备案，如果做内网穿透请走普通tcp隧道而非http隧道）
     ///   1. mcpatch://127.0.0.1:6700 （私有协议以mcpatch开头，只需要主机和端口号即可，无需输入子目录）
+    /// 
+    /// Alist网盘协议的例子：（https://github.com/alist-org/alist）
+    ///   1. alist://http://127.0.0.1:6700 （alist://后加Alist的对应文件夹的网址，走http协议）
+    ///   2. alist://https://127.0.0.1:6700/subfolder （走https协议）
+    ///   注：直接把Alist网盘的网址复制到这里即可，开启签名也可以正常使用
+    ///     如 alist://https://al.nn.ci/special_filename
     /// 
     #[default_value("\n  - mcpatch://127.0.0.1:6700 # 若在公网部署记得换成自己的公网ip或者域名")]
     pub urls: Vec<String>,
