@@ -43,6 +43,13 @@ pub struct AlistProtocol {
 
 impl AlistProtocol {
     pub fn new(url: &str, config: &GlobalConfig, index: u32) -> Self {
+        // 确保 URL 末尾有 `/`
+        let url = if url.ends_with('/') {
+            url.to_owned()
+        } else {
+            format!("{}/", url)
+        };
+
         // 添加自定义协议头
         let mut def_headers = HeaderMap::new();
 
@@ -63,7 +70,7 @@ impl AlistProtocol {
             .build()
             .unwrap();
 
-        let mask_keyword = match reqwest::Url::parse(url) {
+        let mask_keyword = match reqwest::Url::parse(&url) {
             Ok(parsed) => parsed.host_str().unwrap_or("").to_owned(),
             Err(_) => "".to_owned(),
         };
