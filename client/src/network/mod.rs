@@ -1,6 +1,7 @@
 pub mod http;
 pub mod private;
 pub mod webdav;
+pub mod alist;
 
 use std::ops::Range;
 use std::pin::Pin;
@@ -20,6 +21,7 @@ use crate::log::log_info;
 use crate::network::http::HttpProtocol;
 use crate::network::private::PrivateProtocol;
 use crate::network::webdav::Webdav;
+use crate::network::alist::AlistProtocol;
 
 pub type DownloadResult = std::io::Result<BusinessResult<(u64, Pin<Box<dyn AsyncRead + Send>>)>>;
 
@@ -47,6 +49,8 @@ impl<'a> Network<'a> {
                 sources.push(Box::new(PrivateProtocol::new(&url["mcpatch://".len()..], &config, index)))
             } else if url.starts_with("webdav://") || url.starts_with("webdavs://") {
                 sources.push(Box::new(Webdav::new(&url, &config, index)))
+            } else if url.starts_with("alist://") {
+                sources.push(Box::new(AlistProtocol::new(&url["alist://".len()..], &config, index)))
             } else {
                 log_info(format!("unknown url: {}", url));
             }
