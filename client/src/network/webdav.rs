@@ -104,7 +104,7 @@ impl UpdatingSource for Webdav {
             // 输出响应体
             let mut body = rsp.text().await.map_or_else(|e| format!("{:?}", e), |v| v);
 
-            log_debug(format!("------------\n{}\n------------", body));
+            // log_debug(format!("------------\n{}\n------------", body));
 
             body.truncate(300);
 
