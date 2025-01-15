@@ -306,7 +306,9 @@ impl FromStr for BaseUrl {
             &mut aws_domain_suffix,
             &mut dualstack,
         )?;
-        let virtual_style = !aws_domain_suffix.is_empty() || host.ends_with("aliyuncs.com");
+        let virtual_style = !aws_domain_suffix.is_empty() || host.ends_with("aliyuncs.com") || host.ends_with("myqcloud.com");
+
+        let virtual_style = true;
 
         Ok(BaseUrl {
             https,
@@ -445,10 +447,22 @@ impl BaseUrl {
         let mut host = String::from(&url.host);
         let mut path = String::new();
 
+        let a = (method == Method::PUT && object_name.is_none() && query.is_empty());
+        let b = query.contains_key("location");
+        let c = (bucket.contains('.') && self.https);
+
+        for q in query.iter() {
+            println!(". {} => {}", q.0, q.1);
+        }
+
+        println!("a: {a}, b: {b}, c: {c}");
+
         if enforce_path_style || !self.virtual_style {
+            println!("path like: {}", self.virtual_style);
             path.push('/');
             path.push_str(bucket);
         } else {
+            println!("virtual style");
             host = format!("{}.{}", bucket, url.host);
         }
 
