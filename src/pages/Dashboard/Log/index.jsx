@@ -56,9 +56,10 @@ const VersionList = ({versionList}) => {
 const Index = () => {
 
   const options = [
-    {value: 5000, label: '5s'},
+    {value: 3000, label: '3s'},
     {value: 1000, label: '1s'},
-    {value: 15000, label: '15s'}
+    {value: 5000, label: '5s'},
+    {value: 10000, label: '10s'},
   ]
 
   const [logs, setLogs] = useState([])
