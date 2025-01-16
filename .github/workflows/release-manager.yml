@@ -56,13 +56,13 @@ jobs:
         with:
           files: target/dist/*
       
-      - name: Distribute
-        uses: bxb100/action-upload@main
-        with:
-          provider: webdav
-          provider_options: |
-            endpoint=${{ secrets.webdav_endpoint }}
-            username=${{ secrets.webdav_username }}
-            password=${{ secrets.webdav_password }}
-            root=${{ secrets.webdav_root_manager }}
-          include: 'target/dist/**'
+      # - name: Distribute
+      #   uses: bxb100/action-upload@main
+      #   with:
+      #     provider: webdav
+      #     provider_options: |
+      #       endpoint=${{ secrets.webdav_endpoint }}
+      #       username=${{ secrets.webdav_username }}
+      #       password=${{ secrets.webdav_password }}
+      #       root=${{ secrets.webdav_root_manager }}
+      #     include: 'target/dist/**'
