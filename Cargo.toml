@@ -5,8 +5,7 @@ members = [
     "shared",
     "manager", 
     "client", 
-    "xtask",
-    "minio"
+    "xtask"
 ]
 
 [workspace.package]

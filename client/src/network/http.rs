@@ -15,7 +15,6 @@ use tokio::pin;
 
 use crate::error::BusinessError;
 use crate::global_config::GlobalConfig;
-use crate::log::log_debug;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
 

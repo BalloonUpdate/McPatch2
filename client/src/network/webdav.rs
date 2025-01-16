@@ -11,7 +11,6 @@ use reqwest_dav::ClientBuilder;
 
 use crate::error::BusinessError;
 use crate::global_config::GlobalConfig;
-use crate::log::log_debug;
 use crate::network::http::AsyncStreamBody;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
