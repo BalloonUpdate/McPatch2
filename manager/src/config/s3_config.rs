@@ -13,6 +13,9 @@ pub struct S3Config {
 
     /// 桶名
     pub bucket: String,
+
+    /// 地域
+    pub region: String,
     
     /// 认证id
     pub access_id: String,
