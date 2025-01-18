@@ -52,7 +52,7 @@ pub fn derive_config_template(input: TokenStream) -> TokenStream {
                         template.push_str("\n\n");
                     },
                     None => {
-                        let err_msg = format!("#[default_value(...)] is missing at the field '{}'", field_ident);
+                        let err_msg = format!("#[default_value(...)] is missing on the field '{}'", field_ident);
 
                         return TokenStream::from(quote::quote! {
                             compile_error!(#err_msg);

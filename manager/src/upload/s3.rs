@@ -1,17 +1,13 @@
 use core::str;
-use std::collections::VecDeque;
 use std::path::PathBuf;
 
-use minio::s3::args::ObjectConditionalReadArgs;
-use minio::s3::args::PutObjectArgs;
-use minio::s3::args::UploadObjectArgs;
-use minio::s3::client::Client;
-use minio::s3::client::ClientBuilder;
-use minio::s3::creds::StaticProvider;
-use minio::s3::http::BaseUrl;
-use minio::s3::types::S3Api;
-use minio::s3::types::ToStream;
-use tokio_stream::StreamExt;
+use aws_sdk_s3::config::BehaviorVersion;
+use aws_sdk_s3::config::Region;
+use aws_sdk_s3::primitives::ByteStream;
+use aws_sdk_s3::types::CompletedMultipartUpload;
+use aws_sdk_s3::types::CompletedPart;
+use aws_sdk_s3::Client;
+use tokio::io::AsyncReadExt;
 
 use crate::config::s3_config::S3Config;
 use crate::upload::file_list_cache::FileListCache;
@@ -25,18 +21,20 @@ pub struct S3Target {
 
 impl S3Target {
     pub async fn new(config: S3Config) -> FileListCache<Self> {
-        let base_url = config.endpoint.parse::<BaseUrl>().unwrap();
-
-        let static_provider = StaticProvider::new(
-            &config.access_id,
-            &config.secret_key,
-            None,
-        );
-
-        let client = ClientBuilder::new(base_url)
-            .provider(Some(Box::new(static_provider)))
-            .build()
-            .unwrap();
+        let cfg = aws_sdk_s3::config::Builder::new()
+            .endpoint_url(config.endpoint.clone())
+            .region(Region::new(config.region.clone()))
+            .behavior_version(BehaviorVersion::v2024_03_28())
+            .credentials_provider(aws_sdk_s3::config::Credentials::new(
+                config.access_id.clone(),
+                config.secret_key.clone(),
+                None,
+                None,
+                "mcpatch-provider"
+            ))
+            .build();
+        
+        let client = aws_sdk_s3::Client::from_conf(cfg);
 
         FileListCache::new(Self {
             config,
@@ -47,80 +45,145 @@ impl S3Target {
 
 impl UploadTarget for S3Target {
     async fn list(&mut self) -> Result<Vec<String>, String> {
-        let mut files = Vec::<String>::new();
+        println!("list");
 
-        let mut list_objects = self.client
-            .list_objects(&self.config.bucket)
-            .recursive(false)
-            .to_stream()
-            .await;
+        let list_rsp = self.client
+            .list_objects()
+            .bucket(&self.config.bucket)
+            // .key("")
+            .send()
+            .await
+            .map_err(|e| e.to_detail_error())?;
 
-        while let Some(result) = list_objects.next().await {
-            let rsp = result.map_err(|e| e.to_detail_error())?;
-
-            for item in rsp.contents {
-                files.push(item.name);
-            }
-        }
-
-        Ok(files)
+        Ok(list_rsp.contents().iter().map(|e| e.key().unwrap().to_owned()).collect())
     }
     
     async fn read(&mut self, filename: &str) -> Result<Option<String>, String> {
-        let response = self.client.get_object_old(&ObjectConditionalReadArgs::new(
-            &self.config.bucket,
-            filename
-        ).unwrap()).await;
+        println!("read: {}", filename);
 
-        let response = match response {
+        let result = self.client.get_object()
+            .bucket(&self.config.bucket)
+            .key(filename)
+            .send()
+            .await;
+
+        let read = match result {
             Ok(ok) => ok,
             Err(err) => {
-                if let minio::s3::error::Error::S3Error(err_rsp) = &err {
-                    if err_rsp.code == "NoSuchKey" {
+                if let Some(e) = err.as_service_error() {
+                    if e.is_no_such_key() {
                         return Ok(None);
                     }
                 }
-
+    
                 return Err(err.to_detail_error());
             },
         };
 
-        let text = response.text().await.map_err(|e| e.to_detail_error())?;
+        let body = read.body.collect().await.unwrap();
+        let bytes = body.into_bytes();
+        let text = std::str::from_utf8(&bytes).unwrap().to_owned();
 
         Ok(Some(text))
     }
     
     async fn write(&mut self, filename: &str, content: &str) -> Result<(), String> {
-        let mut buf = VecDeque::from(content.as_bytes().to_vec());
-        let len = buf.len();
+        println!("write {}", filename);
 
-        self.client.put_object_old(&mut PutObjectArgs::new(
-            &self.config.bucket,
-            filename,
-            &mut buf,
-            Some(len),
-            None,
-        ).unwrap()).await.map_err(|e| e.to_detail_error())?;
+        let _result = self.client.put_object()
+            .bucket(&self.config.bucket)
+            .key(filename)
+            .body(ByteStream::from(content.as_bytes().to_vec()))
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
 
         Ok(())
     }
     
     async fn upload(&mut self, filename: &str, filepath: PathBuf) -> Result<(), String> {
-        self.client.upload_object(&UploadObjectArgs::new(
-            &self.config.bucket,
-            filename,
-            filepath.canonicalize().unwrap().to_str().unwrap(),
-        ).unwrap()).await.map_err(|e| e.to_detail_error())?;
+        println!("upload {} => {}", filepath.to_str().unwrap(), filename);
+
+        let metadata = tokio::fs::metadata(&filepath).await.unwrap();
+        let file_size = metadata.len();
+
+        let file = tokio::fs::File::open(&filepath).await.unwrap();
+        let mut file = tokio::io::BufReader::new(file);
+
+        // 准备分块上传
+        let rsp = self.client
+            .create_multipart_upload()
+            .bucket(&self.config.bucket)
+            .key(filename)
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
+
+        let upload_id = rsp.upload_id.unwrap();
+
+        let mut part_number = 1;
+
+        let mut complete_parts = CompletedMultipartUpload::builder();
+        let mut buffer = vec![0; 8 * 1024 * 1024];
+
+        // 分块上传
+        let mut uploaded = 0;
+        
+        while uploaded < file_size {
+            let read_size = file.read(&mut buffer).await.unwrap();
+
+            // 完成上传
+            if read_size == 0 {
+                break;
+            }
+
+            // 上传当前块
+            let body = ByteStream::from(buffer[..read_size].to_vec());
+
+            let rsp = self.client
+                .upload_part()
+                .bucket(&self.config.bucket)
+                .key(filename)
+                .part_number(part_number)
+                .upload_id(upload_id.clone())
+                .body(body)
+                .send()
+                .await
+                .map_err(|e| e.to_string())?;
+
+            // 保存etag
+            let cp = CompletedPart::builder()
+                .part_number(part_number)
+                .e_tag(rsp.e_tag.unwrap())
+                .build();
+            complete_parts = complete_parts.parts(cp);
+
+            uploaded += read_size as u64;
+            part_number += 1;
+        }
+
+        // 结束上传
+        let _rsp = self.client
+            .complete_multipart_upload()
+            .bucket(&self.config.bucket)
+            .key(filename)
+            .upload_id(upload_id)
+            .multipart_upload(complete_parts.build())
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
 
         Ok(())
     }
     
     async fn delete(&mut self, filename: &str) -> Result<(), String> {
-        let rsp = self.client.remove_object(&self.config.bucket, filename)
+        let _result = self.client
+            .delete_object()
+            .bucket(&self.config.bucket)
+            .key(filename)
             .send()
-            .await;
-
-        rsp.map_err(|e| e.to_detail_error())?;
+            .await
+            .map_err(|e| e.to_string())?;
 
         Ok(())
     }

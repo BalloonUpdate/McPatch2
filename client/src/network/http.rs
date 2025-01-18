@@ -15,7 +15,6 @@ use tokio::pin;
 
 use crate::error::BusinessError;
 use crate::global_config::GlobalConfig;
-use crate::log::log_debug;
 use crate::network::DownloadResult;
 use crate::network::UpdatingSource;
 
@@ -97,7 +96,7 @@ impl UpdatingSource for HttpProtocol {
             // 如果状态码不对，就考虑输出响应体内容，因为通常会包含一些服务端返回的错误信息，对排查问题很有帮助
             let mut body = rsp.text().await.map_or_else(|e| format!("{:?}", e), |v| v);
 
-            log_debug(format!("------------\n{}\n------------", body));
+            // log_debug(format!("------------\n{}\n------------", body));
 
             body.truncate(300);
 
