@@ -179,7 +179,7 @@ impl AlistProtocol {
         // log_debug(format!("服务器({})返回的实际URL: {}", self.index, url));
 
         // 检查输入参数，start不能大于end
-        let partial_file = range.start > 0 || range.end > 0;
+        let partial_file = !(range.start == 0 && range.end == 0) && (range.start > 0 || range.end > 0);
 
         if partial_file {
             assert!(range.end >= range.start);
@@ -187,9 +187,12 @@ impl AlistProtocol {
 
         // 构建请求
         let mut req = self.client.get(url);
+
+        // 如果是分段请求，添加Range头
         if partial_file {
             req = req.header("Range", format!("bytes={}-{}", range.start, range.end - 1));
         }
+
         let req = req.build().unwrap();
 
         // 发起请求
@@ -209,16 +212,19 @@ impl AlistProtocol {
             return Ok(Err(BusinessError::new(format!("服务器({})返回了{}而不是206: {} ({})", self.index, code, path, desc))));
         }
 
-        let len = match rsp.content_length() {
-            Some(len) => len,
-            None => return Ok(Err(BusinessError::new(format!("服务器({})没有返回content-length头: {} ({})", self.index, path, desc)))),
-        };
+        // 如果是分段请求，检查content-length
+        if partial_file {
+            let len = match rsp.content_length() {
+                Some(len) => len,
+                None => return Ok(Err(BusinessError::new(format!("服务器({})没有返回content-length头: {} ({})", self.index, path, desc)))),
+            };
 
-        if (range.end - range.start) > 0 && len != range.end - range.start {
-            return Ok(Err(BusinessError::new(format!("服务器({})返回的content-length头 {} 不等于{}: {}", self.index, len, range.end - range.start, path))));
+            if (range.end - range.start) > 0 && len != range.end - range.start {
+                return Ok(Err(BusinessError::new(format!("服务器({})返回的content-length头 {} 不等于{}: {}", self.index, len, range.end - range.start, path))));
+            }
         }
 
-        Ok(Ok((len, Box::pin(AsyncStreamBody(rsp, None)))))
+        Ok(Ok((rsp.content_length().unwrap_or(0), Box::pin(AsyncStreamBody(rsp, None)))))
     }
 }
 
