@@ -50,6 +50,10 @@ pub struct GlobalConfig {
     #[default_value("true")]
     pub show_finish_message: bool,
 
+    /// 是否在更新完成后提示更新日志
+    #[default_value("true")]
+    pub show_changelogs_message: bool,
+
     /// 安静模式，是否只在下载文件时才显示窗口
     /// 如果为true，程序启动后在后台静默检查文件更新，而不显示窗口，若没有更新会直接启动Minecraft，
     ///            有更新的话再显示下载进度条窗口，此选项可以尽可能将程序的存在感降低（适合线上环境）
@@ -60,8 +64,13 @@ pub struct GlobalConfig {
 
     /// 窗口标题，可以自定义更新时的窗口标题
     /// 只有在桌面环境上时才有效，因为非桌面环境没法弹出窗口
-    #[default_value("Mcpatch")]
+    #[default_value("McPatch")]
     pub window_title: String,
+
+    /// 更新日志窗口标题，可以自定义更新完成后弹出的更新日志的窗口标题
+    /// 只有在桌面环境上时才有效，因为非桌面环境没法弹出窗口
+    #[default_value("McPatch 更新日志")]
+    pub changelogs_window_title: String,
 
     /// 更新的起始目录，也就是要把文件都更新到哪个目录下
     /// 默认情况下程序会智能搜索，并将所有文件更新到.minecraft父目录下（也是启动主程序所在目录），
@@ -149,8 +158,10 @@ impl GlobalConfig {
         let version_file_path = config["version-file-path"].as_str().be(|| "配置文件中找不到 version-file-path")?.to_owned();
         let allow_error = config["allow-error"].as_bool().be(|| "配置文件中找不到 allow-error")?.to_owned();
         let show_finish_message = config["show-finish-message"].as_bool().be(|| "配置文件中找不到 show-finish-message")?.to_owned();
+        let show_changelogs_message = config["show-changelogs-message"].as_bool().be(|| "配置文件中找不到 show-changelogs-message")?.to_owned();
         let silent_mode = config["silent-mode"].as_bool().be(|| "配置文件中找不到 silent-mode")?.to_owned();
         let window_title = config["window-title"].as_str().be(|| "配置文件中找不到 window-title")?.to_owned();
+        let changelogs_window_title = config["changelogs-window-title"].as_str().be(|| "配置文件中找不到 changelogs-window-title")?.to_owned();
         let base_path = config["base-path"].as_str().be(|| "配置文件中找不到 base-path")?.to_owned();
         let private_timeout = config["private-timeout"].as_i64().be(|| "配置文件中找不到 private-timeout")? as u32;
         let http_headers = match config["http-headers"].as_hash() {
@@ -172,8 +183,10 @@ impl GlobalConfig {
             version_file_path,
             allow_error,
             show_finish_message,
+            show_changelogs_message,
             silent_mode,
             window_title,
+            changelogs_window_title,
             base_path,
             private_timeout,
             http_headers,

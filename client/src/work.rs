@@ -462,7 +462,7 @@ pub async fn work(params: &StartupParameter, ui_cmd: UiCmd<'_>, allow_error: &mu
                 {
                     ui_cmd.set_progress(((total_downloaded as f32 / total_bytes as f32) * 1000f32) as u32).await;
                     ui_cmd.set_label_secondary(format!("{}", filename)).await; // {:.1}% percent
-                    ui_cmd.set_label(format!("正在下载 {} 版本：{}/{} （{}/s）", label, convert_bytes(total_downloaded), convert_bytes(total_bytes), speed.sample_speed2())).await;
+                    ui_cmd.set_label(format!("更新 {} 版本：{}/{} （{}/s）", label, convert_bytes(total_downloaded), convert_bytes(total_bytes), speed.sample_speed2())).await;
                 }
             }
 
@@ -643,7 +643,9 @@ pub async fn work(params: &StartupParameter, ui_cmd: UiCmd<'_>, allow_error: &mu
         {
             let content = format!("已经从 {} 更新到 {}\r\n\r\n{}", current_version, latest_version, changelogs.trim().replace("\n", "\r\n"));
 
-            MessageBoxWindow::popup("更新完成", content).await;
+            if config.show_changelogs_message {
+                MessageBoxWindow::popup(config.changelogs_window_title, content).await;
+            }
         }
     } else {
         log_info("没有更新");
