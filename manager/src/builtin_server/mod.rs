@@ -161,7 +161,7 @@ async fn _send_data(stream: &mut TcpStream, data: &[u8]) -> std::io::Result<()> 
     Ok(())
 }
 
-async fn receive_data<'a>(stream: &'a mut TcpStream) -> std::io::Result<PartialAsyncRead<'a, TcpStream>> {
+async fn receive_data<'a>(stream: &'a mut TcpStream) -> std::io::Result<PartialAsyncRead<&'a mut TcpStream>> {
     let len = timeout(stream.read_u64_le()).await?;
 
     Ok(PartialAsyncRead::new(stream, len))

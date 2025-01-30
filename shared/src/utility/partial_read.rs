@@ -4,15 +4,15 @@ use tokio::io::AsyncRead;
 use tokio::pin;
 
 /// 代表一个限制读取数量的Read
-pub struct PartialRead<'a, R: Read>(&'a mut R, u64);
+pub struct PartialRead<R: Read>(R, u64);
 
-impl<'a, R: Read> PartialRead<'a, R> {
-    pub fn new(read: &'a mut R, count: u64) -> Self {
+impl<R: Read> PartialRead<R> {
+    pub fn new(read: R, count: u64) -> Self {
         Self(read, count)
     }
 }
 
-impl<R: Read> Read for PartialRead<'_, R> {
+impl<R: Read> Read for PartialRead<R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         if self.1 == 0 {
             return Ok(0);
@@ -24,10 +24,10 @@ impl<R: Read> Read for PartialRead<'_, R> {
 }
 
 /// 代表一个限制读取数量的Read
-pub struct PartialAsyncRead<'a, R: AsyncRead>(&'a mut R, u64);
+pub struct PartialAsyncRead<R: AsyncRead>(R, u64);
 
-impl<'a, R: AsyncRead> PartialAsyncRead<'a, R> {
-    pub fn new(read: &'a mut R, count: u64) -> Self {
+impl<R: AsyncRead> PartialAsyncRead<R> {
+    pub fn new(read: R, count: u64) -> Self {
         Self(read, count)
     }
 
@@ -36,7 +36,7 @@ impl<'a, R: AsyncRead> PartialAsyncRead<'a, R> {
     }
 }
 
-impl<R: AsyncRead + Unpin> AsyncRead for PartialAsyncRead<'_, R> {
+impl<R: AsyncRead + Unpin> AsyncRead for PartialAsyncRead<R> {
     fn poll_read(
         mut self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,

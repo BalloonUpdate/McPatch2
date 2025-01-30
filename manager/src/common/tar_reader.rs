@@ -31,7 +31,7 @@ impl TarReader {
     }
 
     /// 读取更新包中的一个文件数据，需要提供文件的`offset`和`len`以便定位
-    pub fn open_file(&mut self, offset: u64, len: u64) -> PartialRead<std::fs::File> {
+    pub fn open_file(&mut self, offset: u64, len: u64) -> PartialRead<&mut std::fs::File> {
         self.open.seek(SeekFrom::Start(offset)).unwrap();
 
         PartialRead::new(&mut self.open, len)
