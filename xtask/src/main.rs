@@ -2,8 +2,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::process::Command;
 
-use zip::ZipArchive;
-
 type ProcessResult = Result<(), Box<dyn std::error::Error>>;
 
 fn main() -> ProcessResult {
@@ -22,39 +20,7 @@ fn dist_client() -> ProcessResult {
 }
 
 fn dist_manager() -> ProcessResult {
-    let version_label = &std::env::var("GITHUB_REF_NAME").unwrap()[1..];
-    // let version_label = "0.1.2";
-
-    let dist_url = format!("https://github.com/BalloonUpdate/McPatch2Web/releases/download/v{}/dist.zip", version_label);
-    let response = reqwest::blocking::get(dist_url).unwrap().error_for_status().unwrap();
-
-    std::fs::write("webpage.zip", response.bytes().unwrap()).unwrap();
-
-    std::fs::create_dir_all("test/webpage").unwrap();
-
-    unzip_file("webpage.zip", "test/webpage");
-
     dist_binary("manager", "m", Some("bundle-webpage".to_owned()))
-}
-
-fn unzip_file(zip_path: &str, output_dir: &str) {
-    let file = std::fs::File::open(zip_path).unwrap();
-    let mut archive = ZipArchive::new(file).unwrap();
-
-    for i in 0..archive.len() {
-        let mut file = archive.by_index(i).unwrap();
-        let outpath = std::path::Path::new(output_dir).join(file.name());
-
-        if file.is_dir() {
-            std::fs::create_dir_all(&outpath).unwrap();
-        } else {
-            if let Some(p) = outpath.parent() {
-                std::fs::create_dir_all(p).unwrap();
-            }
-            let mut outfile = std::fs::File::create(&outpath).unwrap();
-            std::io::copy(&mut file, &mut outfile).unwrap();
-        }
-    }
 }
 
 fn dist_binary(crate_name: &str, production_name: &str, features: Option<String>) -> ProcessResult {

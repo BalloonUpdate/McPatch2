@@ -42,6 +42,17 @@ jobs:
         run: |-
           sudo apt install musl-tools
           sudo apt install musl-dev
+      
+      - name: Setup Nodejs
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.x
+          cache: 'npm'
+      
+      - name: Build web pages
+        run: |-
+          npm ci
+          npm run build
 
       - name: Cargo build
         env:

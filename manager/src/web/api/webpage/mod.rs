@@ -6,7 +6,7 @@ use axum::response::Response;
 use crate::web::webstate::WebState;
 
 #[cfg(feature = "bundle-webpage")]
-static WEBPAGE_DIR: include_dir::Dir<'_> = include_dir::include_dir!("$CARGO_MANIFEST_DIR/../test/webpage");
+static WEBPAGE_DIR: include_dir::Dir<'_> = include_dir::include_dir!("$CARGO_MANIFEST_DIR/../web/dist");
 
 pub async fn api_webpage(State(state): State<WebState>, Path(path): Path<String>) -> Response {
     respond_file(&path, &state).await
