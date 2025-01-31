@@ -1,0 +1,3 @@
+.text-item {
+    @apply flex rounded-md items-center w-full text-sm text-gray-700 dark:text-white;
+}
