@@ -1,6 +1,6 @@
 ### McPatch2
 
-McPatch第二版，包含客户端和管理端的源代码。
+McPatch第二版，包含客户端和管理端的源代码（也包括web页面源代码）。
 
 ### crates说明
 
@@ -19,7 +19,7 @@ McPatch第二版，包含客户端和管理端的源代码。
 | `cargo cc`                          | 开发场景下，启动客户端程序           |
 | `cargo mm`                          | 开发场景下，启动管理端程序           |
 | `cargo check --all`                 | 开发场景下，执行构建检查             |
-| `cargo build --bin client`  | 开发场景下，打包客户端程序           |
-| `cargo build --bin manager` | 开发场景下，打包管理端程序           |
+| `cargo build --package client`      | 开发场景下，打包客户端程序           |
+| `cargo build --package manager`     | 开发场景下，打包管理端程序           |
 | `cargo doc --no-deps --open`        | 开发场景下，生成文档页面             |
 | `cargo ci <client/manager>`         | 自动构建场景下，打包客户端或者管理端 |
