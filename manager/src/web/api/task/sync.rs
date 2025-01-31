@@ -1,7 +1,10 @@
+use std::time::UNIX_EPOCH;
+
 use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::response::Response;
 
+use crate::upload::file_list_cache::FileListCache;
 use crate::upload::s3::S3Target;
 use crate::upload::webdav::WebdavTarget;
 use crate::upload::UploadTarget;
@@ -29,7 +32,7 @@ async fn async_upload(state: WebState) -> u8 {
 
     // 先上传webdav
     if webdav_config.enabled {
-        if let Err(err) = upload("webdav", state.clone(), WebdavTarget::new(webdav_config).await).await {
+        if let Err(err) = upload("webdav", state.clone(), FileListCache::new(WebdavTarget::new(webdav_config).await)).await {
             state.console.log_error(err);
             return 1;
         }
@@ -37,7 +40,7 @@ async fn async_upload(state: WebState) -> u8 {
 
     // 再上传s3
     if s3_config.enabled {
-        if let Err(err) = upload("s3", state.clone(), S3Target::new(s3_config).await).await {
+        if let Err(err) = upload("s3", state.clone(), FileListCache::new(S3Target::new(s3_config).await)).await {
             state.console.log_error(err);
             return 1;
         }
@@ -57,20 +60,22 @@ async fn upload(name: &str, state: WebState, mut target: impl UploadTarget) -> R
 
     console.log_debug("计算文件列表差异...");
 
-    // 寻找上传的文件
+    // 寻找上传/覆盖的文件
     let mut need_upload = Vec::new();
     
-    for f in &local {
-        if !remote.contains(&f) {
-            need_upload.push(f.clone());
+    for (f, mtime) in &local {
+        if remote.iter().any(|e| &e.0 == f && e.1.abs_diff(*mtime) < 3) {
+            continue;
         }
+
+        need_upload.push(f.clone());
     }
 
     // 寻找删除的文件
     let mut need_delete = Vec::new();
 
-    for f in &remote {
-        if !local.contains(&f) {
+    for (f, _) in &remote {
+        if local.iter().all(|e| &e.0 != f) {
             need_delete.push(f.clone());
         }
     }
@@ -94,13 +99,16 @@ async fn upload(name: &str, state: WebState, mut target: impl UploadTarget) -> R
     Ok(())
 }
 
-async fn get_local(state: &WebState) -> Vec<String> {
+async fn get_local(state: &WebState) -> Vec<(String, u64)> {
     let mut dir = tokio::fs::read_dir(&state.app_path.public_dir).await.unwrap();
 
     let mut files = Vec::new();
 
     while let Some(entry) = dir.next_entry().await.unwrap() {
-        files.push(entry.file_name().to_str().unwrap().to_owned());
+        let file = entry.file_name().to_str().unwrap().to_owned();
+        let mtime = entry.metadata().await.unwrap().modified().unwrap();
+
+        files.push((file, mtime.duration_since(UNIX_EPOCH).unwrap().as_secs()));
     }
 
     files

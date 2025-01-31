@@ -10,7 +10,6 @@ use aws_sdk_s3::Client;
 use tokio::io::AsyncReadExt;
 
 use crate::config::s3_config::S3Config;
-use crate::upload::file_list_cache::FileListCache;
 use crate::upload::UploadTarget;
 use crate::utility::to_detail_error::ToDetailError;
 
@@ -20,7 +19,7 @@ pub struct S3Target {
 }
 
 impl S3Target {
-    pub async fn new(config: S3Config) -> FileListCache<Self> {
+    pub async fn new(config: S3Config) -> Self {
         let cfg = aws_sdk_s3::config::Builder::new()
             .endpoint_url(config.endpoint.clone())
             .region(Region::new(config.region.clone()))
@@ -33,19 +32,19 @@ impl S3Target {
                 "mcpatch-provider"
             ))
             .build();
-        
+
         let client = aws_sdk_s3::Client::from_conf(cfg);
 
-        FileListCache::new(Self {
+        Self {
             config,
             client,
-        })
+        }
     }
 }
 
 impl UploadTarget for S3Target {
-    async fn list(&mut self) -> Result<Vec<String>, String> {
-        println!("list");
+    async fn list(&mut self) -> Result<Vec<(String, u64)>, String> {
+        // println!("list");
 
         let list_rsp = self.client
             .list_objects()
@@ -55,11 +54,11 @@ impl UploadTarget for S3Target {
             .await
             .map_err(|e| e.to_detail_error())?;
 
-        Ok(list_rsp.contents().iter().map(|e| e.key().unwrap().to_owned()).collect())
+        Ok(list_rsp.contents().iter().map(|e| (e.key().unwrap().to_owned(), e.last_modified().unwrap().secs() as u64)).collect())
     }
     
     async fn read(&mut self, filename: &str) -> Result<Option<String>, String> {
-        println!("read: {}", filename);
+        // println!("read: {}", filename);
 
         let result = self.client.get_object()
             .bucket(&self.config.bucket)
@@ -88,7 +87,7 @@ impl UploadTarget for S3Target {
     }
     
     async fn write(&mut self, filename: &str, content: &str) -> Result<(), String> {
-        println!("write {}", filename);
+        // println!("write {}", filename);
 
         let _result = self.client.put_object()
             .bucket(&self.config.bucket)
@@ -102,7 +101,7 @@ impl UploadTarget for S3Target {
     }
     
     async fn upload(&mut self, filename: &str, filepath: PathBuf) -> Result<(), String> {
-        println!("upload {} => {}", filepath.to_str().unwrap(), filename);
+        // println!("upload {} => {}", filepath.to_str().unwrap(), filename);
 
         let metadata = tokio::fs::metadata(&filepath).await.unwrap();
         let file_size = metadata.len();
@@ -177,6 +176,8 @@ impl UploadTarget for S3Target {
     }
     
     async fn delete(&mut self, filename: &str) -> Result<(), String> {
+        // println!("delete {}", filename);
+
         let _result = self.client
             .delete_object()
             .bucket(&self.config.bucket)
