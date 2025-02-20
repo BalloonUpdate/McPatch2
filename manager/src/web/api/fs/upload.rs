@@ -8,7 +8,7 @@ use tokio_stream::StreamExt;
 use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
-pub async fn api_upload(State(state): State<WebState>, headers: HeaderMap, body: Body) -> Response {
+pub async fn api_upload_fs(State(state): State<WebState>, headers: HeaderMap, body: Body) -> Response {
     let path = match headers.get("path") {
         Some(ok) => ok.to_str().unwrap(),
         None => return PublicResponseBody::<()>::err("no filed 'path' is found in headers."),
@@ -22,7 +22,7 @@ pub async fn api_upload(State(state): State<WebState>, headers: HeaderMap, body:
         return PublicResponseBody::<()>::err("parameter 'path' is empty, and it is not allowed.");
     }
 
-    let file = state.app_path.working_dir.join(path);
+    let file = state.apppath.working_dir.join(path);
 
     println!("upload: {:?}", file);
 

@@ -11,7 +11,7 @@ use shared::data::version_meta::FileChange;
 
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::abstract_file::BorrowIntoIterator;
-use crate::common::rule_filter::RuleFilter;
+use crate::core::rule_filter::RuleFilter;
 
 const OP_FULL_ADDED_FOLDER: &str = "创建目录: ";
 const OP_FULL_ADDED_FILE: &str   = "更新文件: ";

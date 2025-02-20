@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use shared::common::file_hash::calculate_hash;
 use shared::data::version_meta::FileChange;
 
-use crate::common::tar_reader::TarReader;
+use crate::core::tar_reader::TarReader;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
 use crate::diff::history_file::HistoryFile;

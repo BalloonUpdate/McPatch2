@@ -24,7 +24,7 @@ async fn respond_file(mut path: &str, state: &WebState) -> Response {
     }
 
     // 当外部文件夹存在时，优先从外部文件夹响应
-    if state.app_path.web_dir.exists() {
+    if state.apppath.web_dir.exists() {
         println!("+webpage-o /{}", raw_path);
 
         return respond_from_outer(path, state).await;
@@ -37,7 +37,7 @@ async fn respond_file(mut path: &str, state: &WebState) -> Response {
     return respond_from_inner(path, state).await;
 
     #[allow(unreachable_code)]
-    { panic!("the webpdage folder does not exist: {}", state.app_path.web_dir.to_str().unwrap()); }
+    { panic!("the webpdage folder does not exist: {}", state.apppath.web_dir.to_str().unwrap()); }
 }
 
 /// 从可执行文件内部响应页面文件请求
@@ -73,11 +73,11 @@ async fn respond_from_inner(mut path: &str, state: &WebState) -> Response {
 async fn respond_from_outer(path: &str, state: &WebState) -> Response {
     // println!("outer");
 
-    let mut path = state.app_path.web_dir.join(path);
+    let mut path = state.apppath.web_dir.join(path);
 
     // 文件找不到就尝试访问404文件
     if !path.is_file() && !state.config.web.redirect_404.is_empty() {
-        path = state.app_path.web_dir.join(&state.config.web.redirect_404);
+        path = state.apppath.web_dir.join(&state.config.web.redirect_404);
     }
 
     // 如果还是找不到就返回404了

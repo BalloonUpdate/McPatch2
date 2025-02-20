@@ -6,7 +6,12 @@ use std::time::SystemTime;
 use serde::ser::SerializeMap;
 use serde::Serialize;
 
-pub const MAX_LOGS: usize = 5000;
+pub const MAX_LOGS: usize = 1000;
+
+#[derive(PartialEq)]
+enum Mode {
+    Cli, Webui
+}
 
 /// 代表一个日志缓冲区。负责收集各种任务运行中的输出
 #[derive(Clone)]
@@ -15,9 +20,15 @@ pub struct Console {
 }
 
 impl Console {
-    pub fn new() -> Self {
+    pub fn new_cli() -> Self {
         Self {
-            inner: Arc::new(Mutex::new(Inner { buf: LinkedList::new() }))
+            inner: Arc::new(Mutex::new(Inner { buf: LinkedList::new(), mode: Mode::Cli }))
+        }
+    }
+
+    pub fn new_webui() -> Self {
+        Self {
+            inner: Arc::new(Mutex::new(Inner { buf: LinkedList::new(), mode: Mode::Webui }))
         }
     }
 
@@ -80,10 +91,12 @@ impl Console {
         for line in content.as_ref().split("\n") {
             println!("{}", line);
 
-            lock.buf.push_back(Line::new(line.to_owned(), level));
-
-            while lock.buf.len() > MAX_LOGS {
-                lock.buf.pop_front();
+            if lock.mode == Mode::Webui {
+                lock.buf.push_back(Line::new(line.to_owned(), level));
+    
+                while lock.buf.len() > MAX_LOGS {
+                    lock.buf.pop_front();
+                }
             }
         }
     }
@@ -91,6 +104,7 @@ impl Console {
 
 pub struct Inner {
     pub buf: LinkedList<Line>,
+    mode: Mode,
 }
 
 /// 代表单条日志，序列化专用

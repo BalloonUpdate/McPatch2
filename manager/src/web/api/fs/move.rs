@@ -28,8 +28,8 @@ pub async fn api_move(State(state): State<WebState>, Json(payload): Json<Request
         return PublicResponseBody::<()>::err("parameter 'to' is empty");
     }
 
-    let file_from = state.app_path.working_dir.join(&from);
-    let file_to = state.app_path.working_dir.join(&to);
+    let file_from = state.apppath.working_dir.join(&from);
+    let file_to = state.apppath.working_dir.join(&to);
 
     if !file_from.exists() {
         return PublicResponseBody::<()>::err(&format!("'{}' not exists.", from));

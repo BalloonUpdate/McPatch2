@@ -12,7 +12,7 @@ use crate::web::task_executor::LongTimeExecutor;
 /// 整个web服务共享的上下文对象
 #[derive(Clone)]
 pub struct WebState {
-    pub app_path: AppPath,
+    pub apppath: AppPath,
     pub config: Config,
     pub auth: AuthConfig,
     pub console: Console,
@@ -23,10 +23,10 @@ pub struct WebState {
 impl WebState {
     pub fn new(app_path: AppPath, config: Config, auth: AuthConfig) -> Self {
         Self {
-            app_path: app_path.clone(),
+            apppath: app_path.clone(),
             config: config.clone(),
             auth,
-            console: Console::new(),
+            console: Console::new_webui(),
             te: Arc::new(Mutex::new(LongTimeExecutor::new())),
             status: Arc::new(Mutex::new(FileStatus::new(app_path, config))),
         }

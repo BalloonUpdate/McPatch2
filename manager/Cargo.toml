@@ -36,6 +36,7 @@ reqwest_dav = { version = "0.1.11", default-features = false, features = ["rustl
 aws-sdk-s3 = "1.63.0"
 include_dir = "0.7.4"
 mime_guess = "2.0.5"
+clap = { version = "4.4", features = ["derive"] }
 
 [target.'cfg(target_os = "windows")'.build-dependencies]
 embed-resource = "2.4"

@@ -5,7 +5,7 @@ use shared::data::index_file::IndexFile;
 use shared::data::version_meta::FileChange;
 use shared::data::version_meta::VersionMeta;
 
-use crate::common::tar_reader::TarReader;
+use crate::core::tar_reader::TarReader;
 use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
@@ -23,12 +23,12 @@ pub struct Version {
 }
 
 pub async fn api_version_list(State(state): State<WebState>) -> Response {
-    let index_file = IndexFile::load_from_file(&state.app_path.index_file);
+    let index_file = IndexFile::load_from_file(&state.apppath.index_file);
 
     let mut metas = Vec::<VersionMeta>::new();
 
     for v in &index_file {
-        let mut reader = TarReader::new(state.app_path.public_dir.join(&v.filename));
+        let mut reader = TarReader::new(state.apppath.public_dir.join(&v.filename));
         let meta_group = reader.read_metadata_group(v.offset, v.len);
 
         for meta in meta_group {

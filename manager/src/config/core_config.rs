@@ -9,4 +9,7 @@ pub struct CoreConfig {
     /// 匹配任意一条规则时，文件就会被忽略（忽略：管理端会当这个文件不存在一般）
     /// 编写规则时可以使用check命令快速调试是否生效
     pub exclude_rules: Vec<String>,
+
+    /// 是否工作在webui模式下，还是在交互式命令行模式下
+    pub webui_mode: bool,
 }
