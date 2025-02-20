@@ -48,8 +48,10 @@ jobs:
         with:
           node-version: 22.x
           cache: 'npm'
+          cache-dependency-path: web/package-lock.json
       
       - name: Build web pages
+        working-directory: web
         run: |-
           npm ci
           npm run build
