@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use shared::utility::is_running_under_cargo;
+use crate::utility::is_running_under_cargo;
 
 /// 代表各种目录的信息
 #[derive(Clone)]

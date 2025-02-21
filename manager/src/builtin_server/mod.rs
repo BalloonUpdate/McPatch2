@@ -6,7 +6,6 @@ use std::path::Path;
 use std::time::SystemTime;
 
 use chrono::Local;
-use shared::utility::partial_read::PartialAsyncRead;
 use tokio::io::AsyncReadExt;
 use tokio::io::AsyncSeekExt;
 use tokio::io::AsyncWriteExt;
@@ -15,6 +14,7 @@ use tokio::net::TcpStream;
 
 use crate::app_path::AppPath;
 use crate::config::Config;
+use crate::utility::partial_read::PartialAsyncRead;
 use crate::utility::traffic_control::AsyncTrafficControl;
 
 pub async fn start_builtin_server(config: Config, app_path: AppPath) {

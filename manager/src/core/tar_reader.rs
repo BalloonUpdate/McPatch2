@@ -5,8 +5,8 @@ use std::io::Seek;
 use std::io::SeekFrom;
 use std::path::Path;
 
-use shared::data::version_meta_group::VersionMetaGroup;
-use shared::utility::partial_read::PartialRead;
+use crate::core::data::version_meta_group::VersionMetaGroup;
+use crate::utility::partial_read::PartialRead;
 
 /// 代表一个更新包读取器，用于读取tar格式的更新包里面的数据
 pub struct TarReader {

@@ -5,21 +5,6 @@ use std::process::Command;
 type ProcessResult = Result<(), Box<dyn std::error::Error>>;
 
 fn main() -> ProcessResult {
-    let mut args = std::env::args();
-    let task = args.nth(1);
-
-    match task.as_deref() {
-        Some("client") => dist_client(),
-        Some("manager") => dist_manager(),
-        _ => print_help(),
-    }
-}
-
-fn dist_client() -> ProcessResult {
-    dist_binary("client", "c", None)
-}
-
-fn dist_manager() -> ProcessResult {
     dist_binary("manager", "m", Some("bundle-webpage".to_owned()))
 }
 
@@ -72,10 +57,6 @@ fn dist_binary(crate_name: &str, production_name: &str, features: Option<String>
     }
 
     Ok(())
-}
-
-fn print_help() -> ProcessResult {
-    return Err("use 'client' or 'manager'")?;
 }
 
 fn project_root() -> PathBuf {

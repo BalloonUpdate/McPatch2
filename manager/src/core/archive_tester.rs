@@ -6,9 +6,8 @@ use std::ops::Deref;
 use std::path::Path;
 use std::path::PathBuf;
 
-use shared::common::file_hash::calculate_hash;
-use shared::data::version_meta::FileChange;
-
+use crate::core::data::version_meta::FileChange;
+use crate::core::file_hash::calculate_hash;
 use crate::core::tar_reader::TarReader;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;

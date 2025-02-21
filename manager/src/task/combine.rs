@@ -2,14 +2,13 @@ use std::collections::HashMap;
 use std::collections::LinkedList;
 use std::rc::Weak;
 
-use shared::data::index_file::IndexFile;
-use shared::data::index_file::VersionIndex;
-use shared::data::version_meta::FileChange;
-use shared::data::version_meta_group::VersionMetaGroup;
-
 use crate::app_path::AppPath;
 use crate::config::Config;
 use crate::core::archive_tester::ArchiveTester;
+use crate::core::data::index_file::IndexFile;
+use crate::core::data::index_file::VersionIndex;
+use crate::core::data::version_meta::FileChange;
+use crate::core::data::version_meta_group::VersionMetaGroup;
 use crate::core::tar_reader::TarReader;
 use crate::core::tar_writer::TarWriter;
 use crate::diff::history_file::HistoryFile;

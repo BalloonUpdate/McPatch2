@@ -7,8 +7,7 @@ use std::ops::Deref;
 use std::fmt::Display;
 use std::time::UNIX_EPOCH;
 
-use shared::data::version_meta::FileChange;
-
+use crate::core::data::version_meta::FileChange;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::abstract_file::BorrowIntoIterator;
 use crate::core::rule_filter::RuleFilter;

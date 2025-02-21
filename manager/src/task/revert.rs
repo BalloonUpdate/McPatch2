@@ -2,10 +2,9 @@ use std::fs::FileTimes;
 use std::ops::Deref;
 use std::rc::Weak;
 
-use shared::data::index_file::IndexFile;
-
 use crate::app_path::AppPath;
 use crate::config::Config;
+use crate::core::data::index_file::IndexFile;
 use crate::core::tar_reader::TarReader;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;

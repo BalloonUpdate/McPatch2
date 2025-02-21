@@ -26,7 +26,7 @@
 
 use json::JsonValue;
 
-use crate::data::version_meta::VersionMeta;
+use crate::core::data::version_meta::VersionMeta;
 use crate::utility::vec_ext::VecRemoveIf;
 
 /// 代表一组版本元数据，每个更新包tar文件都能容纳多个版本的元数据，也叫一组

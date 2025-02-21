@@ -4,11 +4,10 @@ use std::collections::HashMap;
 use std::io::Read;
 use std::path::Path;
 
-use shared::data::version_meta::FileChange;
-use shared::data::version_meta_group::VersionMetaGroup;
-use shared::utility::partial_read::PartialRead;
-
+use crate::core::data::version_meta::FileChange;
+use crate::core::data::version_meta_group::VersionMetaGroup;
 use crate::utility::counted_write::CountedWrite;
+use crate::utility::partial_read::PartialRead;
 
 pub struct MetadataLocation {
     pub offset: u64,

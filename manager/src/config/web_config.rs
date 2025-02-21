@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use serde::Serialize;
-use shared::utility::is_running_under_cargo;
+
+use crate::utility::is_running_under_cargo;
 
 /// web相关功能配置
 #[derive(Serialize, Deserialize, Clone)]

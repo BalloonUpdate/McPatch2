@@ -8,9 +8,8 @@ use std::rc::Rc;
 use std::rc::Weak;
 use std::time::SystemTime;
 
-use shared::data::version_meta::FileChange;
-use shared::data::version_meta::VersionMeta;
-
+use crate::core::data::version_meta::FileChange;
+use crate::core::data::version_meta::VersionMeta;
 use crate::diff::abstract_file::calculate_path_helper;
 use crate::diff::abstract_file::find_file_helper;
 use crate::diff::abstract_file::walk_abstract_file;

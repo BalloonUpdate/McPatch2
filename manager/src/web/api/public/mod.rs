@@ -4,10 +4,10 @@ use axum::extract::State;
 use axum::http::HeaderMap;
 use axum::response::Response;
 use reqwest::StatusCode;
-use shared::utility::filename_ext::GetFileNamePart;
-use shared::utility::partial_read::PartialAsyncRead;
 use tokio::io::AsyncSeekExt;
 
+use crate::utility::filename_ext::GetFileNamePart;
+use crate::utility::partial_read::PartialAsyncRead;
 use crate::web::webstate::WebState;
 
 pub async fn api_public(State(state): State<WebState>, headers: HeaderMap, Path(path): Path<String>) -> Response {
