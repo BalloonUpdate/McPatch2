@@ -40,8 +40,8 @@ pub fn task_combine(apppath: &AppPath, _config: &Config, console: &Console) -> u
     // 执行合并前需要先测试一遍
     console.log_debug("正在执行合并前的解压测试");
     let mut tester = ArchiveTester::new();
-    for v in &index_file {
-        tester.feed(apppath.public_dir.join(&v.filename), v.offset, v.len);
+    for (index, meta) in index_file.read_all_metas(&apppath.public_dir) {
+        tester.feed_version(apppath.public_dir.join(&index.filename), &meta);
     }
     tester.finish(|e| console.log_debug(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
     console.log_debug("测试通过，开始更新包合并流程");
@@ -64,62 +64,50 @@ pub fn task_combine(apppath: &AppPath, _config: &Config, console: &Console) -> u
     // 保留所有元数据，最后会合并写入tar包里
     let mut meta_group = VersionMetaGroup::new();
 
-    // 记录所有读取的元数据，避免重复读取消耗时间
-    let mut meta_cache_keys = Vec::<String>::new();
-
     // 读取现有更新包，并复现在history上
-    for v in &index_file {
-        // 跳过读取过的元数据
-        let cache_key = format!("{}|{}|{}", v.filename, v.offset, v.len);
-
-        if meta_cache_keys.contains(&cache_key) {
+    for (index, meta) in index_file.read_all_metas(&apppath.public_dir) {
+        if meta_group.contains_meta(&meta.label) {
             continue;
         }
-
-        meta_cache_keys.push(cache_key);
-
-        // 开始正常读取
-        let mut reader = TarReader::new(apppath.public_dir.join(&v.filename));
-        let group = reader.read_metadata_group(v.offset, v.len);
         
-        for meta in group.into_iter() {
-            if meta_group.contains_meta(&meta.label) {
-                continue;
-            }
-            
-            history.replay_operations(&meta);
-            
-            // 记录所有文件的数据和来源
-            for change in &meta.changes {
-                match change {
-                    FileChange::UpdateFile { path, offset, len, .. } => {
-                        data_locations.insert(path.to_owned(), Location {
-                            label: meta.label.clone(),
-                            filename: v.filename.to_owned(),
-                            path: path.to_owned(),
-                            offset: *offset,
-                            len: *len,
-                        });
-                    },
-                    FileChange::DeleteFile { path } => {
-                        data_locations.remove(path);
-                    },
-                    FileChange::MoveFile { from, to } => {
-                        let hold = data_locations.remove(from).unwrap();
-                        data_locations.insert(to.to_owned(), hold);
-                    }
-                    _ => (),
+        history.replay_operations(&meta);
+        
+        // 记录所有文件的数据和来源
+        for change in &meta.changes {
+            match change {
+                FileChange::UpdateFile { path, offset, len, .. } => {
+                    data_locations.insert(path.to_owned(), Location {
+                        label: meta.label.clone(),
+                        filename: index.filename.to_owned(),
+                        path: path.to_owned(),
+                        offset: *offset,
+                        len: *len,
+                    });
+                },
+                FileChange::DeleteFile { path } => {
+                    data_locations.remove(path);
+                },
+                FileChange::MoveFile { from, to } => {
+                    let hold = data_locations.remove(from).unwrap();
+                    data_locations.insert(to.to_owned(), hold);
                 }
+                _ => (),
             }
-
-            meta_group.add_meta(meta);
         }
+
+        meta_group.add_meta(meta);
     }
 
     console.log_debug("正在合并数据");
 
     // 生成新的合并包
-    let new_tar_file = apppath.public_dir.join("_combined.temp.tar");
+    let temp_public = apppath.public_dir.join(".temp");
+    
+    if !std::fs::exists(&temp_public).unwrap() {
+        std::fs::create_dir(&temp_public).unwrap();
+    }
+    
+    let new_tar_file = temp_public.join("combined.tar");
     let mut writer = TarWriter::new(&new_tar_file);
 
     // 写入每个版本里的所有文件数据
@@ -137,10 +125,10 @@ pub fn task_combine(apppath: &AppPath, _config: &Config, console: &Console) -> u
     let meta_loc = writer.finish(meta_group);
 
     // 更新索引文件
-    let new_index_filepath = apppath.public_dir.join("_index.temp.json");
-    let mut new_index_file = IndexFile::new();
-    for index in &index_file {
-        new_index_file.add(VersionIndex {
+    let new_index_filepath = temp_public.join("index.json");
+    let mut new_index = IndexFile::new();
+    for (index, _meta) in index_file.read_all_metas(&apppath.public_dir) {
+        new_index.add(VersionIndex {
             label: index.label.to_owned(),
             filename: COMBINED_FILENAME.to_owned(),
             offset: meta_loc.offset,
@@ -148,25 +136,34 @@ pub fn task_combine(apppath: &AppPath, _config: &Config, console: &Console) -> u
             hash: "no hash".to_owned(),
         })
     }
-    new_index_file.save(&new_index_filepath);
+    new_index.save(&new_index_filepath);
 
     // 测试合并包
     let mut tester = ArchiveTester::new();
-    tester.feed(&new_tar_file, meta_loc.offset, meta_loc.length);
+    for (_index, meta) in new_index.read_all_metas(&temp_public) {
+        tester.feed_version(&new_tar_file, &meta);
+    }
     tester.finish(|e| console.log_debug(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
     
     // 合并回原包
-    std::fs::copy(&new_index_filepath, &apppath.index_file).unwrap();
-
+    // 1.移动索引文件
+    std::fs::remove_file(&apppath.index_file).unwrap();
+    std::fs::rename(&new_index_filepath, &apppath.index_file).unwrap();
+    
+    // 2.移动更新包文件
     let combine_file = apppath.public_dir.join(COMBINED_FILENAME);
+    
     let _ = std::fs::remove_file(&combine_file);
     std::fs::rename(&new_tar_file, &combine_file).unwrap();
-    std::fs::remove_file(&new_index_filepath).unwrap();
     
+    // 3.清理多余更新包
     for v in &versions_to_be_combined {
         std::fs::remove_file(apppath.public_dir.join(&v.filename)).unwrap();
     }
 
+    // 4.清理临时目录
+    let _ = std::fs::remove_dir(temp_public);
+    
     console.log_info(format!("合并完成！一共合并了 {} 个版本", version_count));
 
     // // 生成上传脚本

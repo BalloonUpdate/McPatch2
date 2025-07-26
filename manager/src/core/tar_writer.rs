@@ -11,7 +11,7 @@ use crate::utility::partial_read::PartialRead;
 
 pub struct MetadataLocation {
     pub offset: u64,
-    pub length: u32,
+    pub length: u64,
 }
 
 /// 代表一个更新包写入器，用于生成tar格式的更新包
@@ -97,7 +97,7 @@ impl TarWriter {
 
         MetadataLocation {
             offset: metadata_offset + 512,
-            length: file_content.len() as u32,
+            length: file_content.len() as u64,
         }
     }
 }

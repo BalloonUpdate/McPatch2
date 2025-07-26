@@ -1,9 +1,15 @@
 //! 版本索引
 
+use std::collections::HashMap;
+use std::collections::HashSet;
 use std::ops::Index;
 use std::path::Path;
 
 use json::JsonValue;
+
+use crate::core::data::version_meta::VersionMeta;
+use crate::core::data::version_meta_group::VersionMetaGroup;
+use crate::core::tar_reader::TarReader;
 
 /// 代表一个版本的索引信息
 /// 
@@ -30,7 +36,7 @@ pub struct VersionIndex {
     pub offset: u64,
 
     /// 元数据组的长度
-    pub len: u32,
+    pub len: u64,
 
     /// 整个tar包文件的校验
     pub hash: String,
@@ -64,7 +70,7 @@ impl IndexFile {
             let label = v["label"].as_str().unwrap().to_owned();
             let filename = v["filename"].as_str().unwrap().to_owned();
             let offset = v["offset"].as_u64().unwrap();
-            let len = v["length"].as_u32().unwrap();
+            let len = v["length"].as_u64().unwrap();
             let hash = v["hash"].as_str().unwrap().to_owned();
 
             versions.push(VersionIndex { label, filename, len, offset, hash })
@@ -115,6 +121,43 @@ impl IndexFile {
     /// 版本的数量
     pub fn len(&self) -> usize {
         self.versions.len()
+    }
+
+    /// 读取所有的meta数据
+    /// 收集所有需要读取的元数据信息，同时进行去重，避免一个文件的相同部分被读取多遍，虽然读不满，但是解析很慢
+    pub fn read_all_metas(&self, public_dir: &Path) -> Vec::<(VersionIndex, VersionMeta)> {
+        let relevant_files = self.versions
+            .iter()
+            .map(|e| format!("{}|{}|{}", e.filename, e.offset, e.len))
+            .collect::<HashSet<String>>();
+        
+        let mut reading_cache = HashMap::<String, VersionMetaGroup>::new();
+        
+        // 读取所有元数据
+        for file in relevant_files {
+            let mut split = file.split("|");
+            
+            let filename = split.next().unwrap();
+            let offset = u64::from_str_radix(split.next().unwrap(), 10).unwrap();
+            let len = u64::from_str_radix(split.next().unwrap(), 10).unwrap();
+            
+            let mut reader = TarReader::new(public_dir.join(&filename));
+
+            reading_cache.insert(file, reader.read_metadata_group(offset, len));
+        }
+
+        // 再根据索引文件里的内容进行返回
+        let mut metas = Vec::<(VersionIndex, VersionMeta)>::new();
+        
+        for v in &self.versions {
+            let cache_key = format!("{}|{}|{}", v.filename, v.offset, v.len);
+            let group = reading_cache.get(&cache_key).unwrap();
+            let meta = group.find_meta(&v.label).unwrap();
+            
+            metas.push((v.clone(), meta.to_owned()));
+        }
+
+        metas
     }
 }
 

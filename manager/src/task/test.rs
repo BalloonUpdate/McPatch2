@@ -13,8 +13,8 @@ pub fn task_test(apppath: &AppPath, _config: &Config, console: &Console) -> u8 {
     let mut tester = ArchiveTester::new();
 
     // 读取现有更新包
-    for v in &index_file {
-        tester.feed(apppath.public_dir.join(&v.filename), v.offset, v.len);
+    for (index, meta) in index_file.read_all_metas(&apppath.public_dir) {
+        tester.feed_version(apppath.public_dir.join(&index.filename), &meta);
     }
 
     // 执行测试

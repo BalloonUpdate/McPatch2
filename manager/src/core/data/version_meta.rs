@@ -101,6 +101,7 @@ pub enum FileChange {
 }
 
 /// 代表一个版本的元数据
+#[derive(Clone)]
 pub struct VersionMeta {
     /// 版本号（也叫标签）
     pub label: String,

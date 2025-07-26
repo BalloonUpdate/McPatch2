@@ -21,13 +21,8 @@ pub fn task_revert(apppath: &AppPath, config: &Config, console: &Console) -> u8 
 
     let mut history = HistoryFile::new_empty();
 
-    for v in &index_file {
-        let mut reader = TarReader::new(apppath.public_dir.join(&v.filename));
-        let meta_group = reader.read_metadata_group(v.offset, v.len);
-
-        for meta in meta_group {
-            history.replay_operations(&meta);
-        }
+    for (_index, meta) in index_file.read_all_metas(&apppath.public_dir) {
+        history.replay_operations(&meta);
     }
 
     // 对比文件

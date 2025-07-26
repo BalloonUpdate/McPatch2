@@ -8,7 +8,6 @@ use crate::core::data::index_file::IndexFile;
 use crate::core::data::index_file::VersionIndex;
 use crate::core::data::version_meta::VersionMeta;
 use crate::core::data::version_meta_group::VersionMetaGroup;
-use crate::core::tar_reader::TarReader;
 use crate::core::tar_writer::TarWriter;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
@@ -46,13 +45,8 @@ pub fn task_pack(version_label: String, change_logs: String, apppath: &AppPath, 
 
     let mut history = HistoryFile::new_dir("workspace_root", Weak::new());
 
-    for v in &index_file {
-        let mut reader = TarReader::new(apppath.public_dir.join(&v.filename));
-        let meta_group = reader.read_metadata_group(v.offset, v.len);
-
-        for meta in &meta_group {
-            history.replay_operations(&meta);
-        }
+    for (_index, meta) in index_file.read_all_metas(&apppath.public_dir) {
+        history.replay_operations(&meta);
     }
 
     // 对比文件
@@ -124,8 +118,8 @@ pub fn task_pack(version_label: String, change_logs: String, apppath: &AppPath, 
     console.log_debug("正在测试");
 
     let mut tester = ArchiveTester::new();
-    for v in &index_file {
-        tester.feed(apppath.public_dir.join(&v.filename), v.offset, v.len);
+    for (index, meta) in index_file.read_all_metas(&apppath.public_dir) {
+        tester.feed_version(apppath.public_dir.join(&index.filename), &meta);
     }
     tester.finish(|e| console.log_debug(format!("{}/{} 正在测试 {} 的 {} ({}+{})", e.index, e.total, e.label, e.path, e.offset, e.len))).unwrap();
 

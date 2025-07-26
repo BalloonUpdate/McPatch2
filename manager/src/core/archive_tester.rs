@@ -7,6 +7,7 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::core::data::version_meta::FileChange;
+use crate::core::data::version_meta::VersionMeta;
 use crate::core::file_hash::calculate_hash;
 use crate::core::tar_reader::TarReader;
 use crate::diff::abstract_file::AbstractFile;
@@ -33,29 +34,24 @@ impl ArchiveTester {
     }
 
     /// 添加一个待测文件
-    pub fn feed(&mut self, archive: impl AsRef<Path>, meta_offset: u64, meta_len: u32) {
-        let mut reader = TarReader::new(&archive);
-        let meta_group = reader.read_metadata_group(meta_offset, meta_len);
+    pub fn feed_version(&mut self, archive: impl AsRef<Path>, meta: &VersionMeta) {
+        self.history.replay_operations(&meta);
 
-        for meta in &meta_group {
-            self.history.replay_operations(&meta);
-    
-            // 记录所有文件的数据和来源
-            for change in &meta.changes {
-                match change {
-                    FileChange::UpdateFile { path, offset, len, .. } => {
-                        let tuple = (archive.as_ref().to_owned(), *offset, *len, meta.label.to_owned());
-                        self.file_locations.insert(path.to_owned(), tuple);
-                    },
-                    FileChange::DeleteFile { path } => {
-                        self.file_locations.remove(path);
-                    },
-                    FileChange::MoveFile { from, to } => {
-                        let hold = self.file_locations.remove(from).unwrap();
-                        self.file_locations.insert(to.to_owned(), hold);
-                    }
-                    _ => (),
+        // 记录所有文件的数据和来源
+        for change in &meta.changes {
+            match change {
+                FileChange::UpdateFile { path, offset, len, .. } => {
+                    let tuple = (archive.as_ref().to_owned(), *offset, *len, meta.label.to_owned());
+                    self.file_locations.insert(path.to_owned(), tuple);
+                },
+                FileChange::DeleteFile { path } => {
+                    self.file_locations.remove(path);
+                },
+                FileChange::MoveFile { from, to } => {
+                    let hold = self.file_locations.remove(from).unwrap();
+                    self.file_locations.insert(to.to_owned(), hold);
                 }
+                _ => (),
             }
         }
     }

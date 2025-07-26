@@ -2,7 +2,6 @@ use std::rc::Weak;
 
 use crate::app_path::AppPath;
 use crate::core::data::index_file::IndexFile;
-use crate::core::tar_reader::TarReader;
 use crate::config::Config;
 use crate::diff::abstract_file::AbstractFile;
 use crate::diff::diff::Diff;
@@ -114,13 +113,8 @@ impl FileStatus {
 
             let mut history = HistoryFile::new_empty();
 
-            for v in &index_file {
-                let mut reader = TarReader::new(app_path.public_dir.join(&v.filename));
-                let meta_group = reader.read_metadata_group(v.offset, v.len);
-
-                for meta in meta_group {
-                    history.replay_operations(&meta);
-                }
+            for (_index, meta) in index_file.read_all_metas(&app_path.public_dir) {
+                history.replay_operations(&meta);
             }
 
             // 对比文件

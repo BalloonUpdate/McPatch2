@@ -16,11 +16,12 @@ pub struct TarReader {
 impl TarReader {
     /// 创建一个TarReader，从`file`读取数据
     pub fn new(file: impl AsRef<Path>) -> Self {
+        // println!("open {:?}", file.as_ref());
         Self { open: std::fs::File::open(file).unwrap() }
     }
 
     /// 读取更新包中的元数据，需要提供元数据的`offset`和`len`以便定位
-    pub fn read_metadata_group(&mut self, offset: u64, len: u32) -> VersionMetaGroup {
+    pub fn read_metadata_group(&mut self, offset: u64, len: u64) -> VersionMetaGroup {
         let mut buf = Vec::<u8>::new();
         buf.resize(len as usize, 0);
 

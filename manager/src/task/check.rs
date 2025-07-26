@@ -3,7 +3,6 @@ use std::rc::Weak;
 use crate::app_path::AppPath;
 use crate::config::Config;
 use crate::core::data::index_file::IndexFile;
-use crate::core::tar_reader::TarReader;
 use crate::diff::diff::Diff;
 use crate::diff::disk_file::DiskFile;
 use crate::diff::history_file::HistoryFile;
@@ -17,13 +16,8 @@ pub fn task_check(apppath: &AppPath, config: &Config, console: &Console) -> u8 {
 
     let mut history = HistoryFile::new_empty();
 
-    for v in &index_file {
-        let mut reader = TarReader::new(apppath.public_dir.join(&v.filename));
-        let meta_group = reader.read_metadata_group(v.offset, v.len);
-
-        for meta in meta_group {
-            history.replay_operations(&meta);
-        }
+    for (_index, meta) in index_file.read_all_metas(&apppath.public_dir) {
+        history.replay_operations(&meta);
     }
 
     // 对比文件

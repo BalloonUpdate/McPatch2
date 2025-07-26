@@ -5,7 +5,6 @@ use serde::Serialize;
 use crate::core::data::index_file::IndexFile;
 use crate::core::data::version_meta::FileChange;
 use crate::core::data::version_meta::VersionMeta;
-use crate::core::tar_reader::TarReader;
 use crate::web::api::PublicResponseBody;
 use crate::web::webstate::WebState;
 
@@ -27,13 +26,8 @@ pub async fn api_version_list(State(state): State<WebState>) -> Response {
 
     let mut metas = Vec::<VersionMeta>::new();
 
-    for v in &index_file {
-        let mut reader = TarReader::new(state.apppath.public_dir.join(&v.filename));
-        let meta_group = reader.read_metadata_group(v.offset, v.len);
-
-        for meta in meta_group {
-            metas.push(meta);
-        }
+    for (_index, meta) in index_file.read_all_metas(&state.apppath.public_dir) {
+        metas.push(meta);
     }
     
     let mut versions = Vec::<Version>::new();
